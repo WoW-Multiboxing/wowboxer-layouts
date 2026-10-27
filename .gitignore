@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+out/
+publish/
+artifacts/
+Releases/
+*.nupkg
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Test results
+TestResults/
+coverage*/
+*.trx
+
+# Logs and local runtime files
+*.log
+diagnose*.txt
+
+# OS
+Thumbs.db
+.DS_Store
