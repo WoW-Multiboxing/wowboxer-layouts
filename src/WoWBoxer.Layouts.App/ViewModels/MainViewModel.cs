@@ -45,6 +45,7 @@ public sealed class MainViewModel : ObservableObject
     private AppTab _tab;
     private StatusLine? _lastStatus;
     private bool _loaded;   // opening the app never moves windows; only edits do
+    private readonly ClientLauncher _launcher = new();
 
     public MainViewModel(AppSettings settings, IUserDialogs dialogs)
     {
@@ -95,7 +96,17 @@ public sealed class MainViewModel : ObservableObject
             Card(PresetKind.Free, "Free for all", "A loose start – drag every window wherever you like."),
         ];
 
+        CloseMineCommand = new RelayCommand(() => _launcher.CloseMine(Status), () => _launcher.Started.Count > 0);
+        RefreshHintsCommand = new RelayCommand(() =>
+        {
+            ReadWowAccounts();
+            Status.Info($"Read {WowAccounts.Count} WoW account(s) and {WowAccounts.Sum(a => a.Characters.Count)} character(s) from the WTF folder.");
+        });
+        BrowseGameCommand = new RelayCommand(BrowseGame);
+        FitActionBarCommand = new RelayCommand(FitActionBar, () => HasSlot);
+
         RefreshMonitors();
+        WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe));
         LoadProfiles();
         RefreshWindows();
         _loaded = true;
@@ -152,7 +163,7 @@ public sealed class MainViewModel : ObservableObject
         private set
         {
             if (!Set(ref _current, value)) return;
-            foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
+            foreach (var name in new[] { nameof(FullActionBar), nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
                 OnPropertyChanged(name);
             RefreshCards();
             RefreshParty();
@@ -313,7 +324,7 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasSlot => Slot is not null;
     public string SlotHeader => Slot is { } s ? $"Window {s.N}{(s.Role == SlotRole.Main ? " · main" : "")}" : "Click a window";
-    public Brush SlotBrush => Slot is { } s ? new SolidColorBrush(WowClasses.ColorFor(s.Class, SelectedSlotIndex)) : Brushes.Gray;
+    public Brush SlotBrush => Slot is { } s ? new SolidColorBrush(WowClasses.ColorFor(s.Class)) : Brushes.Gray;
 
     public string SlotName
     {
@@ -375,11 +386,40 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public string SlotBarText => $"Aspect {SlotGameAspect:0.00} · {ActionBar.Verdict(SlotGameAspect)}";
+
+    /// <summary>In-game alternative: the UI Scale at which the whole bar fits this window (not yet verified in game).</summary>
+    public string SlotUiScaleHint => SlotGameAspect >= 4.0 / 3 - 0.001 || SlotGameAspect <= 0
+        ? ""
+        : $"Or in game: Options → Use UI Scale on, UI Scale {ActionBar.MaxUiScale(SlotGameAspect):0.00} or lower (not tested yet).";
+
+    /// <summary>Layout option: every window that may be shortened gets a 4:3 game area (the whole Classic bar).</summary>
+    public bool FullActionBar
+    {
+        get => Current is not null && Math.Abs(Current.Options.MinAspect - 4.0 / 3) < 0.01;
+        set => EditOptions(o => o with { MinAspect = value ? 4.0 / 3 : 1.25 });
+    }
+
+    /// <summary>Shortens the selected window just enough for a 4:3 game area (keeps its width and its anchor edge).</summary>
+    private void FitActionBar()
+    {
+        if (Slot is not { } s || Current is null) return;
+        var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
+        var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
+        var raw = SlotRect;
+        var fitted = LayoutEngine.Fit(raw, FitMode.ShrinkAnchor, s.Anchor, 4.0 / 3, frame);
+        if (fitted == raw)
+        {
+            Status.Info($"Window {s.N} already shows the whole action bar.");
+            return;
+        }
+        OnSlotEdited(SelectedSlotIndex, SlotEditing.WithRect(s, fitted, Monitors, Current.Options) with { Fit = FitMode.None });
+        Status.Ok($"Window {s.N} is now {fitted.Width} × {fitted.Height}: the whole action bar fits.");
+    }
     public Brush SlotBarBrush => ActionBar.Brush(SlotGameAspect);
 
     private void RaiseSlotProperties()
     {
-        foreach (var name in new[] { nameof(SlotBarText), nameof(SlotBarBrush), nameof(HasSlot), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
+        foreach (var name in new[] { nameof(SlotBarText), nameof(SlotBarBrush), nameof(SlotUiScaleHint), nameof(FullActionBar), nameof(HasSlot), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
             OnPropertyChanged(name);
     }
 
@@ -415,6 +455,10 @@ public sealed class MainViewModel : ObservableObject
     public ICommand BrowseBattleNetCommand { get; }
     public ICommand ShowFirstRunCommand { get; }
     public ICommand StartFromSetupCommand { get; }
+    public ICommand CloseMineCommand { get; }
+    public ICommand RefreshHintsCommand { get; }
+    public ICommand BrowseGameCommand { get; }
+    public ICommand FitActionBarCommand { get; }
 
     // =====================================================================================
     // Saved layouts
@@ -644,6 +688,38 @@ public sealed class MainViewModel : ObservableObject
         set => SetSetting(() => _settings.BattleNetExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
     }
 
+    public string GameExe
+    {
+        get => _settings.GameExe ?? GameInstall.FindExe(null) ?? "";
+        set
+        {
+            SetSetting(() => _settings.GameExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+            ReadWowAccounts();
+        }
+    }
+
+    public bool LaunchLoginScreens
+    {
+        get => _settings.LaunchLoginScreens;
+        set
+        {
+            SetSetting(() => _settings.LaunchLoginScreens = value);
+            OnPropertyChanged(nameof(LaunchViaBattleNet));
+        }
+    }
+
+    public bool LaunchViaBattleNet
+    {
+        get => !LaunchLoginScreens;
+        set => LaunchLoginScreens = !value;
+    }
+
+    private void BrowseGame()
+    {
+        var path = _dialogs.OpenFile("WoW client|Wow*.exe|Programs (*.exe)|*.exe");
+        if (path is not null) GameExe = path;
+    }
+
     private void SetSetting(Action change, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
     {
         change();
@@ -665,30 +741,110 @@ public sealed class MainViewModel : ObservableObject
         ? "No WoW windows are open yet. Press Start squad, then press Play in Battle.net once per account – each window jumps into its place."
         : $"{Windows.Count} WoW window(s) open. Arrange now puts them in this order; use ▲▼ or Identify to check who is who.";
 
+    /// <summary>
+    /// Rows mirror the layout's slots (name, class) plus the local WoW-account choice. Rows are reused when the slot
+    /// count is unchanged, so editing one field never rebuilds the list under the cursor.
+    /// </summary>
     private void RefreshParty()
     {
         if (Current is null) return;
-        var states = Party.ToDictionary(p => p.Number, p => p.State);
-        Party.Clear();
-        for (var i = 0; i < Current.Slots.Count; i++)
+        if (Party.Count != Current.Slots.Count)
         {
-            var s = Current.Slots[i];
-            var index = i;
-            Party.Add(new PartyMember
+            var accounts = WowAccounts.Select(a => a.Name).Prepend("").ToList();
+            var lastPlayed = WowAccounts.ToDictionary(a => a.Name, a => a.LastPlayed, StringComparer.OrdinalIgnoreCase);
+            var states = Party.ToDictionary(p => p.Number, p => p.State);
+            Party.Clear();
+            for (var i = 0; i < Current.Slots.Count; i++)
             {
-                Number = s.N,
-                Role = s.Role == SlotRole.Main ? "Main" : "Follower",
-                Identify = new RelayCommand(() => IdentifySlot(index)),
-                MoveUp = new RelayCommand(() => MoveWindow(index < Windows.Count ? Windows[index] : null, -1), () => index > 0 && index < Windows.Count),
-                MoveDown = new RelayCommand(() => MoveWindow(index < Windows.Count ? Windows[index] : null, 1), () => index < Windows.Count - 1),
-                Label = s.Name ?? WowClasses.Find(s.Class)?.Name ?? (s.Role == SlotRole.Main ? "Main" : $"Follower {s.N - 1}"),
-                ClassBrush = new SolidColorBrush(WowClasses.ColorFor(s.Class, i)),
-                Account = i < _settings.Accounts.Count ? _settings.Accounts[i] : "",
-                State = states.GetValueOrDefault(s.N),
-                AccountChanged = SaveAccount,
-            });
+                var index = i;
+                Party.Add(new PartyMember
+                {
+                    Number = i + 1,
+                    Role = Current.Slots[i].Role == SlotRole.Main ? "Main" : "Follower",
+                    Accounts = accounts,
+                    LastPlayed = lastPlayed,
+                    Identify = new RelayCommand(() => IdentifySlot(index)),
+                    NameChanged = (k, name) => EditSlotAt(k, s => s with { Name = name.Length == 0 ? null : name }),
+                    ClassChanged = (k, c) => EditSlotAt(k, s => s with { Class = c == WowClasses.Automatic ? null : c.Id }),
+                    AccountChanged = SaveAccount,
+                    State = states.GetValueOrDefault(i + 1),
+                });
+            }
+        }
+        for (var i = 0; i < Party.Count; i++)
+        {
+            var slot = Current.Slots[i];
+            Party[i].Load(slot.Name ?? "", WowClasses.Find(slot.Class) ?? WowClasses.Automatic, i < _settings.Accounts.Count ? _settings.Accounts[i] : "");
         }
         UpdatePartyWindows();
+    }
+
+    /// <summary>WoW accounts and characters from the game's WTF folder (read-only hints; refreshed on demand).</summary>
+    public IReadOnlyList<WtfAccount> WowAccounts { get; private set; } = [];
+
+    private void ReadWowAccounts()
+    {
+        try
+        {
+            WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            WowAccounts = [];
+        }
+        Party.Clear();   // rebuild rows with the new lists
+        RefreshParty();
+    }
+
+    private void EditSlotAt(int index, Func<LayoutSlot, LayoutSlot> change)
+    {
+        if (Current is null || index < 0 || index >= Current.Slots.Count) return;
+        OnSlotEdited(index, change(Current.Slots[index]));
+    }
+
+    /// <summary>
+    /// Squad drag and drop: the character in row <paramref name="from"/> (name, class, WoW account and its open window)
+    /// moves to slot position <paramref name="to"/>; the others shift. Slot rectangles stay where they are, so the
+    /// canvas, the rows and – with live on – the real windows all follow the same order.
+    /// </summary>
+    public void MoveCharacter(int from, int to)
+    {
+        if (Current is null || from == to || from < 0 || to < 0 || from >= Current.Slots.Count || to >= Current.Slots.Count) return;
+        var people = Current.Slots.Select(s => (s.Name, s.Class)).ToList();
+        var person = people[from];
+        people.RemoveAt(from);
+        people.Insert(to, person);
+        var slots = Current.Slots.Select((s, i) => s with { Name = people[i].Name, Class = people[i].Class }).ToList();
+
+        while (_settings.Accounts.Count < Current.Slots.Count) _settings.Accounts.Add("");
+        var account = _settings.Accounts[from];
+        _settings.Accounts.RemoveAt(from);
+        _settings.Accounts.Insert(to, account);
+        _settings.Save();
+
+        if (from < Windows.Count && to < Windows.Count)
+        {
+            Windows.Move(from, to);
+            for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
+        }
+        Update(Current with { Slots = slots });
+        Status.Info($"Moved {person.Name ?? $"row {from + 1}"} to slot {to + 1}.");
+    }
+
+    /// <summary>
+    /// Canvas drag and drop: dropping window <paramref name="a"/> onto window <paramref name="b"/> swaps their places on
+    /// screen. Each keeps its number, character and class; with live on the real windows swap too.
+    /// </summary>
+    public void SwapSlots(int a, int b)
+    {
+        if (Current is null || a == b || a < 0 || b < 0 || a >= Current.Slots.Count || b >= Current.Slots.Count) return;
+        LayoutSlot sa = Current.Slots[a], sb = Current.Slots[b];
+        var slots = Current.Slots.ToList();
+        slots[a] = sa with { Monitor = sb.Monitor, X = sb.X, Y = sb.Y, W = sb.W, H = sb.H, Z = sb.Z, Anchor = sb.Anchor, Fit = sb.Fit };
+        slots[b] = sb with { Monitor = sa.Monitor, X = sa.X, Y = sa.Y, W = sa.W, H = sa.H, Z = sa.Z, Anchor = sa.Anchor, Fit = sa.Fit };
+        Update(Current with { Slots = slots });
+        SelectedSlotIndex = a;
+        Status.Info($"Swapped the places of window {a + 1} and window {b + 1}. Ctrl+Z undoes it.");
     }
 
     /// <summary>Row texts, statuses and the start checklist from the open windows.</summary>
@@ -701,13 +857,15 @@ public sealed class MainViewModel : ObservableObject
             var w = i < Windows.Count ? Windows[i] : null;
             Party[i].Window = w is null ? "No window yet" : $"{w.Process} · {w.Detail}";
             if (Party[i].State == PartyState.Problem && w is null) continue;
-            Party[i].State = w is not null && i < placed.Count && WindowPlacer.IsAt(w.Window.Handle, placed[i].Rect) ? PartyState.Placed : PartyState.Waiting;
+            Party[i].State = w is null ? PartyState.Waiting
+                : i < placed.Count && WindowPlacer.IsAt(w.Window.Handle, placed[i].Rect) ? PartyState.Placed
+                : PartyState.Elsewhere;
         }
         var steps = new List<(string Label, bool Done)> { ("Battle.net is running", BattleNet.IsRunning()) };
         for (var i = 0; i < Party.Count; i++)
         {
             var account = Party[i].Account is { Length: > 0 } a ? a : $"account {i + 1}";
-            steps.Add(($"Press Play with {account} – {Party[i].Label}", Party[i].State == PartyState.Placed));
+            steps.Add(($"Log in with {account} – {Party[i].Title}", Party[i].State == PartyState.Placed));
         }
         if (Checklist.Count != steps.Count || Checklist.Select(c => c.Label).Where((l, i) => l != steps[i].Label).Any())
         {
@@ -735,7 +893,7 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
         var w = Windows[index];
-        _dialogs.ShowIdentify([(WindowFinder.VisibleRectOf(w.Window.Handle), w.Slot.ToString(), Party.ElementAtOrDefault(index)?.Label ?? w.Process)]);
+        _dialogs.ShowIdentify([(WindowFinder.VisibleRectOf(w.Window.Handle), w.Slot.ToString(), Party.ElementAtOrDefault(index)?.Title ?? w.Process)]);
     }
 
     /// <summary>Called every couple of seconds while the Squad tab is open, so statuses stay live.</summary>
@@ -744,11 +902,12 @@ public sealed class MainViewModel : ObservableObject
         if (!Busy) RefreshWindows();
     }
 
-    private void SaveAccount(int number, string account)
+    private void SaveAccount(int index, string account)
     {
-        while (_settings.Accounts.Count < number) _settings.Accounts.Add("");
-        _settings.Accounts[number - 1] = account.Trim();
+        while (_settings.Accounts.Count <= index) _settings.Accounts.Add("");
+        _settings.Accounts[index] = account.Trim();
         _settings.Save();
+        UpdatePartyWindows();
     }
 
     private void SetPartyState(int slotIndex, PartyState state)
@@ -761,12 +920,33 @@ public sealed class MainViewModel : ObservableObject
         var found = WindowFinder.FindGameWindows();
         // keep the user's order for windows we already know; new ones go to the end (launch order)
         var known = Windows.Select(w => w.Window.Handle).ToList();
-        var ordered = found.OrderBy(w => known.IndexOf(w.Handle) is var i && i >= 0 ? i : int.MaxValue).ToList();
+        var ordered = known.Count == 0 ? MatchToSlots(found) : found.OrderBy(w => known.IndexOf(w.Handle) is var i && i >= 0 ? i : int.MaxValue).ToList();
         Windows.Clear();
         for (var i = 0; i < ordered.Count; i++) Windows.Add(new GameWindowItem(ordered[i]) { Slot = i + 1 });
         CommandManager.InvalidateRequerySuggested();
         OnPropertyChanged(nameof(SquadHint));
         UpdatePartyWindows();
+    }
+
+    /// <summary>
+    /// First look at the open windows: a window that already sits exactly in a slot gets that slot, the rest fill the
+    /// free slots in launch order. So rows, canvas and screen agree even when the windows were arranged earlier.
+    /// </summary>
+    private List<WindowInfo> MatchToSlots(List<WindowInfo> found)
+    {
+        if (Current is null || Monitors.Count == 0) return found;
+        var placed = LayoutEngine.Resolve(Current, Monitors);
+        var bySlot = new WindowInfo?[Math.Max(found.Count, placed.Count)];
+        var rest = new List<WindowInfo>();
+        foreach (var w in found)
+        {
+            var k = Enumerable.Range(0, placed.Count).FirstOrDefault(i => bySlot[i] is null && WindowPlacer.IsAt(w.Handle, placed[i].Rect), -1);
+            if (k >= 0) bySlot[k] = w;
+            else rest.Add(w);
+        }
+        var queue = new Queue<WindowInfo>(rest);
+        for (var i = 0; i < bySlot.Length && queue.Count > 0; i++) bySlot[i] ??= queue.Dequeue();
+        return bySlot.Where(w => w is not null).Select(w => w!).ToList();
     }
 
     private void MoveWindow(GameWindowItem? item, int delta)
@@ -884,13 +1064,24 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             Status.Title($"Start squad: \"{plan.Profile.Name}\"");
-            SquadWatcher.EnsureBattleNet(Status, _settings.BattleNetExe, plan.ToolIsAdmin);
-            Status.Title(SquadWatcher.BattleNetInstructions(Forever));
-            Status.Title("Then pick the account and press Play – in this order:");
+            if (LaunchLoginScreens)
+            {
+                var missing = Math.Max(0, plan.Slots.Count - WindowFinder.FindGameWindows().Count);
+                if (missing == 0) Status.Info("All clients are already open.");
+                else if (GameInstall.FindExe(_settings.GameExe) is { } exe) _launcher.Start(exe, missing, Status);
+                else Status.Warn("WoW was not found. Set the game exe in Settings.");
+                Status.Title("Log in to each login screen yourself – in this order:");
+            }
+            else
+            {
+                SquadWatcher.EnsureBattleNet(Status, _settings.BattleNetExe, plan.ToolIsAdmin);
+                Status.Title(SquadWatcher.BattleNetInstructions(Forever));
+                Status.Title("Then pick the account and press Play – in this order:");
+            }
             for (var i = 0; i < plan.Slots.Count; i++)
             {
                 var account = i < _settings.Accounts.Count && _settings.Accounts[i].Length > 0 ? $"   ({_settings.Accounts[i]})" : "";
-                Status.Title($"   {i + 1}. {Party.ElementAtOrDefault(i)?.Label ?? plan.Slots[i].Slot.Label}{account}");
+                Status.Title($"   {i + 1}. {Party.ElementAtOrDefault(i)?.Title ?? plan.Slots[i].Slot.Label}{account}");
             }
             Status.Info("Each game window snaps into place as soon as it appears.");
             var watcher = new SquadWatcher(plan, Status);

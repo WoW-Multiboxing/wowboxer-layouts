@@ -169,6 +169,10 @@
                 </Grid.RowDefinitions>
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding FullActionBar}" Margin="0,0,18,0" VerticalAlignment="Center"
+                                  ToolTip="Shortens follower windows just enough that WoW shows the whole Classic action bar (a 4:3 picture)">
+                            <TextBlock Text="Full action bar" Foreground="{StaticResource TextBrush}" />
+                        </CheckBox>
                         <CheckBox x:Name="AllMonitors" Style="{StaticResource Switch}" Margin="0,0,18,0" VerticalAlignment="Center"
                                   ToolTip="Show every monitor, so you can drag a window onto another screen">
                             <TextBlock Text="All monitors" Foreground="{StaticResource TextBrush}" />
@@ -295,6 +299,10 @@
                                         <TextBlock Text="{Binding SlotBarText}" Foreground="#E4E4E4" />
                                     </StackPanel>
                                     <TextBlock Text="Tip: 4:3 or wider shows the whole bar." Foreground="#1EFF00" FontSize="12" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding SlotUiScaleHint}" Foreground="#C8C8C8" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                                               Visibility="{Binding SlotUiScaleHint, Converter={x:Static app:BoolVisibility.Instance}}" />
+                                    <Button Content="Fit action bar" Command="{Binding FitActionBarCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Padding="12,5"
+                                            ToolTip="Shortens this window just enough for the whole bar (keeps its width)" />
                                 </StackPanel>
                             </Border>
                             <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" FontSize="11.5" Text="{Binding SlotInfo}" />

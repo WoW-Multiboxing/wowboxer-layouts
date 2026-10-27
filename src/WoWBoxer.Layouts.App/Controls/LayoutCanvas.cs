@@ -12,6 +12,12 @@ public sealed class SlotEditedEventArgs(int index, LayoutSlot slot) : EventArgs
     public LayoutSlot Slot { get; } = slot;
 }
 
+public sealed class SlotsSwappedEventArgs(int a, int b) : EventArgs
+{
+    public int A { get; } = a;
+    public int B { get; } = b;
+}
+
 /// <summary>
 /// Draws the monitors to scale – exactly what will happen on screen, taskbar included – with the layout's windows
 /// on top. Windows glide to new positions when the layout changes. In edit mode the user moves (drag), resizes
@@ -44,6 +50,9 @@ public sealed class LayoutCanvas : FrameworkElement
     /// <summary>Raised when a drag or nudge has finished with the slot's new position.</summary>
     public event EventHandler<SlotEditedEventArgs>? SlotEdited;
 
+    /// <summary>Raised when a window is dropped onto another one: swap their places.</summary>
+    public event EventHandler<SlotsSwappedEventArgs>? SlotsSwapped;
+
     private const double HandleSize = 9, SnapScreenPixels = 10;
     private static readonly TimeSpan AnimationTime = TimeSpan.FromMilliseconds(320);
 
@@ -53,7 +62,7 @@ public sealed class LayoutCanvas : FrameworkElement
     private int _originX, _originY;
 
     // drag state
-    private int _dragIndex = -1, _hoverIndex = -1;
+    private int _dragIndex = -1, _hoverIndex = -1, _swapTarget = -1;
     private ResizeEdges _dragEdges;
     private PixelRect _dragStart, _dragRect;
     private Point _dragMouse;
@@ -223,7 +232,7 @@ public sealed class LayoutCanvas : FrameworkElement
         var shown = new Dictionary<int, Rect>();
         foreach (var item in items)
         {
-            var color = WowClasses.ColorFor(item.Slot.Class, item.Index);
+            var color = WowClasses.ColorFor(item.Slot.Class);
             var selected = item.Index == SelectedIndex && !Compact;
             var hovered = item.Index == _hoverIndex && !Compact && _dragIndex < 0;
             var target = ToCanvas(item.Fitted);
@@ -299,6 +308,15 @@ public sealed class LayoutCanvas : FrameworkElement
             }
             if (overlay && r.Width > 50)
                 Draw(dc, Text("ON TOP", 9, Brush(0xC0, GoldHi), ppd, display: true), new Point(r.X + 5, r.Y + edge + 3));
+
+            if (item.Index == _swapTarget)
+            {
+                var t = r;
+                t.Inflate(2, 2);
+                dc.DrawRoundedRectangle(Brush(0x30, GoldHi), new Pen(new SolidColorBrush(GoldHi), 2.5) { DashStyle = DashStyles.Dash }, t, 4, 4);
+                var swap = Text("SWAP", 13, new SolidColorBrush(GoldHi), ppd, display: true);
+                Draw(dc, swap, new Point(t.X + (t.Width - swap.Width) / 2, t.Y + 8), shadow: true);
+            }
 
             if (selected && !_animating)
                 foreach (var (handle, _) in Handles(ToCanvas(item.Raw)))
@@ -398,7 +416,22 @@ public sealed class LayoutCanvas : FrameworkElement
             rect = SlotEditing.Snap(rect, _dragEdges, xs, ys, (int)Math.Ceiling(SnapScreenPixels / _scale));
         }
         _dragRect = rect;
+        _swapTarget = _dragEdges == ResizeEdges.All ? SwapTargetAt(p) : -1;
         InvalidateVisual();
+    }
+
+    /// <summary>Another window under the pointer while moving one: dropping there swaps the two.</summary>
+    private int SwapTargetAt(Point p)
+    {
+        foreach (var item in Enumerable.Reverse(Items()))
+        {
+            if (item.Index == _dragIndex) continue;
+            var r = ToCanvas(item.Fitted);
+            // only the middle half counts, so snapping against a neighbour's edge never turns into a swap
+            r.Inflate(-r.Width / 4, -r.Height / 4);
+            if (r.Contains(p)) return item.Index;
+        }
+        return -1;
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
@@ -414,9 +447,12 @@ public sealed class LayoutCanvas : FrameworkElement
         var index = _dragIndex;
         var rect = _dragRect;
         var changed = rect != _dragStart;
+        var target = _swapTarget;
         _dragIndex = -1;
+        _swapTarget = -1;
         ReleaseMouseCapture();
-        if (changed) Commit(index, rect);
+        if (target >= 0) SlotsSwapped?.Invoke(this, new SlotsSwappedEventArgs(index, target));
+        else if (changed) Commit(index, rect);
         InvalidateVisual();
     }
 
@@ -424,6 +460,7 @@ public sealed class LayoutCanvas : FrameworkElement
     {
         if (_dragIndex < 0) return;
         _dragIndex = -1;   // e.g. Escape or focus loss: cancel the drag
+        _swapTarget = -1;
         InvalidateVisual();
     }
 

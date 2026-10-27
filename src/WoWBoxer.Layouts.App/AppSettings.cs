@@ -21,6 +21,11 @@ public sealed class AppSettings
     public bool Animations { get; set; } = true;
     public string LastTab { get; set; } = "Setup";
     public string? BattleNetExe { get; set; }
+    /// <summary>The WoW client exe (WowClassic.exe …); found automatically when empty.</summary>
+    public string? GameExe { get; set; }
+    /// <summary>Start squad: false = open Battle.net (press Play per account), true = open N WoW login screens.</summary>
+    public bool LaunchLoginScreens { get; set; }
+    /// <summary>WoW account folder per slot (index = slot - 1). Local only, never part of a shared layout.</summary>
     public List<string> Accounts { get; set; } = [];
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { WriteIndented = true };

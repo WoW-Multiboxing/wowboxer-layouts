@@ -52,37 +52,84 @@ public sealed class LayoutCard(PresetKind kind, string title, string blurb, ICom
     public bool IsAvailable => _unavailable is null;
 }
 
-public enum PartyState { Waiting, Placed, Problem }
+public enum PartyState { Waiting, Placed, Elsewhere, Problem }
 
-/// <summary>One character of the squad on the Squad tab (party-frame style).</summary>
+/// <summary>
+/// One slot of the squad on the Squad tab: the character (name, class – set by hand, never guessed), the WoW account
+/// it plays on (picked from the WTF folders), the window currently in that slot and its status.
+/// </summary>
 public sealed class PartyMember : ObservableObject
 {
     private PartyState _state;
     private string _account = "";
-    private string _label = "";
-    private Brush _classBrush = Brushes.Gray;
-
+    private string _name = "";
+    private WowClass _class = WowClasses.Automatic;
     private string _window = "No window yet";
+    private bool _dropTarget;
 
     public int Number { get; init; }
+    public int Index => Number - 1;
     public string Role { get; init; } = "";
-    public string Label { get => _label; set => Set(ref _label, value); }
-    /// <summary>The WoW window currently assigned to this slot (process and position), or "No window yet".</summary>
-    public string Window { get => _window; set => Set(ref _window, value); }
-    public ICommand? Identify { get; init; }
-    public ICommand? MoveUp { get; init; }
-    public ICommand? MoveDown { get; init; }
-    public Brush ClassBrush { get => _classBrush; set => Set(ref _classBrush, value); }
+    public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
+    public IReadOnlyList<string> Accounts { get; init; } = [];
+    /// <summary>Last characters per WoW account (from WTF folder times): a hint, never a fact.</summary>
+    public IReadOnlyDictionary<string, WtfCharacter?> LastPlayed { get; init; } = new Dictionary<string, WtfCharacter?>();
+    public Action<int, string>? NameChanged { get; init; }
+    public Action<int, WowClass>? ClassChanged { get; init; }
     public Action<int, string>? AccountChanged { get; init; }
+    public ICommand? Identify { get; init; }
+    public ICommand UseHint => new RelayCommand(() => { if (Hint is { } h) Name = h.Name; }, () => Hint is not null && Hint.Name != Name);
 
+    /// <summary>Character name typed by the user ("" = not set).</summary>
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            value = value.Trim();
+            if (!Set(ref _name, value)) return;
+            OnPropertyChanged(nameof(Title));
+            NameChanged?.Invoke(Index, value);
+        }
+    }
+
+    public WowClass Class
+    {
+        get => _class;
+        set
+        {
+            value ??= WowClasses.Automatic;
+            if (!Set(ref _class, value)) return;
+            OnPropertyChanged(nameof(ClassBrush));
+            OnPropertyChanged(nameof(Title));
+            ClassChanged?.Invoke(Index, value);
+        }
+    }
+
+    public Brush ClassBrush => _class.Brush;
+    public string Title => _name.Length > 0 ? _name : Role == "Main" ? "Main" : $"Follower {Number - 1}";
+
+    /// <summary>The WoW account folder this slot plays on (local setting, never in shared layouts).</summary>
     public string Account
     {
         get => _account;
         set
         {
-            if (Set(ref _account, value)) AccountChanged?.Invoke(Number, value);
+            value ??= "";
+            if (!Set(ref _account, value)) return;
+            OnPropertyChanged(nameof(Hint));
+            OnPropertyChanged(nameof(HintText));
+            AccountChanged?.Invoke(Index, value);
         }
     }
+
+    public WtfCharacter? Hint => _account.Length > 0 && LastPlayed.TryGetValue(_account, out var c) ? c : null;
+    public string HintText => Hint is { } h ? $"Last played here: {h.Display}" : _account.Length > 0 ? "No characters found for this account" : "Pick the WoW account for hints";
+
+    public string Window { get => _window; set => Set(ref _window, value); }
+
+    /// <summary>True while a row is dragged over this one (drop highlight).</summary>
+    public bool IsDropTarget { get => _dropTarget; set => Set(ref _dropTarget, value); }
 
     public PartyState State
     {
@@ -96,9 +143,19 @@ public sealed class PartyMember : ObservableObject
     public string StateText => State switch
     {
         PartyState.Placed => "Placed",
+        PartyState.Elsewhere => "Not in place",
         PartyState.Problem => "Check Activity",
-        _ => "Waiting",
+        _ => "No window",
     };
+
+    /// <summary>Sets values from the layout without calling back (no save loop).</summary>
+    public void Load(string name, WowClass cls, string account)
+    {
+        _name = name;
+        _class = cls;
+        _account = account;
+        foreach (var p in new[] { nameof(Name), nameof(Class), nameof(ClassBrush), nameof(Title), nameof(Account), nameof(Hint), nameof(HintText) }) OnPropertyChanged(p);
+    }
 }
 
 /// <summary>A line of the "Start your squad" checklist.</summary>

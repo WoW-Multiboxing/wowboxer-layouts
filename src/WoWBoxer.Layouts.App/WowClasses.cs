@@ -18,8 +18,8 @@ public sealed record WowClass(string Id, string Name, Color Color)
 
 public static class WowClasses
 {
-    /// <summary>"No class chosen": the slot gets a default accent for its position.</summary>
-    public static readonly WowClass Automatic = new("", "Automatic", Color.FromRgb(0x5A, 0x63, 0x78));
+    /// <summary>"No class set": shown as unknown in a neutral colour – the app never guesses a class.</summary>
+    public static readonly WowClass Automatic = new("", "Unknown class", Color.FromRgb(0x7A, 0x84, 0x99));
 
     public static readonly IReadOnlyList<WowClass> All =
     [
@@ -34,11 +34,8 @@ public static class WowClasses
         new("druid", "Druid", Color.FromRgb(0xFF, 0x7C, 0x0A)),
     ];
 
-    /// <summary>Accent order when a slot has no class yet (the website's party: paladin, priest, warlock …).</summary>
-    private static readonly string[] DefaultOrder = ["paladin", "priest", "warlock", "warrior", "mage", "druid", "hunter", "rogue"];
-
     public static WowClass? Find(string? id) => All.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>The slot's class colour, or a default accent for its position.</summary>
-    public static Color ColorFor(string? id, int index) => (Find(id) ?? Find(DefaultOrder[index % DefaultOrder.Length])!).Color;
+    /// <summary>The slot's class colour, or the neutral "unknown" colour when no class is set.</summary>
+    public static Color ColorFor(string? id) => (Find(id) ?? Automatic).Color;
 }

@@ -82,8 +82,20 @@ public sealed class PartyStateBrush : IValueConverter
     {
         ViewModels.PartyState.Placed => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8C, 0xCB, 0x7A)),
         ViewModels.PartyState.Problem => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE3, 0x7A, 0x7E)),
-        _ => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE6, 0xB4, 0x55)),
+        ViewModels.PartyState.Elsewhere => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE6, 0xB4, 0x55)),
+        _ => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA7, 0x9F, 0x8A)),
     };
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
+/// <summary>Shows the parameter text instead of an empty string.</summary>
+public sealed class EmptyAs : IValueConverter
+{
+    public static readonly EmptyAs Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value is string { Length: > 0 } s ? s : parameter?.ToString() ?? "";
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
 }

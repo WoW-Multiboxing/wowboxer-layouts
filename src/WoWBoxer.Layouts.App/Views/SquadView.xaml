@@ -17,7 +17,7 @@
                 <StackPanel DockPanel.Dock="Top">
                     <TextBlock Style="{StaticResource H1}" Text="Your squad" />
                     <TextBlock Style="{StaticResource Muted}" FontSize="13.5" Margin="0,6,0,0">
-                        <Run Text="Row 1 gets the first window that opens, row 2 the next … · layout" /> <Run Text="{Binding LayoutTitle, Mode=OneWay}" Foreground="{StaticResource GoldHiBrush}" />
+                        <Run Text="Row 1 gets the first window that opens, row 2 the next … Drag ⋮⋮ to reorder · layout" /> <Run Text="{Binding LayoutTitle, Mode=OneWay}" Foreground="{StaticResource GoldHiBrush}" />
                     </TextBlock>
                 </StackPanel>
 
@@ -37,49 +37,77 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="440">
-                        <ItemsControl ItemsSource="{Binding Party}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="470">
+                        <ItemsControl x:Name="PartyList" ItemsSource="{Binding Party}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="6" Margin="0,0,0,8" Padding="12,10" BorderThickness="1" BorderBrush="#2E3850">
+                                    <Border x:Name="Row" CornerRadius="6" Margin="0,0,0,8" Padding="8,10,12,10" BorderThickness="1" BorderBrush="#2E3850"
+                                            AllowDrop="True" DragOver="OnRowDragOver" DragLeave="OnRowDragLeave" Drop="OnRowDrop" Tag="{Binding}">
                                         <Border.Background>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#1C2333" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush>
                                         </Border.Background>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="34" />
-                                                <ColumnDefinition Width="54" />
+                                                <ColumnDefinition Width="26" />
+                                                <ColumnDefinition Width="52" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="200" />
+                                                <ColumnDefinition Width="230" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <Button Content="▲" Padding="5,0" FontSize="10" Command="{Binding MoveUp}" ToolTip="Give this window an earlier slot" Margin="0,0,0,3" />
-                                                <Button Content="▼" Padding="5,0" FontSize="10" Command="{Binding MoveDown}" ToolTip="Give this window a later slot" />
-                                            </StackPanel>
-                                            <Grid Grid.Column="1" Width="42" Height="42" HorizontalAlignment="Left">
+                                            <!-- drag handle -->
+                                            <Border Background="Transparent" Cursor="SizeAll" Tag="{Binding}" ToolTip="Drag to move this character (and its window) to another slot"
+                                                    PreviewMouseLeftButtonDown="OnHandleDown" PreviewMouseMove="OnHandleMove">
+                                                <TextBlock Text="⋮⋮" FontSize="18" Foreground="{StaticResource GoldLoBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <Grid Grid.Column="1" Width="42" Height="42" HorizontalAlignment="Left" VerticalAlignment="Top">
                                                 <Ellipse Stroke="{Binding ClassBrush}" StrokeThickness="2.5">
                                                     <Ellipse.Fill><RadialGradientBrush><GradientStop Color="#232B3E" Offset="0" /><GradientStop Color="#0B0E14" Offset="1" /></RadialGradientBrush></Ellipse.Fill>
                                                 </Ellipse>
                                                 <TextBlock Text="{Binding Number}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                            FontFamily="{StaticResource DisplayFont}" FontSize="18" Foreground="{StaticResource UiGoldBrush}" Effect="{StaticResource HardTextShadow}" />
                                             </Grid>
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,14,0">
-                                                <TextBlock FontFamily="{StaticResource DisplayFont}" FontSize="15" Effect="{StaticResource HardTextShadow}">
-                                                    <Run Text="{Binding Label, Mode=OneWay}" Foreground="{Binding ClassBrush}" />
-                                                    <Run Text="{Binding Role, Mode=OneWay}" FontFamily="{StaticResource BodyFont}" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                            <StackPanel Grid.Column="2" Margin="0,0,14,0">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="8" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                                                    <Grid>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource DisplayFont}" Foreground="{Binding ClassBrush}"
+                                                                 ToolTip="The character playing in this slot. Press Enter to save." />
+                                                        <TextBlock Text="{Binding Title}" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#80A79F8A"
+                                                                   FontFamily="{StaticResource DisplayFont}"
+                                                                   Visibility="{Binding Name, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
+                                                    </Grid>
+                                                    <ComboBox Grid.Column="2" ItemsSource="{Binding Classes}" SelectedItem="{Binding Class}" ToolTip="The class of this character – set it once; the app never guesses">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{Binding Brush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{Binding Name}" />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <TextBlock Margin="2,6,0,0" FontSize="11.5" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding Role, Mode=OneWay}" Foreground="{StaticResource GoldBrush}" /> <Run Text="·" /> <Run Text="{Binding Window, Mode=OneWay}" />
                                                 </TextBlock>
-                                                <Rectangle Height="4" Margin="0,5,0,4" RadiusX="2" RadiusY="2" Fill="{Binding ClassBrush}" Opacity="0.5" />
-                                                <TextBlock Text="{Binding Window}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
-                                            <Grid Grid.Column="3" VerticalAlignment="Center" Margin="0,0,12,0">
-                                                <TextBox Text="{Binding Account, UpdateSourceTrigger=LostFocus}"
-                                                         ToolTip="Optional: which Battle.net account to press Play with (shown in the checklist; never used to log in)" />
-                                                <TextBlock Text="Battle.net account (optional)" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
-                                                           Foreground="#66A79F8A" FontSize="12.5"
-                                                           Visibility="{Binding Account, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
-                                            </Grid>
-                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                                                <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}"
+                                                          ToolTip="The WoW account this slot logs in with (from your WTF folder). Stays on this PC.">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Converter={x:Static app:EmptyAs.Instance}, ConverterParameter=WoW account: not set}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <DockPanel Margin="2,6,0,0">
+                                                    <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Use" Command="{Binding UseHint}" FontSize="11.5"
+                                                            ToolTip="Use this character's name for the slot" />
+                                                    <TextBlock Text="{Binding HintText}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis"
+                                                               ToolTip="A hint from the WTF folder (the character folder WoW wrote last) – not a fact" />
+                                                </DockPanel>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,4,0,0">
                                                 <Border CornerRadius="10" BorderThickness="1" Padding="10,3" Width="86" Margin="0,0,8,0"
                                                         BorderBrush="{Binding State, Converter={x:Static app:PartyStateBrush.Instance}}" Background="#40000000">
                                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -91,6 +119,12 @@
                                             </StackPanel>
                                         </Grid>
                                     </Border>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                            <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
+                                            <Setter TargetName="Row" Property="BorderThickness" Value="2" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -120,6 +154,13 @@
                         <RadioButton Style="{StaticResource SmallSegButton}" Content="Classic Era" GroupName="game"
                                      IsChecked="{Binding Forever, Converter={x:Static app:InvertBool.Instance}}" ToolTip="Changes only the Battle.net instructions" />
                         <RadioButton Style="{StaticResource SmallSegButton}" Content="Forever" GroupName="game" IsChecked="{Binding Forever}" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource StepLabel}" Text="HOW TO START" Margin="0,16,0,8" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource SmallSegButton}" Content="Battle.net" GroupName="launch" IsChecked="{Binding LaunchViaBattleNet}"
+                                     ToolTip="Opens Battle.net; you press Play once per account (choose the account in Battle.net each time)" />
+                        <RadioButton Style="{StaticResource SmallSegButton}" Content="Login screens" GroupName="launch" IsChecked="{Binding LaunchLoginScreens}"
+                                     ToolTip="Opens one WoW login screen per missing client; you log in to each yourself. Nothing is typed for you." />
                     </StackPanel>
                     <ItemsControl ItemsSource="{Binding Checklist}" Margin="0,14,0,0">
                         <ItemsControl.ItemTemplate>
@@ -156,6 +197,8 @@
                     </Button>
                     <Button Content="Stop watching" Command="{Binding StopCommand}" Margin="0,10,0,0" HorizontalAlignment="Stretch"
                             Visibility="{Binding IsWatching, Converter={x:Static app:BoolVisibility.Instance}}" />
+                    <Button Content="Close clients I started" Command="{Binding CloseMineCommand}" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                            ToolTip="Closes only the login screens this app opened – never your own clients" />
                 </StackPanel>
             </ContentControl>
 

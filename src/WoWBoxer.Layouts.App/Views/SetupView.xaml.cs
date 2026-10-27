@@ -10,6 +10,7 @@ public partial class SetupView : UserControl
     {
         InitializeComponent();
         Canvas.SlotEdited += (_, e) => (DataContext as MainViewModel)?.OnSlotEdited(e.Index, e.Slot);
+        Canvas.SlotsSwapped += (_, e) => (DataContext as MainViewModel)?.SwapSlots(e.A, e.B);
     }
 
     /// <summary>"More ▾" opens its menu on a normal click.</summary>

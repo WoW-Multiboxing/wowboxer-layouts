@@ -16,5 +16,11 @@ public static class ActionBar
 
     public static string Verdict(double gameAspect) => gameAspect >= 4.0 / 3 - 0.001 ? "Full action bar" : gameAspect >= 1.2 ? "Gryphon ends clipped" : "Buttons clipped";
 
+    /// <summary>
+    /// Largest UI Scale at which the 1024-unit bar fits: the UI is 768/scale units high, so its width is
+    /// 768 x aspect / scale >= 1024, i.e. scale <= 0.75 x aspect (rounded down to 0.05). Derived, not yet verified in game.
+    /// </summary>
+    public static double MaxUiScale(double gameAspect) => Math.Floor(Math.Min(1.0, 0.75 * gameAspect) * 20) / 20;
+
     public static string Short(double gameAspect) => gameAspect >= 4.0 / 3 - 0.001 ? "Full bar" : gameAspect >= 1.2 ? "Gryphons clipped" : "Bar clipped";
 }
