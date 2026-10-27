@@ -62,8 +62,16 @@ public sealed class PartyMember : ObservableObject
     private string _label = "";
     private Brush _classBrush = Brushes.Gray;
 
+    private string _window = "No window yet";
+
     public int Number { get; init; }
+    public string Role { get; init; } = "";
     public string Label { get => _label; set => Set(ref _label, value); }
+    /// <summary>The WoW window currently assigned to this slot (process and position), or "No window yet".</summary>
+    public string Window { get => _window; set => Set(ref _window, value); }
+    public ICommand? Identify { get; init; }
+    public ICommand? MoveUp { get; init; }
+    public ICommand? MoveDown { get; init; }
     public Brush ClassBrush { get => _classBrush; set => Set(ref _classBrush, value); }
     public Action<int, string>? AccountChanged { get; init; }
 
@@ -87,10 +95,18 @@ public sealed class PartyMember : ObservableObject
 
     public string StateText => State switch
     {
-        PartyState.Placed => "In place",
+        PartyState.Placed => "Placed",
         PartyState.Problem => "Check Activity",
         _ => "Waiting",
     };
+}
+
+/// <summary>A line of the "Start your squad" checklist.</summary>
+public sealed class CheckItem(string label) : ObservableObject
+{
+    private bool _done;
+    public string Label { get; } = label;
+    public bool Done { get => _done; set => Set(ref _done, value); }
 }
 
 /// <summary>An open WoW window in launch order (the order decides who gets which slot).</summary>

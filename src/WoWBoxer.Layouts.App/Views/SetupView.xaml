@@ -101,6 +101,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="14" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ===== Steps 1 + 2 ===== -->
@@ -113,18 +115,18 @@
 
             <ContentControl Style="{StaticResource OrnatePanel}" Padding="20,16,14,16">
                 <StackPanel>
-                    <TextBlock Style="{StaticResource StepLabel}" Text="1  ·  HOW MANY CLIENTS?" />
+                    <TextBlock Style="{StaticResource StepLabel}" Text="I  ·  HOW MANY CLIENTS?" />
                     <ListBox Margin="0,12,0,0" ItemsSource="{Binding ClientCounts}" SelectedItem="{Binding ClientCount}" ItemContainerStyle="{StaticResource SizeItem}"
                              ToolTip="How many WoW clients you play at once. The layout below adapts instantly (Ctrl+ and Ctrl− work too).">
                         <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
                     </ListBox>
-                    <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" Text="One main client you play, the rest follow." />
+                    <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" Text="One per WoW account. Change it any time – the layout rebuilds instantly." />
                 </StackPanel>
             </ContentControl>
 
             <ContentControl Grid.Column="2" Style="{StaticResource OrnatePanel}" Padding="20,16,10,16">
                 <StackPanel>
-                    <TextBlock Style="{StaticResource StepLabel}" Text="2  ·  CHOOSE A LAYOUT" />
+                    <TextBlock Style="{StaticResource StepLabel}" Text="II  ·  PICK A LAYOUT" />
                     <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding Cards}">
                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
@@ -132,15 +134,20 @@
                                 <Button Style="{StaticResource CardButton}" Command="{Binding Apply}" IsEnabled="{Binding IsAvailable}"
                                         ToolTip="{Binding Blurb}">
                                     <StackPanel>
-                                        <Border Height="62" CornerRadius="4" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
-                                            <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" IsHitTestVisible="False"
-                                                            Monitors="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-                                        </Border>
-                                        <DockPanel Margin="0,8,0,0">
-                                            <Path DockPanel.Dock="Right" Data="M1,5 L4.5,8.5 L11,1.5" Stroke="{StaticResource UiGoldBrush}" StrokeThickness="2" VerticalAlignment="Center"
-                                                  Visibility="{Binding IsSelected, Converter={x:Static app:BoolVisibility.Instance}}" />
-                                            <TextBlock Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="12.5" Foreground="{StaticResource ParchmentBrush}" TextTrimming="CharacterEllipsis" />
-                                        </DockPanel>
+                                        <Grid>
+                                            <Border Height="62" CornerRadius="4" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
+                                                <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" IsHitTestVisible="False"
+                                                                Monitors="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                            </Border>
+                                            <!-- active badge -->
+                                            <Grid Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-7,-7,0"
+                                                  Visibility="{Binding IsSelected, Converter={x:Static app:BoolVisibility.Instance}}">
+                                                <Ellipse Fill="#1C170C" Stroke="{StaticResource GoldHiBrush}" StrokeThickness="1.5" />
+                                                <Path Data="M5.5,10 L8.5,13 L14.5,7" Stroke="{StaticResource UiGoldBrush}" StrokeThickness="2" />
+                                            </Grid>
+                                        </Grid>
+                                        <TextBlock Margin="0,8,0,0" Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="11" Foreground="{StaticResource ParchmentBrush}"
+                                                   TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
                                         <TextBlock Text="{Binding Unavailable}" FontSize="11" Foreground="{StaticResource WarnBrush}" Margin="0,2,0,0"
                                                    Visibility="{Binding Unavailable, Converter={x:Static app:BoolVisibility.Instance}}" />
                                     </StackPanel>
@@ -170,10 +177,8 @@
                                   ToolTip="On: your open WoW windows move as soon as you change the layout. Off: use Arrange now on the Squad tab.">
                             <TextBlock Text="Move WoW windows live" Foreground="{StaticResource TextBrush}" />
                         </CheckBox>
-                        <Button Content="Undo" Command="{Binding UndoCommand}" Margin="0,0,8,0" ToolTip="Undo the last change (Ctrl+Z)" />
-                        <Button Content="Reset to preset" Command="{Binding ResetCommand}" ToolTip="Put every window back where the chosen layout puts it" />
                     </StackPanel>
-                    <TextBlock Style="{StaticResource StepLabel}" Text="3  ·  FINE-TUNE" VerticalAlignment="Center" />
+                    <TextBlock Style="{StaticResource StepLabel}" Text="III  ·  FINE-TUNE ON YOUR SCREENS" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding LayoutTitle}" Style="{StaticResource H2}" Margin="16,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </DockPanel>
 
@@ -187,7 +192,27 @@
         </ContentControl>
 
         <!-- ===== Right column ===== -->
-        <ScrollViewer Grid.Row="0" Grid.RowSpan="3" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+        <!-- ===== Sticky footer (app mockup v0.2) ===== -->
+        <Border Grid.Row="4" Grid.Column="0" CornerRadius="8" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="14,10">
+            <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#1A2030" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush></Border.Background>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Command="{Binding ArrangeCommand}" Margin="0,0,12,0" Padding="16,9"
+                            ToolTip="Move the WoW windows that are open now into this layout (F5)">
+                        <TextBlock Text="APPLY TO OPEN WINDOWS" />
+                    </Button>
+                    <Button Style="{StaticResource EnterWorldButton}" Command="{Binding StartFromSetupCommand}" FontSize="16" Padding="22,9"
+                            ToolTip="Open Battle.net and place each WoW window as it opens (Ctrl+Enter)">
+                        <TextBlock Text="▶  START SQUAD" />
+                    </Button>
+                </StackPanel>
+                <Button Content="Undo" Command="{Binding UndoCommand}" Margin="0,0,8,0" Padding="14,9" ToolTip="Undo the last change (Ctrl+Z)" />
+                <Button Content="Reset to preset" Command="{Binding ResetCommand}" Padding="14,9" ToolTip="Put every window back where the chosen layout puts it" />
+                <TextBlock Text="{Binding SavedText}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="16,0,12,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="0" Grid.RowSpan="5" Grid.Column="2" VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <ContentControl Style="{StaticResource OrnatePanel}" Padding="18,16">
                     <StackPanel>
@@ -260,6 +285,18 @@
                                       ToolTip="Keeps this window above the others – used for followers floating over the main client" />
                             <CheckBox Content="Keep the exact size" IsChecked="{Binding SlotKeepSize}" Margin="0,8,0,0"
                                       ToolTip="Never shorten this window to the aspect rule below" />
+                            <!-- action bar verdict, WoW tooltip style -->
+                            <Border CornerRadius="5" BorderThickness="1" BorderBrush="#8E8E8E" Padding="11,8" Margin="0,12,0,0">
+                                <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#0C0F1E" Offset="0" /><GradientStop Color="#060812" Offset="1" /></LinearGradientBrush></Border.Background>
+                                <StackPanel>
+                                    <TextBlock Text="Action bar" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Ellipse Width="8" Height="8" Fill="{Binding SlotBarBrush}" Margin="0,0,7,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SlotBarText}" Foreground="#E4E4E4" />
+                                    </StackPanel>
+                                    <TextBlock Text="Tip: 4:3 or wider shows the whole bar." Foreground="#1EFF00" FontSize="12" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
                             <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" FontSize="11.5" Text="{Binding SlotInfo}" />
                         </StackPanel>
                     </StackPanel>
@@ -283,10 +320,7 @@
                     </StackPanel>
                 </ContentControl>
 
-                <Button Style="{StaticResource EnterWorldButton}" Margin="0,16,0,4" HorizontalAlignment="Stretch" FontSize="16" Padding="16,12"
-                        Command="{Binding SetTabCommand}" CommandParameter="Squad" ToolTip="Go to the Squad tab to start Battle.net and place your windows">
-                    <TextBlock Text="NEXT: YOUR SQUAD  ▶" />
-                </Button>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>

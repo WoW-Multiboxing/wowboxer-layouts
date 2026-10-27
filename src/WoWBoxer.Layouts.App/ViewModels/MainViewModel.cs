@@ -79,6 +79,11 @@ public sealed class MainViewModel : ObservableObject
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
         ShowFirstRunCommand = new RelayCommand(() => FirstRunRequested?.Invoke());
+        StartFromSetupCommand = new RelayCommand(() =>
+        {
+            SelectedTab = AppTab.Squad;
+            _ = StartSquadAsync();
+        }, () => !_busy && Current is not null);
 
         Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
         Cards =
@@ -104,9 +109,11 @@ public sealed class MainViewModel : ObservableObject
     // =====================================================================================
 
     public StatusLog Status { get; } = new();
+    public GuideViewModel Guide { get; } = new();
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
+    public ObservableCollection<CheckItem> Checklist { get; } = [];
     public IReadOnlyList<LayoutCard> Cards { get; }
     public IReadOnlyList<int> ClientCounts { get; } = Enumerable.Range(Presets.MinClients, Presets.MaxClients - Presets.MinClients + 1).ToList();
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
@@ -145,7 +152,7 @@ public sealed class MainViewModel : ObservableObject
         private set
         {
             if (!Set(ref _current, value)) return;
-            foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle) })
+            foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
                 OnPropertyChanged(name);
             RefreshCards();
             RefreshParty();
@@ -154,6 +161,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public string LayoutTitle => Current is null ? "No layout" : Current.Name;
+    public string SavedText => Current is null ? "" : $"Saved automatically as “{Current.Name}”";
 
     public ProfileItem? SelectedProfile
     {
@@ -349,14 +357,29 @@ public sealed class MainViewModel : ObservableObject
             var aspect = gh == 0 ? 0 : (double)gw / gh;
             var text = $"Monitor {monitor.Index} · window {fitted.Width} × {fitted.Height} · game draws {gw} × {gh} ({aspect:0.00})";
             if (fitted != raw) text += $"\nShortened from {raw.Width} × {raw.Height} to keep the aspect rule.";
-            text += aspect >= 4.0 / 3 - 0.001 ? "\nWide enough for the full Classic action bar." : "\nNarrower than 4:3: the ends of the Classic action bar are clipped.";
             return text;
         }
     }
 
+    /// <summary>The selected window's game-area aspect and what it means for Classic's action bar.</summary>
+    private double SlotGameAspect
+    {
+        get
+        {
+            if (Slot is not { } s || Current is null || Monitors.Count == 0) return 0;
+            var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
+            var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
+            var (w, h) = LayoutEngine.GameArea(LayoutEngine.Fit(SlotRect, s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect, frame), frame);
+            return h == 0 ? 0 : (double)w / h;
+        }
+    }
+
+    public string SlotBarText => $"Aspect {SlotGameAspect:0.00} · {ActionBar.Verdict(SlotGameAspect)}";
+    public Brush SlotBarBrush => ActionBar.Brush(SlotGameAspect);
+
     private void RaiseSlotProperties()
     {
-        foreach (var name in new[] { nameof(HasSlot), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
+        foreach (var name in new[] { nameof(SlotBarText), nameof(SlotBarBrush), nameof(HasSlot), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
             OnPropertyChanged(name);
     }
 
@@ -391,6 +414,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand OpenUrlCommand { get; }
     public ICommand BrowseBattleNetCommand { get; }
     public ICommand ShowFirstRunCommand { get; }
+    public ICommand StartFromSetupCommand { get; }
 
     // =====================================================================================
     // Saved layouts
@@ -649,9 +673,14 @@ public sealed class MainViewModel : ObservableObject
         for (var i = 0; i < Current.Slots.Count; i++)
         {
             var s = Current.Slots[i];
+            var index = i;
             Party.Add(new PartyMember
             {
                 Number = s.N,
+                Role = s.Role == SlotRole.Main ? "Main" : "Follower",
+                Identify = new RelayCommand(() => IdentifySlot(index)),
+                MoveUp = new RelayCommand(() => MoveWindow(index < Windows.Count ? Windows[index] : null, -1), () => index > 0 && index < Windows.Count),
+                MoveDown = new RelayCommand(() => MoveWindow(index < Windows.Count ? Windows[index] : null, 1), () => index < Windows.Count - 1),
                 Label = s.Name ?? WowClasses.Find(s.Class)?.Name ?? (s.Role == SlotRole.Main ? "Main" : $"Follower {s.N - 1}"),
                 ClassBrush = new SolidColorBrush(WowClasses.ColorFor(s.Class, i)),
                 Account = i < _settings.Accounts.Count ? _settings.Accounts[i] : "",
@@ -659,6 +688,60 @@ public sealed class MainViewModel : ObservableObject
                 AccountChanged = SaveAccount,
             });
         }
+        UpdatePartyWindows();
+    }
+
+    /// <summary>Row texts, statuses and the start checklist from the open windows.</summary>
+    private void UpdatePartyWindows()
+    {
+        if (Current is null || Monitors.Count == 0) return;
+        var placed = LayoutEngine.Resolve(Current, Monitors);
+        for (var i = 0; i < Party.Count; i++)
+        {
+            var w = i < Windows.Count ? Windows[i] : null;
+            Party[i].Window = w is null ? "No window yet" : $"{w.Process} · {w.Detail}";
+            if (Party[i].State == PartyState.Problem && w is null) continue;
+            Party[i].State = w is not null && i < placed.Count && WindowPlacer.IsAt(w.Window.Handle, placed[i].Rect) ? PartyState.Placed : PartyState.Waiting;
+        }
+        var steps = new List<(string Label, bool Done)> { ("Battle.net is running", BattleNet.IsRunning()) };
+        for (var i = 0; i < Party.Count; i++)
+        {
+            var account = Party[i].Account is { Length: > 0 } a ? a : $"account {i + 1}";
+            steps.Add(($"Press Play with {account} – {Party[i].Label}", Party[i].State == PartyState.Placed));
+        }
+        if (Checklist.Count != steps.Count || Checklist.Select(c => c.Label).Where((l, i) => l != steps[i].Label).Any())
+        {
+            Checklist.Clear();
+            foreach (var (label, _) in steps) Checklist.Add(new CheckItem(label));
+        }
+        for (var i = 0; i < steps.Count; i++) Checklist[i].Done = steps[i].Done;
+        OnPropertyChanged(nameof(HeaderStatus));
+    }
+
+    /// <summary>Short live status for the title bar.</summary>
+    public string HeaderStatus => IsWatching ? "Watching for game windows …" : Windows.Count switch
+    {
+        0 => "No WoW windows open",
+        1 => "1 WoW window open",
+        var n => $"{n} WoW windows open",
+    };
+
+    private void IdentifySlot(int index)
+    {
+        RefreshWindows();
+        if (index >= Windows.Count)
+        {
+            Status.Warn($"Slot {index + 1} has no WoW window yet.");
+            return;
+        }
+        var w = Windows[index];
+        _dialogs.ShowIdentify([(WindowFinder.VisibleRectOf(w.Window.Handle), w.Slot.ToString(), Party.ElementAtOrDefault(index)?.Label ?? w.Process)]);
+    }
+
+    /// <summary>Called every couple of seconds while the Squad tab is open, so statuses stay live.</summary>
+    public void Tick()
+    {
+        if (!Busy) RefreshWindows();
     }
 
     private void SaveAccount(int number, string account)
@@ -681,13 +764,9 @@ public sealed class MainViewModel : ObservableObject
         var ordered = found.OrderBy(w => known.IndexOf(w.Handle) is var i && i >= 0 ? i : int.MaxValue).ToList();
         Windows.Clear();
         for (var i = 0; i < ordered.Count; i++) Windows.Add(new GameWindowItem(ordered[i]) { Slot = i + 1 });
+        CommandManager.InvalidateRequerySuggested();
         OnPropertyChanged(nameof(SquadHint));
-        if (Current is null || Monitors.Count == 0) return;
-        var placed = LayoutEngine.Resolve(Current, Monitors);
-        for (var i = 0; i < Party.Count; i++)
-            Party[i].State = i < Windows.Count && i < placed.Count && WindowPlacer.IsAt(Windows[i].Window.Handle, placed[i].Rect)
-                ? PartyState.Placed
-                : PartyState.Waiting;
+        UpdatePartyWindows();
     }
 
     private void MoveWindow(GameWindowItem? item, int delta)
@@ -698,6 +777,7 @@ public sealed class MainViewModel : ObservableObject
         if (i < 0 || j < 0 || j >= Windows.Count) return;
         Windows.Move(i, j);
         for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
+        UpdatePartyWindows();
         ScheduleLive();
     }
 
@@ -799,6 +879,7 @@ public sealed class MainViewModel : ObservableObject
         Busy = true;
         _watch = new CancellationTokenSource();
         OnPropertyChanged(nameof(IsWatching));
+        OnPropertyChanged(nameof(HeaderStatus));
         foreach (var p in Party) p.State = PartyState.Waiting;
         try
         {
@@ -816,8 +897,8 @@ public sealed class MainViewModel : ObservableObject
             var dispatcher = Application.Current.Dispatcher;
             watcher.AssignmentChanged += (_, slot) => dispatcher.BeginInvoke(() =>
             {
+                RefreshWindows();
                 if (slot >= 0) SetPartyState(slot, PartyState.Placed);
-                else RefreshWindows();
             });
             var token = _watch.Token;
             var ok = await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token));
@@ -830,6 +911,7 @@ public sealed class MainViewModel : ObservableObject
             _watch = null;
             Busy = false;
             OnPropertyChanged(nameof(IsWatching));
+            OnPropertyChanged(nameof(HeaderStatus));
         }
     }
 

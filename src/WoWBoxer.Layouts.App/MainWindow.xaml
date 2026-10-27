@@ -76,6 +76,13 @@
                                 </Button>
                             </StackPanel>
 
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0" ToolTip="Live status">
+                                <Ellipse Width="8" Height="8" Margin="0,0,8,0" Fill="{StaticResource OkBrush}">
+                                    <Ellipse.Effect><DropShadowEffect ShadowDepth="0" BlurRadius="8" Color="#8CCB7A" Opacity="0.8" /></Ellipse.Effect>
+                                </Ellipse>
+                                <TextBlock Text="{Binding HeaderStatus}" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                            </StackPanel>
+
                             <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Left">
                                 <RadioButton Style="{StaticResource NavTab}" Content="SETUP" GroupName="nav"
                                              IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Setup}"

@@ -210,6 +210,15 @@ public sealed class LayoutCanvas : FrameworkElement
         }
 
         var items = Items();
+        if (!Compact)
+            foreach (var m in Shown().Where(m => items.All(i => i.Monitor.Index != m.Index)))
+            {
+                var b = ToCanvas(m.WorkArea);
+                var hint = Text("Free – pick “2 monitors” to put followers here, or drag a window over", 12, Brush(0x90, Parchment), ppd);
+                hint.MaxTextWidth = Math.Max(40, b.Width - 40);
+                hint.TextAlignment = TextAlignment.Center;
+                Draw(dc, hint, new Point(b.X + 20, b.Y + (b.Height - hint.Height) / 2));
+            }
         var shown = new Dictionary<int, Rect>();
         foreach (var item in items)
         {
@@ -251,30 +260,41 @@ public sealed class LayoutCanvas : FrameworkElement
             {
                 if (r.Height > 14 && r.Width > 10)
                 {
-                    var n = Text($"{item.Slot.N}", Math.Clamp(r.Height * 0.32, 8, 13), new SolidColorBrush(Parchment), ppd, display: true);
+                    var n = Text($"{item.Slot.N}", Math.Clamp(r.Height * 0.3, 8, 30), new SolidColorBrush(Color.FromRgb(0xFF, 0xD1, 0x00)), ppd, display: true);
                     Draw(dc, n, new Point(r.X + (r.Width - n.Width) / 2, r.Y + (r.Height - n.Height) / 2 + edge / 2));
                 }
                 continue;
             }
 
-            // number, name, size and aspect
-            var big = Math.Clamp(r.Height * 0.28, 12, 46);
-            var lines = new List<FormattedText> { Text($"{item.Slot.N}", big, new SolidColorBrush(Parchment), ppd, display: true) };
-            if (r.Height > 64 && (item.Slot.Name is { Length: > 0 } || WowClasses.Find(item.Slot.Class) is not null))
-                lines.Add(Text(item.Slot.Name ?? WowClasses.Find(item.Slot.Class)!.Name, 12.5, new SolidColorBrush(color), ppd));
-            if (r.Height > 48 && r.Width > 80)
-            {
-                var (gw, gh) = LayoutEngine.GameArea(item.Fitted, LayoutEngine.FrameSize(Options, item.Monitor.Dpi));
-                var aspect = gh == 0 ? 0 : (double)gw / gh;   // what the game draws in, title bar excluded
-                // green = full Classic action bar (4:3+), amber = bar ends clipped, red = unusually narrow
-                var tone = aspect >= 4.0 / 3 - 0.001 ? Color.FromRgb(0x8C, 0xCB, 0x7A) : aspect >= 1.15 ? Color.FromRgb(0xE6, 0xB4, 0x55) : Color.FromRgb(0xE3, 0x7A, 0x7E);
-                lines.Add(Text($"{item.Fitted.Width} × {item.Fitted.Height}  ·  {aspect.ToString("0.00", CultureInfo.InvariantCulture)}", 11, new SolidColorBrush(tone), ppd));
-            }
-            var y = r.Y + edge / 2 + (r.Height - lines.Sum(l => l.Height)) / 2;
+            // gold number medallion, class/character name, size, action-bar dot (app mockup v0.2)
+            var (gw, gh) = LayoutEngine.GameArea(item.Fitted, LayoutEngine.FrameSize(Options, item.Monitor.Dpi));
+            var aspect = gh == 0 ? 0 : (double)gw / gh;   // what the game draws in, title bar excluded
+            var radiusM = Math.Clamp(Math.Min(r.Width, r.Height) * 0.16, 9, 26);
+            var lines = new List<FormattedText>();
+            var label = item.Slot.Name ?? WowClasses.Find(item.Slot.Class)?.Name;
+            if (r.Height > 70 && label is not null) lines.Add(Text(label, 12.5, new SolidColorBrush(color), ppd, display: true));
+            if (r.Height > 56 && r.Width > 80) lines.Add(Text($"{item.Fitted.Width} × {item.Fitted.Height}", 11, Brush(0xC8, Parchment), ppd));
+            var showBar = r.Height > 84 && r.Width > 110;
+            var barText = showBar ? Text(ActionBar.Short(aspect), 10.5, new SolidColorBrush(ActionBar.ColorFor(aspect)), ppd) : null;
+            var total = radiusM * 2 + 6 + lines.Sum(l => l.Height) + (barText?.Height ?? 0);
+            var y = r.Y + edge / 2 + (r.Height - total) / 2;
+            var mc = new Point(r.X + r.Width / 2, y + radiusM);
+            dc.DrawEllipse(new RadialGradientBrush(Color.FromRgb(0x23, 0x2B, 0x3E), Color.FromRgb(0x0B, 0x0E, 0x14)),
+                new Pen(new LinearGradientBrush(Color.FromRgb(0xF7, 0xE3, 0xA6), Color.FromRgb(0x8C, 0x6B, 0x26), 90), Math.Max(1.5, radiusM * 0.12)), mc, radiusM, radiusM);
+            var num = Text($"{item.Slot.N}", radiusM * 1.15, new SolidColorBrush(Color.FromRgb(0xFF, 0xD1, 0x00)), ppd, display: true);
+            Draw(dc, num, new Point(mc.X - num.Width / 2, mc.Y - num.Height / 2), shadow: true);
+            y += radiusM * 2 + 6;
             foreach (var line in lines)
             {
                 Draw(dc, line, new Point(r.X + (r.Width - line.Width) / 2, y), shadow: true);
                 y += line.Height;
+            }
+            if (barText is not null)
+            {
+                var dot = 7.0;
+                var x0 = r.X + (r.Width - barText.Width - dot - 5) / 2;
+                dc.DrawEllipse(new SolidColorBrush(ActionBar.ColorFor(aspect)), null, new Point(x0 + dot / 2, y + barText.Height / 2 + 0.5), dot / 2, dot / 2);
+                Draw(dc, barText, new Point(x0 + dot + 5, y), shadow: true);
             }
             if (overlay && r.Width > 50)
                 Draw(dc, Text("ON TOP", 9, Brush(0xC0, GoldHi), ppd, display: true), new Point(r.X + 5, r.Y + edge + 3));

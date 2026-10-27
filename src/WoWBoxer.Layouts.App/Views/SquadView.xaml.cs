@@ -7,9 +7,18 @@ namespace WoWBoxer.Layouts.App.Views;
 
 public partial class SquadView : UserControl
 {
+    // While the tab is open, statuses and the checklist follow what happens (windows opening, Battle.net starting).
+    private readonly DispatcherTimer _live = new() { Interval = TimeSpan.FromSeconds(2) };
+
     public SquadView()
     {
         InitializeComponent();
+        _live.Tick += (_, _) => (DataContext as MainViewModel)?.Tick();
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true) _live.Start();
+            else _live.Stop();
+        };
         DataContextChanged += (_, e) =>
         {
             if (e.NewValue is not MainViewModel vm) return;
