@@ -46,6 +46,19 @@ internal static unsafe partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool EnumWindows(delegate* unmanaged<nint, nint, int> callback, nint lParam);
 
+    // Passive WinEvent hooks (listen only; out of context, so nothing is injected into other processes).
+    public const uint EVENT_SYSTEM_FOREGROUND = 0x0003, EVENT_SYSTEM_MINIMIZEEND = 0x0017, EVENT_OBJECT_REORDER = 0x8004,
+        EVENT_OBJECT_LOCATIONCHANGE = 0x800B, WINEVENT_OUTOFCONTEXT = 0x0000, WINEVENT_SKIPOWNPROCESS = 0x0002;
+    public const int OBJID_WINDOW = 0;
+
+    [LibraryImport("user32.dll")]
+    public static partial nint SetWinEventHook(uint eventMin, uint eventMax, nint module,
+        delegate* unmanaged<nint, uint, nint, int, int, uint, uint, void> callback, uint processId, uint threadId, uint flags);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool UnhookWinEvent(nint hook);
+
     [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
     public static partial int GetClassName(nint hWnd, char* name, int max);
 

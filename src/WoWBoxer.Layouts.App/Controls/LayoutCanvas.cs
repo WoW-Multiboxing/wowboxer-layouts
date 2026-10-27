@@ -36,8 +36,8 @@ public sealed class LayoutCanvas : FrameworkElement
         nameof(Compact), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty ShowAllMonitorsProperty = DependencyProperty.Register(
         nameof(ShowAllMonitors), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
-    public static readonly DependencyProperty MeasuredBarsProperty = DependencyProperty.Register(
-        nameof(MeasuredBars), typeof(IReadOnlyDictionary<int, ViewModels.MeasuredBar>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty LiveSlotsProperty = DependencyProperty.Register(
+        nameof(LiveSlots), typeof(IReadOnlyDictionary<int, ViewModels.LiveSlot>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty UiScaleProperty = DependencyProperty.Register(
         nameof(UiScale), typeof(double), typeof(LayoutCanvas), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
@@ -51,7 +51,7 @@ public sealed class LayoutCanvas : FrameworkElement
     /// <summary>False: draw only the monitors the layout uses (bigger), true: every monitor (to drag windows across).</summary>
     public bool ShowAllMonitors { get => (bool)GetValue(ShowAllMonitorsProperty); set => SetValue(ShowAllMonitorsProperty, value); }
     /// <summary>Slot index → what the open WoW window in that slot really draws. Those slots show the measured action-bar state (solid dot).</summary>
-    public IReadOnlyDictionary<int, ViewModels.MeasuredBar>? MeasuredBars { get => (IReadOnlyDictionary<int, ViewModels.MeasuredBar>?)GetValue(MeasuredBarsProperty); set => SetValue(MeasuredBarsProperty, value); }
+    public IReadOnlyDictionary<int, ViewModels.LiveSlot>? LiveSlots { get => (IReadOnlyDictionary<int, ViewModels.LiveSlot>?)GetValue(LiveSlotsProperty); set => SetValue(LiveSlotsProperty, value); }
     /// <summary>WoW's UI Scale (1 = automatic), used for the planned state of slots without an open window (ring dot).</summary>
     public double UiScale { get => (double)GetValue(UiScaleProperty); set => SetValue(UiScaleProperty, value); }
 
@@ -287,7 +287,7 @@ public sealed class LayoutCanvas : FrameworkElement
             // gold number medallion, class/character name, size, action-bar dot (app mockup v0.2)
             var (gw, gh) = LayoutEngine.GameArea(item.Fitted, LayoutEngine.FrameSize(Options, item.Monitor.Dpi));
             // what the action bar sees: measured on the open window, or planned (game area / UI Scale)
-            var measured = MeasuredBars is { } bars && bars.TryGetValue(item.Index, out var bar) ? bar : null;
+            var measured = LiveSlots is { } bars && bars.TryGetValue(item.Index, out var bar) ? bar : null;
             var aspect = measured?.Effective ?? (gh == 0 ? 0 : (double)gw / gh / Math.Max(0.1, UiScale));
             var radiusM = Math.Clamp(Math.Min(r.Width, r.Height) * 0.16, 9, 26);
             var lines = new List<FormattedText>();
@@ -319,8 +319,15 @@ public sealed class LayoutCanvas : FrameworkElement
                 else dc.DrawEllipse(null, new Pen(barBrush, 1.4), centre, dot / 2 - 0.7, dot / 2 - 0.7);   // planned
                 Draw(dc, barText, new Point(x0 + dot + 5, y), shadow: true);
             }
-            if (overlay && r.Width > 50)
-                Draw(dc, Text("ON TOP", 9, Brush(0xC0, GoldHi), ppd, display: true), new Point(r.X + 5, r.Y + edge + 3));
+            // pin: the slot is "always on top"; red when the real window differs (the guard puts it right in a moment)
+            var realTop = measured?.Topmost;
+            if ((overlay || realTop == true) && r.Width > 50)
+            {
+                var pinColor = realTop is null || realTop == overlay ? GoldHi : Color.FromRgb(0xE3, 0x7A, 0x7E);
+                DrawPin(dc, new Point(r.X + 9, r.Y + edge + 9), new SolidColorBrush(pinColor));
+                var pinLabel = realTop is null || realTop == overlay ? "ON TOP" : overlay ? "NOT ON TOP YET" : "ON TOP (NOT WANTED)";
+                Draw(dc, Text(pinLabel, 9, new SolidColorBrush(pinColor), ppd, display: true), new Point(r.X + 17, r.Y + edge + 3));
+            }
 
             if (item.Index == _swapTarget)
             {
@@ -525,6 +532,13 @@ public sealed class LayoutCanvas : FrameworkElement
         new(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
             new Typeface(display ? DisplayFont : BodyFont, FontStyles.Normal, display ? FontWeights.Normal : FontWeights.SemiBold, FontStretches.Normal),
             size, brush, pixelsPerDip);
+
+    /// <summary>A small push-pin: round head with a needle, pointing down-left.</summary>
+    private static void DrawPin(DrawingContext dc, Point head, Brush brush)
+    {
+        dc.DrawLine(new Pen(brush, 1.6) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, new Point(head.X - 1, head.Y + 1), new Point(head.X - 5, head.Y + 5));
+        dc.DrawEllipse(brush, new Pen(new SolidColorBrush(Color.FromArgb(0xC0, 0, 0, 0)), 0.8), new Point(head.X + 1, head.Y - 1), 3.2, 3.2);
+    }
 
     private static void Draw(DrawingContext dc, FormattedText text, Point at, bool shadow = false)
     {

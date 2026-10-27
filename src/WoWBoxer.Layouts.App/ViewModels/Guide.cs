@@ -58,7 +58,7 @@ public sealed class GuideViewModel : ObservableObject
                 [
                     "Battle.net (default): press Play with account 1, then 2, then 3 … – pick the account in Battle.net each time.",
                     "Login screens: the app opens one WoW login screen per missing client; you log in to each yourself.",
-                    "Wrong order? Drag the rows on the Squad tab by ⋮⋮, or use Identify to see which window is which.",
+                    "Wrong order? Drag the rows under \"Your squad\" by ⋮⋮, or use Identify to see which window is which.",
                 ],
                 "WoWBoxer never logs in for you and never types anything. \"Close clients I started\" only closes the login screens it opened."),
             new(4, "Switch between windows",

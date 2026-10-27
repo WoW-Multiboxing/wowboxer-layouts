@@ -14,10 +14,9 @@
     <Window.InputBindings>
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Setup" />
-        <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Squad" />
-        <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Guide" />
-        <KeyBinding Key="D4" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Settings" />
-        <KeyBinding Key="D5" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="About" />
+        <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Guide" />
+        <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Settings" />
+        <KeyBinding Key="D4" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="About" />
         <KeyBinding Key="F5" Command="{Binding ArrangeCommand}" />
         <KeyBinding Key="I" Modifiers="Control" Command="{Binding IdentifyCommand}" />
         <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding StartSquadCommand}" />
@@ -88,19 +87,16 @@
                             <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Left">
                                 <RadioButton Style="{StaticResource NavTab}" Content="SETUP" GroupName="nav"
                                              IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Setup}"
-                                             ToolTip="How many clients and which layout (Ctrl+1)" />
-                                <RadioButton Style="{StaticResource NavTab}" Content="SQUAD" GroupName="nav"
-                                             IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Squad}"
-                                             ToolTip="Start Battle.net and place the game windows (Ctrl+2)" />
+                                             ToolTip="Clients, layout, your squad and Start squad – all on one screen (Ctrl+1)" />
                                 <RadioButton Style="{StaticResource NavTab}" Content="GUIDE" GroupName="nav"
                                              IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Guide}"
-                                             ToolTip="Quick guide: WoW settings and tips (Ctrl+3)" />
+                                             ToolTip="Quick guide: WoW settings and tips (Ctrl+2)" />
                                 <RadioButton Style="{StaticResource NavTab}" Content="SETTINGS" GroupName="nav"
                                              IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Settings}"
-                                             ToolTip="Game, windows, Battle.net, updates (Ctrl+4)" />
+                                             ToolTip="Game, windows, Battle.net, updates (Ctrl+3)" />
                                 <RadioButton Style="{StaticResource NavTab}" Content="ABOUT" GroupName="nav"
                                              IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=About}"
-                                             ToolTip="Version, licence, privacy (Ctrl+5)" />
+                                             ToolTip="Version, licence, privacy (Ctrl+4)" />
                             </StackPanel>
                         </DockPanel>
                     </Grid>
@@ -109,7 +105,6 @@
                 <!-- ===== Pages ===== -->
                 <Grid Grid.Row="1" x:Name="Pages" Margin="20,16,20,10">
                     <v:SetupView x:Name="SetupPage" Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Setup}" />
-                    <v:SquadView x:Name="SquadPage" Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Squad}" />
                     <v:GuideView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Guide}" />
                     <v:SettingsView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Settings}" />
                     <v:AboutView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=About}" />

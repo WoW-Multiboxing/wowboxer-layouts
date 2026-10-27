@@ -109,11 +109,10 @@ Check 'Shorten window instead (window 1) gives a 4:3 game area' {
 }
 
 # window picker, measured action bar, Fix action bar (must refuse while clients of the install run)
-$picker = FindId 'SlotPicker'
-(Pattern $picker ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)).Expand(); Start-Sleep -Milliseconds 200
-(Pattern (Find 'Window 2' $picker) ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
-(Pattern $picker ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)).Collapse(); Start-Sleep -Milliseconds 400
-Check 'Window picker selects window 2' { [bool](Find 'Window 2 · main') -or [bool](Find 'Window 2') }
+Check 'Your squad shows one row per window' { @((Main).FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem))) | Where-Object { $_.Current.Name -match '^Window \d$' }).Count -eq 3 }
+Pick 'Window 2'
+Check 'Selecting squad row 2 selects window 2 (details open in the row)' { (Pattern (Find 'Window 2') ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Current.IsSelected -and [bool](Find 'Always on top (floating overlay)') }
+Check 'Auto-fit action bar switch is there and on by default' { (ToggleState 'Auto-fit action bar') -eq 'On' -and (Settings).autoFitActionBar -ne $false }
 Check 'Action bar text says Now (measured) or Planned' { (FindId 'SlotBarText').Current.Name -match '^(Now|Planned): ' }
 $eraCfg = 'C:\Program Files (x86)\World of Warcraft\_classic_era_\WTF\Config.wtf'
 $wowRunning = @(Get-Process WowClassic -ErrorAction SilentlyContinue).Count
@@ -142,8 +141,8 @@ if ((Settings).lastProfile -eq 'UI sweep renamed') { Invoke 'More ▾'; Invoke '
 Check 'Delete removes the layout' { -not (Test-Path (Join-Path $profiles 'UI sweep renamed.json')) }
 
 # ---- other tabs ----
-Pick 'SQUAD'
-Check 'Squad shows one row per slot' { @((Main).FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Identify')))).Count -ge 1 }
+Check 'No Squad tab any more (merged into Setup)' { -not (Find 'SQUAD') }
+Check 'Each squad row has Identify' { @((Main).FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Identify')))).Count -ge 3 }
 Pick 'Login screens'; Check 'Launch mode: login screens saved' { (Settings).launchLoginScreens -eq $true }
 Pick 'Battle.net';    Check 'Launch mode: Battle.net saved' { (Settings).launchLoginScreens -eq $false }
 Pick 'GUIDE'

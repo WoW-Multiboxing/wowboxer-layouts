@@ -42,6 +42,16 @@ public partial class MainWindow : Window, IUserDialogs
             };
 
         ViewModel.Status.Info("Ready. This app only moves and resizes windows – it never sends keys or clicks to the game.");
+
+        // Rows, statuses, "on top" and Auto-fit follow what happens (windows opening and closing) while the app runs,
+        // also in the tray. Paused while a squad row is dragged.
+        var live = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        live.Tick += (_, _) =>
+        {
+            if (!Views.SetupView.Dragging) ViewModel.Tick();
+        };
+        live.Start();
+        Closed += (_, _) => live.Stop();
     }
 
     private static void AnimateIn(FrameworkElement page)

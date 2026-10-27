@@ -28,6 +28,8 @@ public sealed class AppSettings
     public string? GameExe { get; set; }
     /// <summary>Start squad: false = open Battle.net (press Play per account), true = open N WoW login screens.</summary>
     public bool LaunchLoginScreens { get; set; }
+    /// <summary>Set WoW's UI Scale automatically (while the clients are closed) so the whole action bar fits.</summary>
+    public bool AutoFitActionBar { get; set; } = true;
     /// <summary>WoW account folder per slot (index = slot - 1). Local only, never part of a shared layout.</summary>
     public List<string> Accounts { get; set; } = [];
 

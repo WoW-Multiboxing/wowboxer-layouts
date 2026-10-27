@@ -6,7 +6,7 @@ using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.App.ViewModels;
 
-public enum AppTab { Setup, Squad, Guide, Settings, About }
+public enum AppTab { Setup, Guide, Settings, About }
 
 /// <summary>A saved layout in the "Saved layouts" list.</summary>
 public sealed class ProfileItem(StoredProfile stored) : ObservableObject
@@ -55,7 +55,7 @@ public sealed class LayoutCard(PresetKind kind, string title, string blurb, ICom
 public enum PartyState { Waiting, Placed, Elsewhere, Problem }
 
 /// <summary>
-/// One slot of the squad on the Squad tab: the character (name, class – set by hand, never guessed), the WoW account
+/// One slot of the squad ("Your squad" panel on Setup): the character (name, class – set by hand, never guessed), the WoW account
 /// it plays on (picked from the WTF folders), the window currently in that slot and its status.
 /// </summary>
 public sealed class PartyMember : ObservableObject
@@ -68,6 +68,8 @@ public sealed class PartyMember : ObservableObject
     private bool _dropTarget;
 
     public int Number { get; init; }
+    /// <summary>Name for UI Automation and screen readers: "Window 2".</summary>
+    public string AutomationName => $"Window {Number}";
     public int Index => Number - 1;
     public string Role { get; init; } = "";
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
@@ -127,6 +129,49 @@ public sealed class PartyMember : ObservableObject
     public string HintText => Hint is { } h ? $"Last played here: {h.Display}" : _account.Length > 0 ? "No characters found for this account" : "Pick the WoW account for hints";
 
     public string Window { get => _window; set => Set(ref _window, value); }
+
+    private bool _onTop;
+    private bool? _topNow;
+
+    /// <summary>The slot wants "always on top".</summary>
+    public bool OnTop
+    {
+        get => _onTop;
+        set
+        {
+            if (Set(ref _onTop, value)) RaisePin();
+        }
+    }
+
+    /// <summary>Whether Windows really has this slot's window on top (null = no window open).</summary>
+    public bool? TopNow
+    {
+        get => _topNow;
+        set
+        {
+            if (Set(ref _topNow, value)) RaisePin();
+        }
+    }
+
+    /// <summary>Pin shown on the row: the slot is "on top", or its window is (when it should not be).</summary>
+    public bool ShowPin => _onTop || _topNow == true;
+
+    /// <summary>Gold = on top as wanted; red = differs from the layout (the guard puts it right within a moment).</summary>
+    public Brush PinBrush => _topNow is null || _topNow == _onTop ? (Brush)System.Windows.Application.Current.FindResource("GoldHiBrush") : (Brush)System.Windows.Application.Current.FindResource("NoBrush");
+
+    public string PinText => !_onTop ? "Not on top, but Windows has it on top" : _topNow switch
+    {
+        true => "Always on top – the window is on top",
+        false => "Always on top – the window is not on top yet",
+        _ => "Always on top (no window open)",
+    };
+
+    private void RaisePin()
+    {
+        OnPropertyChanged(nameof(ShowPin));
+        OnPropertyChanged(nameof(PinBrush));
+        OnPropertyChanged(nameof(PinText));
+    }
 
     /// <summary>True while a row is dragged over this one (drop highlight).</summary>
     public bool IsDropTarget { get => _dropTarget; set => Set(ref _dropTarget, value); }

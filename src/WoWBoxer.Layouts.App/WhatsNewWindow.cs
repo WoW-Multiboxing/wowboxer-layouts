@@ -12,14 +12,12 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes, shortest first. Keep it to what a player notices.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
-        ("Always on top works both ways",
-            "The main window can float on top now, and a window you take off \"on top\" really comes down again – at once, on Arrange, on Start squad and when the app starts."),
-        ("Only the selected game is arranged",
-            "Each window's game is read from its install folder (_classic_era_, _forever_ …). With Classic Era selected, a Forever window is left alone – and each game keeps its own layouts."),
-        ("Action bar: the real state",
-            "The action-bar mark on each window is measured on the open game window (its real size and UI Scale), not guessed from the layout. \"Fix action bar\" tells you exactly what to change, or writes the UI Scale for you while WoW is closed."),
-        ("You can see the version",
-            "The version is shown in the title bar and on About, and this list appears once after each update."),
+        ("One screen",
+            "Squad is now part of Setup: clients and layout on the left, your screens in the middle, \"Your squad\" on the right. Click a row to edit that window – its details and \"Always on top\" open right in the row."),
+        ("The action bar fits by itself",
+            "Auto-fit action bar (on by default) sets WoW's UI Scale for you whenever all clients are closed – before Start squad or when the last one closes. Verified: at 0.93 your followers show the whole bar."),
+        ("Always on top stays on top",
+            "Switching it applies at once, live mode on or off. The app now also watches (listening only) when windows change focus or move, and puts \"on top\" right again. A pin on the map and on each row shows the real state."),
     ];
 
     public static bool ShouldShow(AppSettings settings, string version) =>

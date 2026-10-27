@@ -10,8 +10,9 @@ using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.App.ViewModels;
 
-/// <summary>What an open WoW window really draws: its game area and the action bar's effective aspect (aspect / UI Scale).</summary>
-public sealed record MeasuredBar(int Width, int Height, double Effective);
+/// <summary>What the open WoW window in a slot really is right now: its game area, the action bar's effective aspect
+/// (aspect / UI Scale) and whether Windows has it "always on top".</summary>
+public sealed record LiveSlot(int Width, int Height, double Effective, bool Topmost);
 
 /// <summary>What the view model needs from the window (dialogs, clipboard, overlays).</summary>
 public interface IUserDialogs
@@ -83,11 +84,7 @@ public sealed class MainViewModel : ObservableObject
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
         ShowFirstRunCommand = new RelayCommand(() => FirstRunRequested?.Invoke());
-        StartFromSetupCommand = new RelayCommand(() =>
-        {
-            SelectedTab = AppTab.Squad;
-            _ = StartSquadAsync();
-        }, () => !_busy && Current is not null);
+        StartFromSetupCommand = new RelayCommand(() => _ = StartSquadAsync(), () => !_busy && Current is not null);
 
         Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
         Cards =
@@ -115,8 +112,37 @@ public sealed class MainViewModel : ObservableObject
         LoadProfiles();
         RefreshWindows();
         ApplyOnTop();   // "always on top" is restored at start; positions are not (opening the app never moves windows)
+        // Keeps "on top" right when Windows changes the foreground window or a WoW window moves (listening only).
+        _guard = new ZOrderGuard(WantedZOrder, OnZCorrected);
+        _lastRunning = RunningClientsNow();
         _loaded = true;
+        if (_lastRunning == 0) AutoFitUiScale("no clients are running");
     }
+
+    private readonly ZOrderGuard _guard;
+    private readonly Dictionary<nint, DateTime> _zLogged = [];
+    private int _lastRunning;
+
+    /// <summary>The open WoW windows with the z-order of the slot each one is in (Windows[i] sits in slot i).</summary>
+    private IReadOnlyList<(nint Handle, ZOrder Z)> WantedZOrder()
+    {
+        if (Current is null) return [];
+        var list = new List<(nint, ZOrder)>();
+        for (var i = 0; i < Windows.Count && i < Current.Slots.Count; i++) list.Add((Windows[i].Window.Handle, Current.Slots[i].Z));
+        return list;
+    }
+
+    private void OnZCorrected(nint handle, ZOrder z)
+    {
+        var slot = Windows.Select(w => w.Window.Handle).ToList().IndexOf(handle) + 1;
+        if (_zLogged.TryGetValue(handle, out var at) && DateTime.UtcNow - at < TimeSpan.FromMinutes(1)) return;   // log once a minute per window
+        _zLogged[handle] = DateTime.UtcNow;
+        Status.Info($"Window {slot}: \"on top\" was {(z == ZOrder.Top ? "lost" : "set by something else")} – put right again.");
+    }
+
+    /// <summary>How many clients of the selected game's install are running (Auto-fit may only write while this is 0).</summary>
+    private int RunningClientsNow() =>
+        GameInstall.FindExe(_settings.GameExe, SelectedGame) is { } exe ? UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!) : -1;
 
     private LayoutCard Card(PresetKind kind, string title, string blurb) =>
         new(kind, title, blurb, new RelayCommand(() => ApplyKind(kind)));
@@ -157,7 +183,7 @@ public sealed class MainViewModel : ObservableObject
             if (!Set(ref _tab, value)) return;
             _settings.LastTab = value.ToString();
             _settings.Save();
-            if (value == AppTab.Squad) RefreshWindows();
+            if (value == AppTab.Setup) RefreshWindows();
         }
     }
 
@@ -419,14 +445,14 @@ public sealed class MainViewModel : ObservableObject
     {
         get
         {
-            if (MeasuredBars.TryGetValue(SelectedSlotIndex, out var m))
+            if (LiveSlots.TryGetValue(SelectedSlotIndex, out var m))
                 return $"Now: game draws {m.Width} × {m.Height}, UI Scale {UiScaleNow.Display} · {ActionBar.Verdict(m.Effective)}";
             var planned = UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
             return $"Planned: aspect {SlotGameAspect:0.00}, UI Scale {UiScaleNow.Display} · {ActionBar.Verdict(planned)}";
         }
     }
 
-    private double SlotEffectiveAspect => MeasuredBars.TryGetValue(SelectedSlotIndex, out var m) ? m.Effective : UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
+    private double SlotEffectiveAspect => LiveSlots.TryGetValue(SelectedSlotIndex, out var m) ? m.Effective : UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
 
     /// <summary>The fix for a clipped bar: the UI Scale this window needs (one value is shared by every client).</summary>
     public string SlotUiScaleHint => SlotEffectiveAspect >= 4.0 / 3 - 0.001 || SlotGameAspect <= 0
@@ -439,25 +465,30 @@ public sealed class MainViewModel : ObservableObject
     public double UiScaleEffective => UiScaleNow.Effective;
 
     /// <summary>Slot index → what the open window in that slot really shows (game area and the bar's effective aspect).</summary>
-    public IReadOnlyDictionary<int, MeasuredBar> MeasuredBars { get; private set; } = new Dictionary<int, MeasuredBar>();
+    public IReadOnlyDictionary<int, LiveSlot> LiveSlots { get; private set; } = new Dictionary<int, LiveSlot>();
 
     /// <summary>Re-reads UI Scale and measures every open window in its slot. Raises only when something changed.</summary>
     private void MeasureBars()
     {
         var exe = GameInstall.FindExe(_settings.GameExe, SelectedGame);
         var scale = exe is null ? UiScaleSetting.Automatic : UiScaleFix.Read(exe);
-        var measured = new Dictionary<int, MeasuredBar>();
+        var measured = new Dictionary<int, LiveSlot>();
         for (var i = 0; i < Windows.Count && Current is not null && i < Current.Slots.Count; i++)
         {
             var (w, h) = WindowFinder.ClientSizeOf(Windows[i].Window.Handle);
-            if (w > 0 && h > 0) measured[i] = new MeasuredBar(w, h, UiScale.EffectiveAspect((double)w / h, scale));
+            if (w > 0 && h > 0) measured[i] = new LiveSlot(w, h, UiScale.EffectiveAspect((double)w / h, scale), WindowPlacer.IsTopmost(Windows[i].Window.Handle));
         }
-        if (scale == UiScaleNow && measured.Count == MeasuredBars.Count && measured.All(kv => MeasuredBars.TryGetValue(kv.Key, out var old) && old == kv.Value)) return;
+        if (scale == UiScaleNow && measured.Count == LiveSlots.Count && measured.All(kv => LiveSlots.TryGetValue(kv.Key, out var old) && old == kv.Value)) return;
         UiScaleNow = scale;
-        MeasuredBars = measured;
+        LiveSlots = measured;
         OnPropertyChanged(nameof(UiScaleNow));
         OnPropertyChanged(nameof(UiScaleEffective));
-        OnPropertyChanged(nameof(MeasuredBars));
+        OnPropertyChanged(nameof(LiveSlots));
+        for (var i = 0; i < Party.Count; i++)
+        {
+            Party[i].OnTop = Current?.Slots.ElementAtOrDefault(i)?.Z == ZOrder.Top;
+            Party[i].TopNow = measured.TryGetValue(i, out var live) ? live.Topmost : null;
+        }
         RaiseSlotProperties();
     }
 
@@ -510,8 +541,13 @@ public sealed class MainViewModel : ObservableObject
             Status.Warn(error + " Or untick Use UI Scale in game.");
             return;
         }
+        if (_settings.AutoFitActionBar)
+        {
+            AutoFitActionBar = false;   // or it would set it again the next time the clients are closed
+            OnPropertyChanged(nameof(AutoFitActionBar));
+        }
         MeasureBars();
-        Status.Ok($"Use UI Scale is off again for {SelectedGameName} (automatic UI size).");
+        Status.Ok($"Use UI Scale is off again for {SelectedGameName} (automatic UI size). Auto-fit action bar is off too.");
     }
 
     /// <summary>Layout option: every window that may be shortened gets a 4:3 game area (the whole Classic bar).</summary>
@@ -692,6 +728,7 @@ public sealed class MainViewModel : ObservableObject
         LastProfileName = profile.Name;
         ApplyOnTop();
         ScheduleLive();
+        if (_loaded && _settings.AutoFitActionBar && RunningClientsNow() == 0) AutoFitUiScale("the layout changed");
     }
 
     public void OnSlotEdited(int index, LayoutSlot slot)
@@ -991,6 +1028,7 @@ public sealed class MainViewModel : ObservableObject
         Update(Current with { Slots = slots });
         // The window order changed even when names did not (unnamed rows): always refresh and move the windows.
         RefreshParty();
+        ApplyOnTop();
         ScheduleLive();
         Status.Info($"Moved {person.Name ?? $"row {from + 1}"} to slot {to + 1}.");
     }
@@ -1061,10 +1099,53 @@ public sealed class MainViewModel : ObservableObject
         _dialogs.ShowIdentify([(WindowFinder.VisibleRectOf(w.Window.Handle), w.Slot.ToString(), Party.ElementAtOrDefault(index)?.Title ?? w.Process)]);
     }
 
-    /// <summary>Called every couple of seconds while the Squad tab is open, so statuses stay live.</summary>
+    /// <summary>
+    /// Called every couple of seconds while the app runs: rows, statuses and "on top" follow what happens (windows
+    /// opening and closing), and when the last client of the install closes, Auto-fit may set the UI Scale.
+    /// </summary>
     public void Tick()
     {
         if (!Busy) RefreshWindows();
+        _guard.Reassert();   // safety net next to the event hooks
+        var running = RunningClientsNow();
+        if (running == 0 && _lastRunning > 0) AutoFitUiScale("the last client closed");
+        _lastRunning = running;
+    }
+
+    public bool AutoFitActionBar
+    {
+        get => _settings.AutoFitActionBar;
+        set
+        {
+            SetSetting(() => _settings.AutoFitActionBar = value);
+            if (value && RunningClientsNow() == 0) AutoFitUiScale("Auto-fit was switched on");
+        }
+    }
+
+    private string _uiScaleNotice = "";
+
+    /// <summary>A short line under the map after Auto-fit changed the UI Scale ("" = nothing to say).</summary>
+    public string UiScaleNotice { get => _uiScaleNotice; private set => Set(ref _uiScaleNotice, value); }
+
+    /// <summary>
+    /// "Auto-fit action bar": while no client of the install runs (WoW rewrites Config.wtf when a client closes), set the
+    /// one UI Scale at which every window of the current layout shows the whole bar – only if the current one is too big.
+    /// </summary>
+    private void AutoFitUiScale(string why)
+    {
+        if (!_settings.AutoFitActionBar || Current is null) return;
+        var need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
+        if (need is null || GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe) return;
+        var now = UiScaleFix.Read(exe);
+        if (now.Use && now.Scale <= need.Value + 0.001) return;
+        if (UiScaleFix.Write(exe, use: true, need.Value) is { } error)
+        {
+            Status.Warn("Auto-fit action bar: " + error);
+            return;
+        }
+        MeasureBars();
+        UiScaleNotice = $"UI Scale set to {need:0.00} so the full action bar fits in every window ({why}; backup kept).";
+        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SelectedGameName}'s Config.wtf so the full bar fits in every window of \"{Current.Name}\" ({why}; backup kept).");
     }
 
     private void SaveAccount(int index, string account)
@@ -1078,6 +1159,22 @@ public sealed class MainViewModel : ObservableObject
     private void SetPartyState(int slotIndex, PartyState state)
     {
         if (slotIndex >= 0 && slotIndex < Party.Count) Party[slotIndex].State = state;
+    }
+
+    /// <summary>
+    /// Start squad decides which window goes to which slot; the rows (and "on top") must use the same mapping, not the
+    /// launch order, or a window could get another slot's "on top".
+    /// </summary>
+    private void SyncWindowsTo(IReadOnlyDictionary<nint, int> assigned)
+    {
+        var found = WindowFinder.FindGameWindows(SelectedGame);
+        var bySlot = found.Where(w => assigned.ContainsKey(w.Handle)).OrderBy(w => assigned[w.Handle]).ToList();
+        var rest = found.Where(w => !assigned.ContainsKey(w.Handle));
+        Windows.Clear();
+        foreach (var w in bySlot.Concat(rest)) Windows.Add(new GameWindowItem(w) { Slot = Windows.Count + 1 });
+        OnPropertyChanged(nameof(SquadHint));
+        UpdatePartyWindows();
+        ApplyOnTop();
     }
 
     public void RefreshWindows()
@@ -1123,6 +1220,7 @@ public sealed class MainViewModel : ObservableObject
         Windows.Move(i, j);
         for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
         UpdatePartyWindows();
+        ApplyOnTop();
         ScheduleLive();
     }
 
@@ -1174,12 +1272,12 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Makes "always on top" of the open windows match their slots right away (set and cleared, no move). Runs at start
-    /// and after every edit while live is on; Arrange and Start squad apply it as part of placing.
+    /// Makes "always on top" of the open windows match their slots right away (set and cleared, no move) – with live
+    /// on or off, because it never moves a window. Runs at start, after every edit and after reordering.
     /// </summary>
     private void ApplyOnTop()
     {
-        if (Current is null || !LiveApply) return;
+        if (Current is null) return;
         for (var i = 0; i < Windows.Count && i < Current.Slots.Count; i++)
             WindowPlacer.ApplyZOrder(Windows[i].Window.Handle, Current.Slots[i].Z);
     }
@@ -1244,6 +1342,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             Status.Title($"Start squad: \"{plan.Profile.Name}\"");
+            if (RunningClientsNow() == 0) AutoFitUiScale("before Start squad");
             if (LaunchLoginScreens)
             {
                 var missing = Math.Max(0, plan.Slots.Count - WindowFinder.FindGameWindows(SelectedGame).Count);
@@ -1266,11 +1365,15 @@ public sealed class MainViewModel : ObservableObject
             Status.Info("Each game window snaps into place as soon as it appears.");
             var watcher = new SquadWatcher(plan, Status);
             var dispatcher = Application.Current.Dispatcher;
-            watcher.AssignmentChanged += (_, slot) => dispatcher.BeginInvoke(() =>
+            watcher.AssignmentChanged += (_, slot) =>
             {
-                RefreshWindows();
-                if (slot >= 0) SetPartyState(slot, PartyState.Placed);
-            });
+                var assigned = watcher.Assigned.ToDictionary(kv => kv.Key, kv => kv.Value);   // snapshot on the watcher's thread
+                dispatcher.BeginInvoke(() =>
+                {
+                    SyncWindowsTo(assigned);
+                    if (slot >= 0) SetPartyState(slot, PartyState.Placed);
+                });
+            };
             var token = _watch.Token;
             var order = OrderedWindows().Select(w => w.Handle).ToList();   // the rows' order, not launch order
             var ok = await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token, order));

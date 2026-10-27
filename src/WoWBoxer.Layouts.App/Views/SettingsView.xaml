@@ -39,7 +39,8 @@
                         <TextBlock Style="{StaticResource Explain}" Text="When you change the layout, open game windows move right away. Off: use Arrange now." />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding RenameWindows}"><TextBlock Text="Title WoW windows with the character names" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="The game windows become &quot;WoW - name&quot; on the taskbar, for windows with a character name." />
-                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding Animations}"><TextBlock Text="Animations" /></CheckBox>
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding AutoFitActionBar}"><TextBlock Text="Auto-fit action bar (UI Scale)" /></CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="When all clients of the game are closed (before Start squad, or when the last one closes), the app sets WoW's UI Scale so the whole action bar fits in every window. Only then: WoW rewrites the setting when a client closes. A backup is kept." />                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding Animations}"><TextBlock Text="Animations" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="Windows glide into place on the map. Turn off for a calmer screen." />
                         <Button Content="Give WoW windows their title bars back" Command="{Binding RestoreFramesCommand}" HorizontalAlignment="Left" Margin="0,16,0,0"
                                 ToolTip="Undo &quot;remove title bars&quot; on every open WoW window" />
