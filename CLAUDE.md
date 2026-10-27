@@ -20,8 +20,12 @@ windows in a chosen layout. Part of the WoWBoxer project (manual multiboxing: on
   Classic Era 2026: class `waApplication Window`, exe `WowClassic.exe`. Forever: unknown until launch (4 Nov 2026).
 - 5:4 minimum aspect before WoW letterboxes (own measurement; make it a setting).
 - WoW resizes itself while loading: re-apply placement for ~30 s per new window.
-- After moving a borderless window, WoW may keep drawing at the old size (cut-off action bars).
-  The prototype's `$ResizeNudge` (shrink 2 px and back) is the candidate fix – still untested.
+- **Removing the title bar breaks WoW's UI** (action bars/minimap drawn at the wrong size). Field-tested
+  2026-10-27 with 3 Classic Era clients: the 2 px resize nudge does NOT fix it; keeping title bars does.
+  So borderless is opt-in (`--borderless`) and framed windows are placed by their visible edges
+  (DWM extended frame bounds), so there are no gaps. Aspect was not the cause: 805×664 (1.21) renders fine.
+- `wbx capture` saves any hand-made arrangement (Windows Snap etc.) as a layout file – the escape hatch
+  when a preset does not suit a setup.
 - Per-Monitor-V2 DPI. Detect admin mismatch (UIPI) and tell the user instead of silently elevating.
 - Diagnose report and log file from day one.
 

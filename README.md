@@ -36,6 +36,9 @@ Presets (2–8 clients): `side` (default), `overlay` (followers float on top of 
 
 Tips:
 - Set WoW's Display Mode to **Windowed**.
+- Title bars stay on by default: without them WoW can draw its action bars at the wrong size. `--borderless` removes them anyway.
+- Your own layout: arrange the windows by hand (Windows Snap, mouse), then `wbx capture --save my.json`.
+  From then on `wbx arrange --profile my.json` (or `wbx start --profile my.json`) puts them back exactly.
 - If windows do not move, Battle.net probably runs as administrator. Start it normally and try again;
   `wbx diagnose` tells you.
 - Logs stay on your PC: `%LOCALAPPDATA%\WoWBoxer\Layouts\logs`. Nothing is sent anywhere.
