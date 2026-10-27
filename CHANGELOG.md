@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### v0.2 – "feels like a game client"
+- **New look** after the website and the app mockup v0.2: custom "War Table" theme (navy panels with gold corner
+  brackets, Cinzel headings, red/gold "Enter World" buttons, WoW-tooltip boxes, gold switches), custom title bar with
+  the shield crest, tabs **Setup · Squad · Guide · Settings · About**, live status in the title bar, page transitions,
+  glide animation when windows change place, new shield icon, installer splash and welcome screen.
+- **Setup:** I. how many clients (2–8), II. layout cards with live previews of your monitors (Main + side, Overlays,
+  Grid, 2 monitors, Free for all – one click applies), III. the canvas: the taskbar is drawn and labelled (the
+  "unused strip" was the taskbar), "Cover the taskbar area" with an auto-hide check, only the monitors in use (or all),
+  gold number medallions with an action-bar verdict per window, live move of open WoW windows, sticky footer
+  (Undo · Reset to preset · saved automatically · Apply to open windows · Start squad), class colour per window.
+- **Squad:** one row per character and its window (status Waiting → Placed, Identify, ▲▼ order), a live
+  "Start your squad" checklist (Battle.net running, Play with account 1 … N), layout preview, activity log.
+- **Guide:** quest-log chapters on a parchment page (prepare WoW, layouts, start, switching windows, troubleshooting,
+  what it never does), a helper that opens the Windows hover setting, and a link to the website guide.
+- **Exact sizes:** with title bars on, the aspect rule and the presets use the *game area* (window minus the 32 px
+  caption/border, scaled with DPI), so "4:3" really gives the game a 4:3 picture.
+- Core: Free-for-all preset, optional `class` per slot, `preset` per layout (for Reset); 797 tests.
+- Fixes: opening the app never moves windows; the window being edited is drawn above its neighbours.
+- Tested on the owner's PC with screenshots, UI Automation and a guarded real mouse drag on the app's own window.
+
 ### App (M2–M5)
 - **WPF app** with the Windows 11 Fluent dark theme (Mica): monitors drawn to scale, colour-coded slots with size
   and aspect (green = 4:3+, full Classic action bar).

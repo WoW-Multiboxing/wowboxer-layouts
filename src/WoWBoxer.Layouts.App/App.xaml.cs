@@ -91,12 +91,13 @@ public partial class App : Application
     private void CreateTray()
     {
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Open", null, (_, _) => ShowMain());
+        menu.Items.Add("Open WoWBoxer", null, (_, _) => ShowMain());
         menu.Items.Add("Start squad", null, (_, _) => Run(_main!.ViewModel.StartSquadCommand));
         menu.Items.Add("Arrange now", null, (_, _) => Run(_main!.ViewModel.ArrangeCommand));
         menu.Items.Add("Identify windows", null, (_, _) => Run(_main!.ViewModel.IdentifyCommand));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
+        TrayMenuStyle.Apply(menu);
 
         using var stream = GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"))!.Stream;
         _tray = new Forms.NotifyIcon

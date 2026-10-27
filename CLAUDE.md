@@ -20,6 +20,9 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
   Screenshot the app to review its UI.
 - Only stop for things that truly need his hands/eyes in the game (pressing Play, logging in, in-game options)
   or his decisions. Batch those into ONE short numbered checklist, then keep working. Ask for permissions directly.
+- UI direction lives in the project folder: `02_Spec/Window-app-design-notes.md` and the mockup `02_Spec/Window-app-mockup/`.
+  Re-read them at the start of every milestone and before each UI pass; note what you used/rejected in the notes'
+  "Claude Code status" section.
 - Continue through the milestones without waiting. After each milestone: `[WS-C]` entry in LOG.md, row C in
   00_Workstreams.md (project folder, Danish).
 

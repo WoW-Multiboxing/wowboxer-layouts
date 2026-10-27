@@ -51,7 +51,8 @@ jobs:
           vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o Releases
           vpk pack --packId WoWBoxer.Layouts --packVersion ${{ steps.v.outputs.version }} --packDir publish/app `
             --mainExe WoWBoxer.Layouts.exe --packTitle "WoWBoxer Window Layouts" --packAuthors "WoWBoxer" `
-            --icon src/WoWBoxer.Layouts.App/Assets/app.ico --runtime win-x64 --framework net10.0-x64-desktop -o Releases
+            --icon src/WoWBoxer.Layouts.App/Assets/app.ico --splashImage src/WoWBoxer.Layouts.App/Assets/splash.png `
+            --runtime win-x64 --framework net10.0-x64-desktop -o Releases
 
       - name: Publish GitHub Release
         run: >

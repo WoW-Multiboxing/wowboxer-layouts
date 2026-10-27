@@ -8,15 +8,19 @@ It only moves, resizes and restyles windows. See [privacy](docs/privacy.md).
 
 ## The app
 
-- **Monitor canvas:** your monitors drawn to scale. Drag windows to move them, drag the handles to resize; edges snap
-  to monitors and to each other (Alt = free). Arrow keys nudge, Ctrl+arrows resize, Ctrl+Z undoes.
-- **Presets for 2–8 clients:** Main + side, Overlay (followers float on top of the main window), Grid,
-  Main + second monitor.
-- **Layouts** are saved automatically. Share one as a `WBX1:` code or a `.json` file.
-  **Capture current windows** turns any arrangement you made by hand (e.g. Windows Snap) into a layout.
-- **Start squad:** starts Battle.net, tells you which account to press Play with, and places each WoW window as it
-  opens. **Arrange now** places the windows that are already open; reorder them with ▲▼ and check with **Identify**.
-- **Tray icon** and a **desktop shortcut** that starts a layout in one click. **Diagnose** writes a report you can send.
+A game-client style app (dark "war table" look, gold trim, class colours) with five tabs:
+
+- **Setup** – I. how many clients (2–8) · II. pick a layout card with a live preview (Main + side, Overlays, Grid,
+  2 monitors, Free for all) · III. fine-tune on a to-scale map of your monitors: drag, resize, snap, nudge, undo,
+  class colour and name per window, and a verdict per window on whether Classic's action bar fits. Your open WoW
+  windows can follow live. Layouts save automatically; share them as `WBX1:` codes or files, or capture an
+  arrangement you made by hand.
+- **Squad** – Start squad opens Battle.net and places each window as it opens (you press Play), with a live
+  checklist and one row per character. Arrange now, Identify, reorder.
+- **Guide** – a short quest-log guide: WoW display settings, switching windows, troubleshooting, the rules.
+- **Settings** / **About** – live moves, window titles, Battle.net path, updates, Diagnose, shortcut, licence, privacy.
+
+Tray icon and a desktop shortcut that starts a layout in one click.
 
 Install: download `WoWBoxer.Layouts-win-Setup.exe` from Releases. It installs the .NET 10 Desktop Runtime if needed
 and updates itself.

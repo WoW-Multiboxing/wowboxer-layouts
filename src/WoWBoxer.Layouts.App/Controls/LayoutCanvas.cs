@@ -89,7 +89,8 @@ public sealed class LayoutCanvas : FrameworkElement
             list.Add(new Item(i, slot, monitor, raw, LayoutEngine.Fit(raw, slot.Fit ?? Options.Fit, slot.Anchor, Options.MinAspect, LayoutEngine.FrameSize(Options, monitor.Dpi))));
         }
         // overlays (always on top) are drawn last and hit first
-        return list.OrderBy(t => t.Slot.Z == ZOrder.Top ? 1 : 0).ThenBy(t => t.Index).ToList();
+        // overlays above the rest, and the window being edited above its neighbours
+        return list.OrderBy(t => t.Slot.Z == ZOrder.Top ? 1 : 0).ThenBy(t => t.Index == SelectedIndex ? 1 : 0).ThenBy(t => t.Index).ToList();
     }
 
     /// <summary>The monitors to draw: all of them, or in a compact preview only those the layout uses.</summary>

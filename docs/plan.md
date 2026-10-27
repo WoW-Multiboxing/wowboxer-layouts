@@ -1,6 +1,6 @@
 # WoWBoxer Window Layouts – plan for the Windows desktop app
 
-> 2026-10-27. Status: **M0–M4 done, M5 built (installer + auto-update; signing waits for SignPath). M6 field test with Forever from 4–5 Nov.** Builds on `01_Research/platform/03-window-program.md` (stack, signing, pitfalls) and on what the PowerShell launcher taught us (`03_Output/Multibox-Launcher/`).
+> 2026-10-27. Status: **M0–M4 done, M5 built (installer + auto-update; signing waits for SignPath), v0.2 UI done (game-client look after the app mockup). M6 field test with Forever from 4–5 Nov.** Builds on `01_Research/platform/03-window-program.md` (stack, signing, pitfalls) and on what the PowerShell launcher taught us (`03_Output/Multibox-Launcher/`).
 > Written in English because it goes to Claude Code and into a public (MIT) repo.
 
 ## 1. Goal
