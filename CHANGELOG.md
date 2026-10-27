@@ -15,7 +15,7 @@
   "Fix action bar" writes the one UI Scale the squad needs (owner: 0.93) – only while all clients of that install are
   closed, with a backup – or shows the exact in-game steps. "UI Scale off" undoes it; "Shorten window instead" keeps
   the old 4:3 route. The action-bar mark is now measured on the open window (solid dot) instead of guessed (ring);
-  "buttons clipped" starts below 1.30 (owner's screenshot). `wbx info`/`wbx snap` print the same verdict.
+  "buttons clipped" starts below 1.26 (owner's screenshot; was 1.2). `wbx info`/`wbx snap` print the same verdict.
 - **Visible version:** title bar and About show the version (was stuck at 0.1.0), "What's new" once after an update.
 - Inspector: a window picker next to the header (keyboard and UI Automation friendly).
 

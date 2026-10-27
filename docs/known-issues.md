@@ -40,7 +40,7 @@ Newest first. "Workaround" is what to do today; "Plan" is the fix.
 - **A Forever window was pulled into the Classic Era layout.** Windows are now filtered by game, from the exe's
   install folder (`_classic_era_`, `_forever_` …; exe names are shared between games). Each game has its own layouts.
 - **The action-bar mark was a guess from the layout.** It is now measured on the open window (game area + UI Scale);
-  the threshold for "buttons clipped" was corrected to 1.30 after the owner's follower screenshot (1.25 cuts the bags).
+  the threshold for "buttons clipped" was corrected to 1.26 after the owner's follower screenshot (1.25 cuts the bags; 1.269 shows every button).
 - **Fixes were not visible:** the CLI and app reported version 0.1.0 (never bumped). Version now in the title bar and
   About, and "What's new" appears once after an update.
 

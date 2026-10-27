@@ -55,7 +55,7 @@ Consequences for the app:
   ≤ 0.95, followers 830×664 need ≤ 0.93 → **0.93**.
 - Written only while **no** client of that install runs (otherwise the last client to close overwrites it), only the
   two lines, with a one-time backup `Config.wtf.wowboxer-backup`. "UI Scale off" sets `useUiScale "0"`.
-- The action-bar mark uses (game aspect ÷ UI Scale); "buttons clipped" below 1.30, "gryphons clipped" up to 4:3.
+- The action-bar mark uses (game aspect ÷ UI Scale); "buttons clipped" below 1.26, "gryphons clipped" up to 4:3 (main 1726×1360 = 1.269: every button visible).
 
 ### Earlier read-only check (same day)
 - Shared `WTF\Config.wtf`: no `uiScale`/`useUiScale` line. Every `WTF\Account\<ACC>\config-cache.wtf`: none either.

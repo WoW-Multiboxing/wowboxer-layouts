@@ -101,12 +101,30 @@ Check 'Undo after 3→4 clients gives 3 again' { (Current).clients -eq 3 }
 Invoke 'Reset to preset'; Check 'Reset to preset keeps 3 clients side' { $p = Current; $p.clients -eq 3 -and $p.preset -eq 'side' }
 
 # ---- inspector ----
-Invoke 'Fit action bar'
-Check 'Fit action bar on window 1 gives a 4:3 game area' {
+Invoke 'Shorten window instead'
+Check 'Shorten window instead (window 1) gives a 4:3 game area' {
   $s = @((Current).slots)[0]; $b = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
   $w = [math]::Round($b.Width * $s.w / 100); $h = [math]::Round($b.Height * $s.h / 100)
   (($w - 2) / ($h - 32)) -ge (4/3 - 0.01)
 }
+
+# window picker, measured action bar, Fix action bar (must refuse while clients of the install run)
+$picker = FindId 'SlotPicker'
+(Pattern $picker ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)).Expand(); Start-Sleep -Milliseconds 200
+(Pattern (Find 'Window 2' $picker) ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
+(Pattern $picker ([System.Windows.Automation.ExpandCollapsePattern]::Pattern)).Collapse(); Start-Sleep -Milliseconds 400
+Check 'Window picker selects window 2' { [bool](Find 'Window 2 · main') -or [bool](Find 'Window 2') }
+Check 'Action bar text says Now (measured) or Planned' { (FindId 'SlotBarText').Current.Name -match '^(Now|Planned): ' }
+$eraCfg = 'C:\Program Files (x86)\World of Warcraft\_classic_era_\WTF\Config.wtf'
+$wowRunning = @(Get-Process WowClassic -ErrorAction SilentlyContinue).Count
+if ($wowRunning -gt 0 -and (Test-Path $eraCfg)) {
+  $hash = (Get-FileHash $eraCfg).Hash
+  (Pattern (FindId 'FixUiScale') ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600
+  Check 'Fix action bar with clients running writes nothing' { (Get-FileHash $eraCfg).Hash -eq $hash -and -not (Test-Path "$eraCfg.wowboxer-backup") }
+} else { $results.Add('SKIP  Fix action bar refusal (no Classic Era client running)') }
+
+# ---- version ----
+Check 'Title bar shows the version' { (FindId 'TitleVersion').Current.Name -match '^v\d+\.\d+\.\d+$' -and (Main).Current.Name -match 'WoWBoxer Window Layouts \d+\.\d+\.\d+' }
 
 # ---- share codes ----
 Invoke 'More ▾'; Invoke 'Copy layout code (WBX1:)'
@@ -139,6 +157,9 @@ foreach ($t in 'Title WoW windows with the character names', 'Animations', 'Chec
   $before = ToggleState $t; SetToggle $t ($before -ne 'On'); SetToggle $t ($before -eq 'On')
   Check "Setting toggles and restores: $t" { (ToggleState $t) -eq $before }
 }
+# game switch: each game has its own layouts and last layout
+Pick 'Forever'; Check 'Game Forever: a Forever layout is selected' { (Settings).forever -eq $true -and [bool](Settings).lastProfileForever -and (Get-Content (Join-Path $profiles ((Settings).lastProfileForever + '.json')) -Raw | ConvertFrom-Json).game -eq 'forever' }
+Pick 'Classic Era'; Check 'Game Classic Era: back to the Classic layout' { (Settings).forever -eq $false -and (Settings).lastProfile -like 'UI sweep*' }
 Pick 'ABOUT'; Check 'About shows the version' { [bool](Find 'Version') -or [bool](Find 'WINDOW LAYOUTS') }
 
 # ---- clean up ----

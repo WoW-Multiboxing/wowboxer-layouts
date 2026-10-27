@@ -27,7 +27,7 @@ public static partial class UiScale
     public const double Min = 0.64, Max = 1.0;
 
     /// <summary>Below this effective aspect buttons are cut too, not only the gryphon ends.</summary>
-    public const double GryphonsOnly = 1.3;
+    public const double GryphonsOnly = 1.26;
 
     public static UiScaleSetting Read(string configText)
     {
@@ -63,7 +63,7 @@ public static partial class UiScale
         return need >= Max ? null : need;
     }
 
-    /// <summary>What a window shows of the bar at this effective aspect (field tests: 1.31 loses only the gryphons; 1.25 already cuts the bag buttons).</summary>
+    /// <summary>What a window shows of the bar at this effective aspect (field tests: 1.269 loses only the gryphon ends; 1.25 already cuts the bag buttons).</summary>
     public static string BarVerdict(double effectiveAspect) =>
         effectiveAspect >= 4.0 / 3 - 0.001 ? "Full action bar" : effectiveAspect >= GryphonsOnly ? "Gryphon ends clipped" : "Buttons clipped";
 

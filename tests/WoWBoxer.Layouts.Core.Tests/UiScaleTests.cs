@@ -51,6 +51,7 @@ public class UiScaleTests
     [Theory]
     [InlineData(1.25, "Buttons clipped")]          // owner's follower screenshot: no left gryphon, cut mid-bags
     [InlineData(1.31, "Gryphon ends clipped")]     // 868x664 field test
+    [InlineData(1726.0 / 1360, "Gryphon ends clipped")]  // owner's main: every button incl. backpack visible
     [InlineData(1.344, "Full action bar")]         // 1.25 at UI Scale 0.93
     public void Verdicts_match_the_field_tests(double effective, string expected) => Assert.Equal(expected, UiScale.BarVerdict(effective));
 

@@ -12,7 +12,7 @@ namespace WoWBoxer.Layouts.App;
 
 /// (game aspect / UI Scale, see <c>Core.UiScale</c>) (docs/wow-display-findings.md): the bar is 1024 UI units wide
 
-/// and the UI 768 high, so it is complete at 4:3; down to about 1.3 only the gryphon ends are clipped.
+/// and the UI 768 high, so it is complete at 4:3; down to about 1.26 only the gryphon ends are clipped.
 
 /// </summary>
 
