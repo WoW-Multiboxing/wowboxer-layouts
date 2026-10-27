@@ -38,7 +38,10 @@ public sealed class MainViewModel : ObservableObject
     private readonly ProfileStore _store = new(AppSettings.ProfilesFolder);
     private readonly AppSettings _settings;
     private readonly IUserDialogs _dialogs;
-    private readonly Stack<LayoutProfile> _undo = new();
+    private readonly Stack<UndoStep> _undo = new();
+
+    /// <summary>One undo step: the layout, and for squad reorders also which window and WoW account were in which row.</summary>
+    private sealed record UndoStep(LayoutProfile Profile, List<nint>? WindowOrder = null, List<string>? Accounts = null);
     private readonly SemaphoreSlim _liveLock = new(1, 1);
     private ProfileItem? _selectedProfile;
     private LayoutProfile? _current;
@@ -119,7 +122,7 @@ public sealed class MainViewModel : ObservableObject
         if (_lastRunning == 0) AutoFitUiScale("no clients are running");
     }
 
-    private readonly ZOrderGuard _guard;
+    private readonly ZOrderGuard? _guard;
     private readonly Dictionary<nint, DateTime> _zLogged = [];
     private int _lastRunning;
 
@@ -713,7 +716,7 @@ public sealed class MainViewModel : ObservableObject
     private void Update(LayoutProfile profile, bool pushUndo = true)
     {
         if (_selectedProfile is null || Current is null || profile == Current) return;
-        if (pushUndo) _undo.Push(Current);
+        if (pushUndo) _undo.Push(new UndoStep(Current));
         try
         {
             _selectedProfile.Path = _store.Save(profile, _selectedProfile.Path);
@@ -758,7 +761,27 @@ public sealed class MainViewModel : ObservableObject
     private void Undo()
     {
         if (_undo.Count == 0) return;
-        Update(_undo.Pop(), pushUndo: false);
+        var step = _undo.Pop();
+        if (step.WindowOrder is { } order)
+        {
+            // a squad reorder: put the windows and accounts back in their rows too, not only names and classes
+            var items = Windows.ToList();
+            Windows.Clear();
+            foreach (var w in items.OrderBy(w => order.IndexOf(w.Window.Handle) is var i && i >= 0 ? i : int.MaxValue)) Windows.Add(w);
+            for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
+            if (step.Accounts is { } accounts)
+            {
+                _settings.Accounts = accounts.ToList();
+                _settings.Save();
+            }
+        }
+        Update(step.Profile, pushUndo: false);
+        if (step.WindowOrder is not null)
+        {
+            RefreshParty();
+            ApplyOnTop();
+            ScheduleLive();
+        }
         RaiseSlotProperties();
     }
 
@@ -937,7 +960,7 @@ public sealed class MainViewModel : ObservableObject
 
     public string SquadHint => Windows.Count == 0
         ? "No WoW windows are open yet. Press Start squad, then press Play in Battle.net once per account – each window jumps into its place."
-        : $"{Windows.Count} WoW window(s) open. Arrange now puts them in this order; drag a row by ⋮⋮ to change it, Identify shows who is who.";
+        : $"{Windows.Count} WoW window(s) open. Click a row to edit its window; drag ⋮⋮ to change the order; Identify shows who is who.";
 
     /// <summary>
     /// Rows mirror the layout's slots (name, class) plus the local WoW-account choice. Rows are reused when the slot
@@ -1008,6 +1031,7 @@ public sealed class MainViewModel : ObservableObject
     public void MoveCharacter(int from, int to)
     {
         if (Current is null || from == to || from < 0 || to < 0 || from >= Current.Slots.Count || to >= Current.Slots.Count) return;
+        var before = new UndoStep(Current, Windows.Select(w => w.Window.Handle).ToList(), _settings.Accounts.ToList());
         var people = Current.Slots.Select(s => (s.Name, s.Class)).ToList();
         var person = people[from];
         people.RemoveAt(from);
@@ -1025,7 +1049,8 @@ public sealed class MainViewModel : ObservableObject
             Windows.Move(from, to);
             for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
         }
-        Update(Current with { Slots = slots });
+        _undo.Push(before);   // also when the names did not change (unnamed rows): the windows did
+        Update(Current with { Slots = slots }, pushUndo: false);
         // The window order changed even when names did not (unnamed rows): always refresh and move the windows.
         RefreshParty();
         ApplyOnTop();
@@ -1106,7 +1131,7 @@ public sealed class MainViewModel : ObservableObject
     public void Tick()
     {
         if (!Busy) RefreshWindows();
-        _guard.Reassert();   // safety net next to the event hooks
+        _guard?.Reassert();   // safety net next to the event hooks
         var running = RunningClientsNow();
         if (running == 0 && _lastRunning > 0) AutoFitUiScale("the last client closed");
         _lastRunning = running;
@@ -1133,7 +1158,8 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private void AutoFitUiScale(string why)
     {
-        if (!_settings.AutoFitActionBar || Current is null) return;
+        // Only where the bar rule is verified in game (Classic Era); Forever's UI is not known yet – the button still works there.
+        if (!_settings.AutoFitActionBar || Current is null || SelectedGame != WowGame.ClassicEra) return;
         var need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
         if (need is null || GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe) return;
         var now = UiScaleFix.Read(exe);
@@ -1278,6 +1304,11 @@ public sealed class MainViewModel : ObservableObject
     private void ApplyOnTop()
     {
         if (Current is null) return;
+        if (_guard is not null)
+        {
+            _guard.Reassert(ours: true);   // through the guard, so it does not mistake our own change for someone else's
+            return;
+        }
         for (var i = 0; i < Windows.Count && i < Current.Slots.Count; i++)
             WindowPlacer.ApplyZOrder(Windows[i].Window.Handle, Current.Slots[i].Z);
     }

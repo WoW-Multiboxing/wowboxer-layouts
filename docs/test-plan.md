@@ -6,16 +6,33 @@ a game window; game windows are only checked by position (`wbx info`) and pictur
 
 Tools:
 - `dotnet test` – Core unit tests (layout maths, presets, JSON, editing, WTF hints, PNG, detection rules).
-- `tools/ui-sweep.ps1` – UI Automation sweep over every tab (70 checks). Turns "live" off while it runs.
-- `tools/topmost-check.ps1` – toggles "Always on top" per slot through the app and reads WS_EX_TOPMOST on the real windows.
+- `tools/ui-sweep.ps1` – UI Automation sweep over every tab (73 checks). Turns "live" off while it runs.
+- `tools/topmost-check.ps1` – toggles "Always on top" per slot through the app (live off) and reads WS_EX_TOPMOST on the
+  real windows, then 24 disturbance rounds (another program clears/sets on-top, a window moves, focus switches between
+  our own windows) with slots 2+3 on top.
+- `tools/guarded-drag.ps1` – real-mouse drags inside our own window only (squad row reorder).
 - `tools/guarded-drag.ps1` – real mouse drag that aborts the moment the cursor is over any other process.
 - `wbx info` / `wbx snap` – exact window rectangles / pictures of the game windows.
 
-Last full run: **2026-10-27 evening, v0.2.2, owner's PC** (monitor 1 2560×1440, monitor 2 1920×1080, 3 Classic Era
+Last full run: **2026-10-27 ~21:05, v0.2.3, owner's PC** (owner said "go ahead"; windows and settings saved before and
+restored after). Previous run: v0.2.2 at ~20:10, below. v0.2.2 run: **owner's PC** (monitor 1 2560×1440, monitor 2 1920×1080, 3 Classic Era
 clients, plus a Forever client we started and closed ourselves). Before each test that moves windows the PC had to be
 idle ≥ 3 min (the owner was using it); the owner's exact window positions and topmost flags were saved before and
 restored afterwards. Previous run: v0.2.1 the same afternoon.
 Legend: ✅ passed · ⚠️ passed with a note · ❌ failed (see known issues) · ⏸ not testable here
+
+## v0.2.3 checks (owner's report on v0.2.2)
+| Item | Result |
+|---|---|
+| UI Scale 0.93 (owner pressed Fix action bar, restarted clients) → both 830×664 followers show the whole bar incl. gryphons + backpack (snapshots); main too | ✅ in game |
+| Auto-fit on a fake Classic Era install (scratch folder, copy of ping.exe as WowClassic.exe): app start → 0.93 + backup + notice; while a client runs → nothing; last client closes → 0.93; before Start squad → 0.93 | ✅ 4/4 |
+| Auto-fit never touches Forever (bar rule not verified there) and never writes while a client of the install runs | ✅ (code + owner's real Config.wtf unchanged by the tests) |
+| Always on top, live mode OFF: every slot toggled on/off 3× → WS_EX_TOPMOST follows at once | ✅ 18/18 |
+| Guard: 24 disturbances (cleared/set by another program, moved 3 px, foreground switched Notepad ↔ app), slots 2+3 on top → corrected within 1 s | ✅ 24/24 |
+| Squad row drag (guarded real mouse) row 2 → row 1: real windows swap, on-top follows the slot; Undo puts windows and rows back | ✅ (found + fixed: the list swallowed the drag; Undo did not restore window order) |
+| No false "set by something else" log after our own changes | ✅ fixed |
+| One screen: rows select the slot, details inline, footer launch/apply/start, no Squad tab | ✅ (UI sweep) |
+| Alt-Tab / clicking / hover-to-activate between real WoW clients | ⏸ owner – the tests never activate a WoW window |
 
 ## v0.2.2 checks (owner's report on v0.2.1)
 | Item | Result |

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### v0.2.3 – owner's test of v0.2.2 fixed (2026-10-27)
+- **One main screen:** Squad is merged into Setup – clients, layout, saved layout and window rules on the left, the map
+  in the middle, "Your squad" on the right (rows per window: number, name, class, account, status, pin, Identify, drag
+  ⋮⋮ to reorder). Selecting a row selects the window on the map and opens its details inline (X/Y/W/H, Always on top,
+  Keep size, action bar). Start with Battle.net / Login screens, Apply and Start squad in the footer; tools, start
+  checklist and activity at the bottom of the squad panel. Tabs: Setup · Guide · Settings · About.
+- **Auto-fit action bar** (default on, Settings and the action-bar box): whenever no client of the install runs – app
+  start, before Start squad, when the last client closes, or after a layout change – the UI Scale the layout needs is
+  written (backup kept), with a notice on the map and a line in the activity log. "Fix action bar" stays as the
+  manual fallback; the UI explains why it only works while the clients are closed. Confirmed in game: UI Scale 0.93
+  shows the whole bar in the owner's 830×664 followers. Classic Era only for now (Forever's UI is not verified;
+  the button works there).
+- **Always on top, reliable:** applies instantly with live on or off; the open-window list now refreshes every 2 s
+  app-wide (it only did on the Squad tab); Start squad's slot mapping drives the rows; a passive guard (WinEvent hooks:
+  foreground, location, reorder – listening only) re-asserts on-top when anything changes it. A pin on the map and on
+  each row shows the real state (red = being put right).
+- Fixes found while testing: dragging a squad row did nothing in the new list (the list took the mouse); Undo after a
+  row drag restored names but not which window/account was in which row; the guard logged our own changes as
+  "set by something else"; "Unknown class" label shortened to "Unknown".
+- `tools/topmost-check.ps1`: toggles with live off + 24 disturbance rounds (another program clears/sets on-top, window
+  moved, foreground switched between our own windows).
+
 ### v0.2.2 – owner's test of v0.2.1 fixed (2026-10-27)
 - **Always on top works both ways:** applied on every placement – also when the window is already in place (the main
   window never became topmost) – and cleared with HWND_NOTOPMOST when switched off (followers stayed on top). Also at

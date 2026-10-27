@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using WoWBoxer.Layouts.App.ViewModels;
+using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.App.Views;
 
@@ -50,6 +51,16 @@ public partial class SetupView : UserControl
     {
         _dragStart = e.GetPosition(this);
         _dragged = (sender as FrameworkElement)?.Tag as PartyMember;
+        // The list would capture the mouse to select the row, and then the handle never sees the drag move.
+        e.Handled = true;
+        ((FrameworkElement)sender).CaptureMouse();
+    }
+
+    private void OnHandleUp(object sender, MouseButtonEventArgs e)
+    {
+        ((FrameworkElement)sender).ReleaseMouseCapture();
+        if (_dragged is { } row && DataContext is MainViewModel vm) vm.SelectedSlotIndex = row.Index;   // a click on ⋮⋮ selects the row
+        _dragged = null;
     }
 
     private void OnHandleMove(object sender, MouseEventArgs e)
@@ -59,6 +70,7 @@ public partial class SetupView : UserControl
         if (Math.Abs(d.Y) < SystemParameters.MinimumVerticalDragDistance && Math.Abs(d.X) < SystemParameters.MinimumHorizontalDragDistance) return;
         var row = _dragged;
         _dragged = null;
+        ((FrameworkElement)sender).ReleaseMouseCapture();   // DoDragDrop takes over the mouse
         Dragging = true;   // keep the list still while dragging
         try
         {

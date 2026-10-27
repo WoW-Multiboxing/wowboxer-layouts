@@ -6,7 +6,7 @@
 #          guard must put every window back to its slot's state within a second.
 # Nothing is sent to a game window (no keys, no clicks, no activation); WoW windows are only read, moved and restacked
 # the way the app itself does it. Needs: the app running, one open WoW window per slot of the current layout.
-param([int]$Rounds = 3, [int]$Disturbances = 20)
+param([int]$Rounds = 3, [int]$Disturbances = 24, [int[]]$TopSlots = @(2, 3))
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 if (-not ('TopCheck' -as [type])) {
@@ -66,7 +66,14 @@ foreach ($m in $map) {
 }
 if ($liveBefore) { SetSwitch 'Move WoW windows live' $true }
 
-# ---- part 2: disturbances ----
+# ---- part 2: disturbances (slots in -TopSlots on top, the others not; restored afterwards) ----
+$originalTop = @{}
+foreach ($m in $map) {
+  Select-Row $m.N
+  $t = Pattern (ByName 'Always on top (floating overlay)') ([System.Windows.Automation.TogglePattern]::Pattern)
+  $originalTop[$m.N] = $t.Current.ToggleState -eq 'On'
+  if ((($t.Current.ToggleState -eq 'On') -ne ($TopSlots -contains $m.N))) { $t.Toggle(); Start-Sleep -Milliseconds 400 }
+}
 $notepad = Start-Process notepad -PassThru; Start-Sleep -Seconds 1
 $appWin = Main
 $flags = 0x0001 -bor 0x0002 -bor 0x0010 -bor 0x0200   # NOSIZE | NOMOVE | NOACTIVATE | NOOWNERZORDER
@@ -87,6 +94,11 @@ for ($d = 1; $d -le $Disturbances; $d++) {
   Check ("disturbance {0} slot {1}: {2} -> WS_EX_TOPMOST={3}, wanted {4}" -f $d, $m.N, $what, $is, $want) ($is -eq $want)
 }
 Stop-Process -Id $notepad.Id -ErrorAction SilentlyContinue
+foreach ($m in $map) {
+  Select-Row $m.N
+  $t = Pattern (ByName 'Always on top (floating overlay)') ([System.Windows.Automation.TogglePattern]::Pattern)
+  if (($t.Current.ToggleState -eq 'On') -ne $originalTop[$m.N]) { $t.Toggle(); Start-Sleep -Milliseconds 400 }
+}
 (Pattern $apply ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Seconds 3   # moved windows back exactly
 
 Write-Host "$($script:checks - $script:failures)/$($script:checks) passed"

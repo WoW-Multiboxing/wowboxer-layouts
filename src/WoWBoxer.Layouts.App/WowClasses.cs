@@ -19,7 +19,7 @@ public sealed record WowClass(string Id, string Name, Color Color)
 public static class WowClasses
 {
     /// <summary>"No class set": shown as unknown in a neutral colour – the app never guesses a class.</summary>
-    public static readonly WowClass Automatic = new("", "Unknown class", Color.FromRgb(0x7A, 0x84, 0x99));
+    public static readonly WowClass Automatic = new("", "Unknown", Color.FromRgb(0x7A, 0x84, 0x99));
 
     public static readonly IReadOnlyList<WowClass> All =
     [

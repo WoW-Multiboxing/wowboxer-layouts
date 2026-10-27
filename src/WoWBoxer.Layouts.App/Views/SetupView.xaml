@@ -13,7 +13,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Grid Margin="0,0,5,5" Width="34" Height="38">
+                        <Grid Margin="0,0,4,4" Width="31" Height="38">
                             <Border x:Name="Body" CornerRadius="5" BorderThickness="1.5" BorderBrush="#3A4560" Background="#121722">
                                 <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="14" Color="#E8C66A" Opacity="0" /></Border.Effect>
                             </Border>
@@ -105,18 +105,18 @@
 
         <!-- Details of the selected window, shown inside its squad row. DataContext = the main view model. -->
         <DataTemplate x:Key="SlotDetails">
-            <StackPanel Margin="0,10,0,2">
-                <UniformGrid Columns="4">
+            <StackPanel Margin="0,8,0,0">
+                <UniformGrid Columns="4" ToolTip="{Binding SlotInfo}">
                     <StackPanel Margin="0,0,5,0"><TextBlock Style="{StaticResource FieldLabel}" Text="X" /><TextBox Text="{Binding SlotX, UpdateSourceTrigger=LostFocus}" ToolTip="Left edge in screen pixels" /></StackPanel>
                     <StackPanel Margin="0,0,5,0"><TextBlock Style="{StaticResource FieldLabel}" Text="Y" /><TextBox Text="{Binding SlotY, UpdateSourceTrigger=LostFocus}" ToolTip="Top edge in screen pixels" /></StackPanel>
                     <StackPanel Margin="0,0,5,0"><TextBlock Style="{StaticResource FieldLabel}" Text="Width" /><TextBox Text="{Binding SlotW, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                     <StackPanel><TextBlock Style="{StaticResource FieldLabel}" Text="Height" /><TextBox Text="{Binding SlotH, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                 </UniformGrid>
-                <CheckBox Content="Always on top (floating overlay)" IsChecked="{Binding SlotOnTop}" Margin="0,10,0,0"
+                <CheckBox Content="Always on top (floating overlay)" IsChecked="{Binding SlotOnTop}" Margin="0,8,0,0"
                           ToolTip="Keeps this window above the others – for followers floating over the main client. Applies at once, live mode on or off." />
-                <CheckBox Content="Keep the exact size" IsChecked="{Binding SlotKeepSize}" Margin="0,6,0,0"
+                <CheckBox Content="Keep the exact size" IsChecked="{Binding SlotKeepSize}" Margin="0,5,0,0"
                           ToolTip="Never shorten this window to the window-shape rule" />
-                <Border Style="{StaticResource TipBox}" Margin="0,10,0,0">
+                <Border Style="{StaticResource TipBox}" Margin="0,8,0,0">
                     <StackPanel>
                         <TextBlock Text="Action bar" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" />
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
@@ -129,9 +129,9 @@
                                   ToolTip="Sets WoW's UI Scale for you so the whole bar fits in every window – whenever the clients of this WoW install are closed">
                             <TextBlock Text="Auto-fit action bar" Foreground="#E4E4E4" FontSize="12" />
                         </CheckBox>
-                        <TextBlock Foreground="#1EFF00" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
-                                   Text="WoW keeps one UI Scale for all clients of an install and rewrites it when a client closes – so it can only be set while they are all closed (before Start squad, or when the last one closes)." />
-                        <WrapPanel Margin="0,6,0,0">
+                        <TextBlock Foreground="#1EFF00" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                                   Text="Only while all clients are closed: WoW shares one UI Scale and saves it when a client closes." />
+                        <WrapPanel Margin="0,5,0,0">
                             <Button Content="Fix action bar" Command="{Binding FixUiScaleCommand}" Margin="0,0,6,6" Padding="10,4" FontSize="12" AutomationProperties.AutomationId="FixUiScale"
                                     ToolTip="Sets the UI Scale now (all clients closed), or tells you what to set in game" />
                             <Button Content="Shorten window instead" Command="{Binding FitActionBarCommand}" Margin="0,0,6,6" Padding="10,4" FontSize="12"
@@ -141,7 +141,6 @@
                         </WrapPanel>
                     </StackPanel>
                 </Border>
-                <TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap" Text="{Binding SlotInfo}" />
             </StackPanel>
         </DataTemplate>
 
@@ -357,7 +356,8 @@
 
                 <!-- tools, launch checklist and activity -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                    <WrapPanel>
+                    <Expander Header="Tools" Foreground="{StaticResource TextBrush}">
+                    <WrapPanel Margin="0,6,0,0">
                         <Button Content="Identify all" Command="{Binding IdentifyCommand}" Margin="0,0,6,6" Padding="10,5" FontSize="12" ToolTip="Show each window's number on top of it for a few seconds (Ctrl+I)" />
                         <Button Content="Give title bars back" Command="{Binding RestoreFramesCommand}" Margin="0,0,6,6" Padding="10,5" FontSize="12" />
                         <Button Content="Diagnose…" Command="{Binding DiagnoseCommand}" Margin="0,0,6,6" Padding="10,5" FontSize="12"
@@ -365,7 +365,8 @@
                         <Button Content="Close clients I started" Command="{Binding CloseMineCommand}" Margin="0,0,6,6" Padding="10,5" FontSize="12"
                                 ToolTip="Closes only the login screens this app opened – never your own clients" />
                     </WrapPanel>
-                    <Expander Header="Start checklist" Margin="0,4,0,0" Foreground="{StaticResource TextBrush}" IsExpanded="{Binding IsWatching, Mode=OneWay}">
+                    </Expander>
+                    <Expander Header="Start checklist" Margin="0,6,0,0" Foreground="{StaticResource TextBrush}" IsExpanded="{Binding IsWatching, Mode=OneWay}">
                         <ItemsControl ItemsSource="{Binding Checklist}" Margin="4,6,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -416,7 +417,7 @@
 
                 <!-- one row per window; drag ⋮⋮ to reorder; the selected row shows the window's details -->
                 <ListBox x:Name="PartyList" ItemsSource="{Binding Party}" SelectedIndex="{Binding SelectedSlotIndex}" ItemContainerStyle="{StaticResource SquadItem}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Your squad">
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False" AutomationProperties.Name="Squad rows">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>
@@ -427,7 +428,7 @@
                                 </Grid.ColumnDefinitions>
                                 <!-- drag handle -->
                                 <Border Background="Transparent" Cursor="SizeAll" Tag="{Binding}" ToolTip="Drag to move this character (and its window) to another slot"
-                                        PreviewMouseLeftButtonDown="OnHandleDown" PreviewMouseMove="OnHandleMove">
+                                        PreviewMouseLeftButtonDown="OnHandleDown" PreviewMouseMove="OnHandleMove" PreviewMouseLeftButtonUp="OnHandleUp">
                                     <TextBlock Text="⋮⋮" FontSize="16" Foreground="{StaticResource GoldLoBrush}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0" />
                                 </Border>
                                 <Grid Grid.Column="1" Width="34" Height="34" HorizontalAlignment="Left" VerticalAlignment="Top">
@@ -439,7 +440,7 @@
                                 </Grid>
                                 <StackPanel Grid.Column="2">
                                     <Grid>
-                                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="6" /><ColumnDefinition Width="118" /></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="6" /><ColumnDefinition Width="132" /></Grid.ColumnDefinitions>
                                         <Grid>
                                             <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" FontFamily="{StaticResource DisplayFont}" Foreground="{Binding ClassBrush}"
                                                      ToolTip="The character playing in this slot. Press Enter to save." />

@@ -40,8 +40,11 @@ public sealed unsafe class ZOrderGuard : IDisposable
 
     public bool IsListening => _hooks.Count > 0;
 
-    /// <summary>Checks every slot now and corrects what differs. Returns how many windows were corrected.</summary>
-    public int Reassert()
+    /// <summary>
+    /// Checks every slot now and corrects what differs. Returns how many windows were corrected. <paramref name="ours"/>:
+    /// the change comes from the app itself (a toggle, a reorder), so it is not reported as a correction.
+    /// </summary>
+    public int Reassert(bool ours = false)
     {
         if (_busy) return 0;
         _busy = true;   // our own SetWindowPos raises events too
@@ -51,10 +54,11 @@ public sealed unsafe class ZOrderGuard : IDisposable
             foreach (var (h, z) in _wanted())
             {
                 // Our change is asynchronous: give it a moment to land before correcting the same window again.
-                if (_lastFix.TryGetValue(h, out var at) && DateTime.UtcNow - at < TimeSpan.FromMilliseconds(400)) continue;
+                if (!ours && _lastFix.TryGetValue(h, out var at) && DateTime.UtcNow - at < TimeSpan.FromMilliseconds(400)) continue;
                 if (!WindowPlacer.ApplyZOrder(h, z)) continue;
                 _lastFix[h] = DateTime.UtcNow;
                 fixedNow++;
+                if (ours) continue;
                 Corrections++;
                 _corrected?.Invoke(h, z);
             }

@@ -16,7 +16,7 @@ public static class WbxWin {
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
   [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
-  public static List<IntPtr> Dialogs(uint pid, string mainTitle) { var r = new List<IntPtr>(); EnumWindows((h, l) => { uint p; GetWindowThreadProcessId(h, out p); var sb = new StringBuilder(256); GetWindowText(h, sb, 256); if (p == pid && IsWindowVisible(h) && sb.ToString() != mainTitle) r.Add(h); return true; }, IntPtr.Zero); return r; }
+  public static List<IntPtr> Dialogs(uint pid, string mainTitle) { var r = new List<IntPtr>(); EnumWindows((h, l) => { uint p; GetWindowThreadProcessId(h, out p); var sb = new StringBuilder(256); GetWindowText(h, sb, 256); if (p == pid && IsWindowVisible(h) && sb.Length > 0 && !sb.ToString().StartsWith(mainTitle)) r.Add(h); return true; }, IntPtr.Zero); return r; }
 }
 '@
 $A = [System.Windows.Automation.AutomationElement]
@@ -117,9 +117,9 @@ Check 'Action bar text says Now (measured) or Planned' { (FindId 'SlotBarText').
 $eraCfg = 'C:\Program Files (x86)\World of Warcraft\_classic_era_\WTF\Config.wtf'
 $wowRunning = @(Get-Process WowClassic -ErrorAction SilentlyContinue).Count
 if ($wowRunning -gt 0 -and (Test-Path $eraCfg)) {
-  $hash = (Get-FileHash $eraCfg).Hash
+  $hash = (Get-FileHash $eraCfg).Hash; $bak = (Get-Item "$eraCfg.wowboxer-backup" -ErrorAction SilentlyContinue).LastWriteTimeUtc
   (Pattern (FindId 'FixUiScale') ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600
-  Check 'Fix action bar with clients running writes nothing' { (Get-FileHash $eraCfg).Hash -eq $hash -and -not (Test-Path "$eraCfg.wowboxer-backup") }
+  Check 'Fix action bar with clients running writes nothing' { (Get-FileHash $eraCfg).Hash -eq $hash -and (Get-Item "$eraCfg.wowboxer-backup" -ErrorAction SilentlyContinue).LastWriteTimeUtc -eq $bak }
 } else { $results.Add('SKIP  Fix action bar refusal (no Classic Era client running)') }
 
 # ---- version ----

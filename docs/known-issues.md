@@ -9,7 +9,9 @@ Newest first. "Workaround" is what to do today; "Plan" is the fix.
 - **Which WoW account is in which window cannot be known from outside.** All clients have the same command line;
   logs are shared. The user picks the account per slot once (Squad tab); "last played here" is a hint from folder
   times, never a fact.
-- **The UI Scale fix is not yet confirmed inside Classic Era.** Where it is stored is now verified on the Forever client
+- ~~The UI Scale fix is not yet confirmed inside Classic Era~~ – confirmed 2026-10-27 (0.93 → whole bar in 830×664).
+  Remaining limit: **one UI Scale per install**, so the main window's UI shrinks with the followers' (0.93 is barely
+  visible). Per-window bar scaling needs the addon (backlog 2a). Old note: Where it is stored is now verified on the Forever client
   (1.60, same engine): WoW keeps `useUiScale`/`uiScale` in the shared `WTF\Config.wtf` and rewrites it on exit, so
   one value applies to every client of an install. "Fix action bar" writes that one value (smallest the squad needs,
   e.g. 0.93 for the owner's 5:4 followers) – only while all clients of the install are closed, with a backup. Whether
@@ -31,6 +33,23 @@ Newest first. "Workaround" is what to do today; "Plan" is the fix.
   run). Not caused by the app; the app sends no input and must not.
 - UI Automation does not list the app's small dialogs (prompt, yes/no) at desktop level; `tools/ui-sweep.ps1` finds
   them by window handle. No effect for users or screen readers that follow focus.
+
+- **Auto-fit is Classic Era only.** Forever's action bar/UI after login is not checked yet, so the app does not set
+  its UI Scale by itself (the Fix action bar button still works there).
+- **Always on top with real Alt-Tab, clicks and hover-to-activate is not auto-tested**: the tests never activate a WoW
+  window (rule). Foreground switches between our own windows, external on-top changes and moves are tested (24/24).
+- **One UI Scale per install**: the main window's UI shrinks a little too (0.93). Per-window bar scale = addon (WS-E,
+  opt-in, `bridge.barFit`).
+
+## Fixed in v0.2.3 (2026-10-27, owner's test of v0.2.2)
+- **Always on top "sometimes works, sometimes not".** Causes found: (1) on-top was only applied with "Move WoW windows
+  live" on; (2) the app's list of open windows was only refreshed while the Squad tab was open – the owner only uses
+  Setup, so clients started later never got their on-top; (3) after Start squad the rows used launch order instead of
+  the watcher's slot mapping. Fixed all three, plus a passive guard (WinEvent hooks for foreground, location and
+  reorder changes – listening only) that puts on-top right again when anything changes it. Pin on the map and on each
+  squad row shows the real state. `tools/topmost-check.ps1`: toggles with live off + disturbance rounds.
+- **The UI Scale fix needed a manual click:** Auto-fit action bar (default on) writes it whenever the clients are closed.
+- **Squad and Setup overlapped:** merged into one screen.
 
 ## Fixed in v0.2.2 (2026-10-27, owner's test of v0.2.1)
 - **Always on top never worked for the main window and could not be turned off for followers.** "On top" was only
