@@ -18,7 +18,61 @@ internal static class Commands
         squad.ShowPlan(log);
         var open = WindowFinder.FindGameWindows();
         log.Info($"WoW windows open right now: {open.Count}");
-        foreach (var w in open) log.Info($"  {w.ProcessName}.exe  pid {w.Pid}  {w.Rect}  class \"{w.ClassName}\"");
+        foreach (var w in open)
+        {
+            var (cw, ch) = WindowFinder.ClientSizeOf(w.Handle);
+            var borderless = (w.Style & 0x00C00000) == 0;   // no WS_CAPTION
+            log.Info($"  {w.ProcessName}.exe  pid {w.Pid}  window {w.Rect}  visible {WindowFinder.VisibleRectOf(w.Handle)}");
+            log.Info($"      game renders {cw}x{ch} (aspect {(ch == 0 ? 0 : (double)cw / ch):F3})  {(borderless ? "borderless" : "title bar")}  style 0x{w.Style:X8}");
+        }
+        return 0;
+    }
+
+    /// <summary>Gives every WoW window its title bar and borders back (undo borderless). Moves nothing.</summary>
+    public static int Restore(Log log)
+    {
+        var open = WindowFinder.FindGameWindows();
+        if (open.Count == 0)
+        {
+            log.Warn("No World of Warcraft windows found.");
+            return 1;
+        }
+        foreach (var w in open)
+        {
+            WindowPlacer.RestoreFrame(w.Handle);
+            log.Ok($"Title bar and borders back: {w.ProcessName}.exe at {w.Rect}");
+        }
+        return 0;
+    }
+
+    /// <summary>Saves where the WoW windows are now (oldest = slot 1) as a layout file. Moves nothing.</summary>
+    public static int Capture(CliOptions o, Log log)
+    {
+        var open = WindowFinder.FindGameWindows();
+        if (open.Count == 0)
+        {
+            log.Warn("No World of Warcraft windows found. Arrange them first, then capture.");
+            return 1;
+        }
+        var monitors = MonitorReader.GetMonitors();
+        var borderless = open.All(w => (w.Style & 0x00C00000) == 0);   // no WS_CAPTION anywhere
+        var name = o.SavePath is null ? "Captured" : Path.GetFileNameWithoutExtension(o.SavePath);
+        var profile = ProfileCapture.FromWindows(open.Select(w => WindowFinder.VisibleRectOf(w.Handle)).ToList(), monitors, borderless, name);
+
+        foreach (var (s, p) in profile.Slots.Zip(LayoutEngine.Resolve(profile, monitors)))
+            log.Info($"{s.N}. {s.Label,-10} -> {p.Rect}  monitor {p.Monitor.Index}");
+        log.Info($"Title bars: {(borderless ? "removed" : "kept")}");
+
+        if (o.SavePath is not null)
+        {
+            File.WriteAllText(o.SavePath, ProfileJson.Serialize(profile));
+            log.Ok($"Saved to {Path.GetFullPath(o.SavePath)}");
+            log.Info($"Use it with: wbx arrange --profile \"{o.SavePath}\"   (or wbx start --profile ...)");
+        }
+        else
+            log.Info("Add --save FILE.json to keep it.");
+        log.Highlight("Share code:");
+        Console.WriteLine(ProfileJson.ToShareCode(profile));
         return 0;
     }
 

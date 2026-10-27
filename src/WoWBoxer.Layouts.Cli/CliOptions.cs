@@ -24,6 +24,7 @@ internal sealed class CliOptions
     public string? BattleNetExe { get; private set; }
     public double WatchMinutes { get; private set; } = 10;
     public bool Json { get; private set; }
+    public string? SavePath { get; private set; }
 
     public const string Usage = """
         wbx - WoWBoxer Window Layouts (command line)
@@ -35,6 +36,8 @@ internal sealed class CliOptions
           wbx diagnose   write a report (monitors, windows, processes, admin rights) and try one placement
           wbx info       show monitors, the planned slots and the open WoW windows (moves nothing)
           wbx layout     print the layout as JSON and as a WBX1: share code
+          wbx restore    give the WoW windows their title bars and borders back (moves nothing)
+          wbx capture    save where the WoW windows are now as a layout: wbx capture --save my.json
 
         Layout:
           --preset side|overlay|grid|dual   built-in layout (default: side = main left, followers right)
@@ -55,6 +58,7 @@ internal sealed class CliOptions
           --battlenet-exe PATH              Battle.net.exe if it is not found automatically
           --watch-minutes 10                how long "start" watches for new windows
           --json                            (layout) print only the JSON
+          --save FILE.json                  (capture, layout) write the layout to a file
 
         Logs: %LOCALAPPDATA%\WoWBoxer\Layouts\logs
         """;
@@ -100,6 +104,7 @@ internal sealed class CliOptions
                 case "--battlenet-exe": o.BattleNetExe = Next(arg); break;
                 case "--watch-minutes": o.WatchMinutes = ParseDouble(arg, Next(arg)); break;
                 case "--json": o.Json = true; break;
+                case "--save": o.SavePath = Next(arg); break;
                 case "-h" or "--help" or "/?": o.Command = "help"; break;
                 default: throw new UsageException($"Unknown option \"{arg}\".");
             }

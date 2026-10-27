@@ -24,7 +24,8 @@ public static class WindowPlacer
         if (!styleChanged && IsAt(h, rect)) return PlaceResult.AlreadyThere;
 
         var (after, zFlag) = ZOrderArgs(z);
-        SetWindowPos(h, after, rect.X, rect.Y, rect.Width, rect.Height, NoActivateAsync | SWP_FRAMECHANGED | SWP_SHOWWINDOW | zFlag);
+        var r = WithInvisibleFrame(h, rect);
+        SetWindowPos(h, after, r.X, r.Y, r.Width, r.Height, NoActivateAsync | SWP_FRAMECHANGED | SWP_SHOWWINDOW | zFlag);
         return PlaceResult.Requested;
     }
 
@@ -36,15 +37,17 @@ public static class WindowPlacer
     {
         if (!IsWindow(h)) return;
         const uint flags = NoActivateAsync | SWP_NOZORDER;
-        SetWindowPos(h, 0, rect.X, rect.Y, rect.Width - 2, rect.Height - 2, flags);
+        var r = WithInvisibleFrame(h, rect);
+        SetWindowPos(h, 0, r.X, r.Y, r.Width - 2, r.Height - 2, flags);
         await Task.Delay(250, cancel).ConfigureAwait(false);
-        SetWindowPos(h, 0, rect.X, rect.Y, rect.Width, rect.Height, flags);
+        SetWindowPos(h, 0, r.X, r.Y, r.Width, r.Height, flags);
     }
 
     /// <summary>Synchronous move for Diagnose. 0 = ok, otherwise the Windows error (5 = access denied, usually admin).</summary>
     public static int TryMove(nint h, PixelRect rect)
     {
-        if (SetWindowPos(h, 0, rect.X, rect.Y, rect.Width, rect.Height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW)) return 0;
+        var r = WithInvisibleFrame(h, rect);
+        if (SetWindowPos(h, 0, r.X, r.Y, r.Width, r.Height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW)) return 0;
         var error = Marshal.GetLastPInvokeError();
         return error == 0 ? -1 : error;
     }
@@ -59,7 +62,33 @@ public static class WindowPlacer
         return true;
     }
 
-    public static bool IsAt(nint h, PixelRect rect) => WindowFinder.RectOf(h) == rect;
+    /// <summary>Puts title bar and borders back and clears "always on top". Position and size stay as they are.</summary>
+    public static bool RestoreFrame(nint h)
+    {
+        if (!IsWindow(h)) return false;
+        var style = GetWindowLong(h, GWL_STYLE);
+        SetWindowLong(h, GWL_STYLE, style | BorderStyles);
+        return SetWindowPos(h, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_NOOWNERZORDER | NoActivateAsync);
+    }
+
+    /// <summary>True if the window's visible edges are at <paramref name="rect"/> (the invisible resize border does not count).</summary>
+    public static bool IsAt(nint h, PixelRect rect) => WindowFinder.VisibleRectOf(h) == rect;
+
+    /// <summary>
+    /// Slot rectangles describe what the user sees. A window with a resize frame has an invisible border
+    /// (about 7 px left, right and bottom on Windows 10/11), so its window rectangle must be that much bigger,
+    /// or framed windows end up with gaps between them. Borderless windows have no such border.
+    /// </summary>
+    internal static PixelRect WithInvisibleFrame(nint h, PixelRect rect)
+    {
+        if ((GetWindowLong(h, GWL_STYLE) & WS_THICKFRAME) == 0) return rect;
+        var window = WindowFinder.RectOf(h);
+        var visible = WindowFinder.VisibleRectOf(h);
+        if (window == visible || window.Width == 0) return rect;
+        int left = visible.X - window.X, top = visible.Y - window.Y;
+        int right = window.Right - visible.Right, bottom = window.Bottom - visible.Bottom;
+        return new PixelRect(rect.X - left, rect.Y - top, rect.Width + left + right, rect.Height + top + bottom);
+    }
 
     /// <summary>Sets the window title (e.g. "WoW - Paladin"). Gives up after 1 s if the game is busy.</summary>
     public static unsafe bool SetTitle(nint h, string title)

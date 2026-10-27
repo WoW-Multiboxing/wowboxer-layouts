@@ -54,6 +54,7 @@ public sealed record LayoutSlot
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public FitMode? Fit { get; init; }
 
+    [JsonIgnore]
     public string Label => Name ?? (Role == SlotRole.Main ? $"Main {N}" : $"Slot {N}");
 }
 

@@ -119,5 +119,12 @@ public static unsafe class WindowFinder
 
     public static PixelRect RectOf(nint h) => GetWindowRect(h, out var r) ? MonitorReader.ToRect(r) : default;
 
+    /// <summary>The size the game actually renders at (inside title bar and borders).</summary>
+    public static (int Width, int Height) ClientSizeOf(nint h) => GetClientRect(h, out var r) ? (r.Right - r.Left, r.Bottom - r.Top) : default;
+
+    /// <summary>The window as the user sees it (no invisible resize borders). Falls back to <see cref="RectOf"/>.</summary>
+    public static unsafe PixelRect VisibleRectOf(nint h) =>
+        DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, out var r, sizeof(RECT)) == 0 ? MonitorReader.ToRect(r) : RectOf(h);
+
     public static bool Exists(nint h) => IsWindow(h);
 }

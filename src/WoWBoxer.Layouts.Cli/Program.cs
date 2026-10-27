@@ -57,6 +57,8 @@ try
         "start" => await Commands.StartAsync(options, log, cancel.Token),
         "diagnose" => await Commands.DiagnoseAsync(options, log, dpiAwareness),
         "info" => Commands.Info(options, log),
+        "restore" => Commands.Restore(log),
+        "capture" => Commands.Capture(options, log),
         "layout" => Commands.Layout(options, log),
         _ => throw new UsageException($"Unknown command \"{options.Command}\"."),
     };

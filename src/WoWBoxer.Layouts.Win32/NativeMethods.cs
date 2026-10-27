@@ -92,6 +92,16 @@ internal static unsafe partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetWindowRect(nint hWnd, out RECT rect);
 
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetClientRect(nint hWnd, out RECT rect);
+
+    public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
+    /// <summary>The visible window frame, without the invisible resize borders Windows 10/11 adds.</summary>
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmGetWindowAttribute(nint hWnd, int attribute, out RECT value, int size);
+
     [LibraryImport("user32.dll", EntryPoint = "SendMessageTimeoutW")]
     public static partial nint SendMessageTimeout(nint hWnd, uint msg, nint wParam, char* lParam, uint flags, uint timeoutMs, out nint result);
 
