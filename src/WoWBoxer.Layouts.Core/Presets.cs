@@ -10,6 +10,8 @@ public enum PresetKind
     Grid,
     /// <summary>Main window fills one monitor, followers in a grid on the other monitor.</summary>
     Dual,
+    /// <summary>A loose cascade to start from; the user drags every window where they want it.</summary>
+    Free,
 }
 
 /// <summary>
@@ -34,6 +36,7 @@ public static class Presets
         PresetKind.Overlay => "Overlay",
         PresetKind.Grid => "Grid",
         PresetKind.Dual => "Main + second monitor",
+        PresetKind.Free => "Free for all",
         _ => kind.ToString(),
     };
 
@@ -55,9 +58,10 @@ public static class Presets
             PresetKind.Overlay => Overlay(clients, area, mainRef),
             PresetKind.Grid => Grid(clients, area, options.MinAspect, mainRef),
             PresetKind.Dual => Dual(clients, main, monitors, options),
+            PresetKind.Free => Free(clients, area, mainRef),
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
-        return new LayoutProfile { Name = $"{DisplayName(kind)} {clients}", Clients = clients, Slots = slots, Options = options };
+        return new LayoutProfile { Name = $"{DisplayName(kind)} {clients}", Clients = clients, Preset = kind, Slots = slots, Options = options };
     }
 
     private static string MonitorRef(MonitorInfo m) => m.IsPrimary ? "primary" : m.Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -115,6 +119,27 @@ public static class Presets
             var y = area.Height - margin - (row + 1) * cellH - row * gap;
             for (var i = 0; i < inRow; i++)
                 slots.Add(Slot(slots.Count + 1, SlotRole.Follower, monitor, area, x0 + i * (cellW + gap), y, cellW, cellH) with { Z = ZOrder.Top });
+        }
+        return slots;
+    }
+
+    // Main at 55 % of the area, the followers as a staircase of 5:4 windows down the right; everything stays inside.
+    private static List<LayoutSlot> Free(int clients, PixelRect area, string monitor)
+    {
+        var slots = new List<LayoutSlot>
+        {
+            Slot(1, SlotRole.Main, monitor, area, area.Width * 0.03, area.Height * 0.05, area.Width * 0.55, area.Height * 0.62) with { Fit = FitMode.None },
+        };
+        var followers = clients - 1;
+        var h = Math.Min(area.Height * 0.3, area.Height * 0.9 / Math.Max(followers, 1) * 1.6);
+        var w = h * 1.4;
+        var stepY = followers > 1 ? (area.Height - h - area.Height * 0.04) / (followers - 1) : 0;
+        var stepX = followers > 1 ? Math.Min(area.Width * 0.035, (area.Width * 0.4 - w * 0.2) / followers) : 0;
+        for (var i = 0; i < followers; i++)
+        {
+            var x = Math.Min(area.Width * 0.6 + i * stepX, area.Width - w);
+            var y = area.Height * 0.02 + i * stepY;
+            slots.Add(Slot(i + 2, SlotRole.Follower, monitor, area, x, Math.Min(y, area.Height - h), w, h) with { Fit = FitMode.None });
         }
         return slots;
     }

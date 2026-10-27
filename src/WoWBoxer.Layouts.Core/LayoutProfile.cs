@@ -24,11 +24,14 @@ public sealed record LayoutProfile
     public string Format { get; init; } = CurrentFormat;
     public string Name { get; init; } = "";
     public int Clients { get; init; }
+    /// <summary>The preset this layout was made from (for "Reset to preset"); null for captured or imported layouts.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PresetKind? Preset { get; init; }
     public IReadOnlyList<LayoutSlot> Slots { get; init; } = [];
     public LayoutOptions Options { get; init; } = new();
 
     public bool Equals(LayoutProfile? other) =>
-        other is not null && Format == other.Format && Name == other.Name && Clients == other.Clients
+        other is not null && Format == other.Format && Name == other.Name && Clients == other.Clients && Preset == other.Preset
         && Options == other.Options && Slots.SequenceEqual(other.Slots);
 
     public override int GetHashCode() => HashCode.Combine(Format, Name, Clients, Options, Slots.Count);
@@ -42,6 +45,9 @@ public sealed record LayoutSlot
     /// <summary>Optional label (character name), used for window titles and messages.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; init; }
+    /// <summary>Optional WoW class of the character in this slot ("paladin", "priest" …), used as colour accent.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Class { get; init; }
     /// <summary>"primary", or a 1-based monitor index as Windows reports it.</summary>
     public string Monitor { get; init; } = "primary";
     public double X { get; init; }

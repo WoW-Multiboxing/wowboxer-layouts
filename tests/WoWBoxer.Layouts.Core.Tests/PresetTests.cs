@@ -49,6 +49,7 @@ public class PresetTests
     {
         var placed = Place(kind, n, setup);
 
+        if (kind == PresetKind.Free) return;   // free windows keep whatever size the user drags
         Assert.All(placed.Where(p => p.Slot.Role == SlotRole.Follower),
             p => Assert.True(p.Rect.Aspect >= 1.25 - 0.005, $"slot {p.Slot.N} {p.Rect} aspect {p.Rect.Aspect:F3}"));
     }
@@ -58,6 +59,7 @@ public class PresetTests
     public void Windows_do_not_overlap_except_overlays_on_the_main(PresetKind kind, int n, string setup)
     {
         var placed = Place(kind, n, setup);
+        if (kind == PresetKind.Free) return;   // a cascade overlaps on purpose
         var checkedSlots = kind == PresetKind.Overlay ? placed.Skip(1).ToList() : placed.ToList();
 
         for (var i = 0; i < checkedSlots.Count; i++)
@@ -113,6 +115,12 @@ public class PresetTests
         Assert.Equal(1, placed[0].Monitor.Index);
         Assert.Equal(placed[0].Monitor.WorkArea, placed[0].Rect);
         Assert.All(placed.Skip(1), p => Assert.Equal(2, p.Monitor.Index));
+    }
+
+    [Fact]
+    public void Presets_remember_their_kind_for_reset()
+    {
+        Assert.Equal(PresetKind.Overlay, Presets.Create(PresetKind.Overlay, 4, TestMonitors.Reference).Preset);
     }
 
     [Fact]

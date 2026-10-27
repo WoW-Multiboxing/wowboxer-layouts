@@ -14,6 +14,19 @@ public class ProfileJsonTests
     }
 
     [Fact]
+    public void Class_and_preset_round_trip()
+    {
+        var profile = Presets.Create(PresetKind.Side, 3, TestMonitors.Reference);
+        profile = profile with { Slots = profile.Slots.Select(s => s with { Class = "paladin", Name = "Tank" }).ToList() };
+
+        var json = ProfileJson.Serialize(profile);
+
+        Assert.Contains("\"class\": \"paladin\"", json);
+        Assert.Contains("\"preset\": \"side\"", json);
+        Assert.Equal(profile, ProfileJson.Deserialize(json));
+    }
+
+    [Fact]
     public void Share_code_round_trip()
     {
         var profile = Presets.Create(PresetKind.Dual, 4, TestMonitors.Setups["dual-mixed"]);
