@@ -16,7 +16,11 @@ Measured on the owner's PC, 2026-10-27: Classic Era 2026 (`WowClassic.exe`, clas
   The whole bar is visible only when the game area is **4:3 (1.333) or wider** [verified with snapshots]:
   - 2558×1360 (1.88): complete bar, centred.
   - 1751×1360 (1.29) and 868×664 (1.31): gryphon ends clipped, all buttons visible.
+  - 830×664 (1.25, owner's followers, 2026-10-27 evening): no left gryphon, starts at button 1, cut in the middle of
+    the bag slots on the right (owner's screenshot `04_Input/screenshots/actionbar-follower-2026-10-27.png` in the
+    project folder = our `wbx snap`) – the "before" for the UI Scale fix.
   - 805×664 (1.21): left gryphon gone, backpack clipped on the right.
+  - 886×664 (1.334, follower 3 widened for a minute): whole bar with both gryphon tips [verified with snapshot].
 - Below 4:3 the bar is clipped equally on both sides. That is geometry, not a resize bug. It cannot be fixed by
   moving windows, only by giving the client a wider area (or a UI addon that shrinks the bar).
 - To see the full bar in a slot, its *game area* (client area, without the title bar) must be ≥ 4:3.
@@ -37,7 +41,23 @@ Measured on the owner's PC, 2026-10-27: Classic Era 2026 (`WowClassic.exe`, clas
 - The 2 px resize nudge does not fix anything [verified by the owner]. It stays on (harmless) until we can remove it
   after more field data.
 
-## Where UI scale lives (checked 2026-10-27, read-only)
+## Where UI scale lives – answered (2026-10-27, Forever client started and closed by us)
+Test on our own Forever client (`_forever_\Wow.exe` 1.60.1, not running for the owner): Config.wtf backed up →
+`SET useUiScale "1"` and `SET uiScale "0.64"` added → client started (login screen) → closed normally → **WoW rewrote
+Config.wtf on exit (new time, lines in a new order) and kept both lines** [verified]. A CVar stored per account would
+have been dropped from the shared file. → UI Scale lives in the **shared `WTF\Config.wtf`**: one value for every
+client of an install, rewritten by every client when it closes. The original file was restored byte for byte (same
+SHA-256). The login screen itself ignores UI Scale (buttons the same size), so the effect on the action bar still needs
+a logged-in client: Classic Era 2026 is the same engine, but this is [derived] until the owner restarts their clients.
+
+Consequences for the app:
+- The fix is one value for the whole squad: the smallest any window needs (rule below). Owner: main 1726×1360 needs
+  ≤ 0.95, followers 830×664 need ≤ 0.93 → **0.93**.
+- Written only while **no** client of that install runs (otherwise the last client to close overwrites it), only the
+  two lines, with a one-time backup `Config.wtf.wowboxer-backup`. "UI Scale off" sets `useUiScale "0"`.
+- The action-bar mark uses (game aspect ÷ UI Scale); "buttons clipped" below 1.30, "gryphons clipped" up to 4:3.
+
+### Earlier read-only check (same day)
 - Shared `WTF\Config.wtf`: no `uiScale`/`useUiScale` line. Every `WTF\Account\<ACC>\config-cache.wtf`: none either.
   → UI Scale has never been changed on this PC, so its storage place is unproven [AFKLAR: change it once in game on
   one follower and look which file changes].
@@ -52,4 +72,14 @@ Measured on the owner's PC, 2026-10-27: Classic Era 2026 (`WowClassic.exe`, clas
 ## Still to test
 - Display Mode "Windowed (Fullscreen)" (`gxMaximize 1`), as WowOpenBox recommends: can it be resized from
   outside, and does it behave better? Needs one in-game setting change by the owner.
-- Forever client: exe name, window class, the same checks (4–5 Nov).
+- Forever in game (4–5 Nov): action bar, Edit Mode, the same checks after login.
+
+## Forever client (2026-10-27, login screen; name reservation only)
+- Install folder `World of Warcraft\_forever_`, exe **`Wow.exe`** (the same name as Retail – so the game is told by
+  the folder, not the exe), window class **`waApplication Window`**, title "World of Warcraft", version 1.60.1 (70634).
+- Command line when we start it directly: just the exe path. `.flavor.info` = `wowf`, `agentUID "wowf"`.
+- Default display mode **Windowed (Fullscreen)**: `GxMaximize "1"`, style `0x95000000` (popup, no frame), 2560×1440.
+  `wbx arrange --game forever` moved it, but the client maximised itself again (2560×1392) → it can only be placed
+  after Display Mode = Windowed (as for Classic). Not elevated; moving is allowed.
+- Forever and Classic Era windows can be open at the same time; with v0.2.2 each game's layout only takes its own
+  windows (`wbx info` prints the game per window).

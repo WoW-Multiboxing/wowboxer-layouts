@@ -40,7 +40,7 @@ public sealed class GuideViewModel : ObservableObject
             new(1, "Prepare your WoW clients",
                 "A few game settings make every window look sharp and run smoothly. You only do this once – all clients from one install share them.",
                 [
-                    "Esc → Options → Graphics → Display Mode: Windowed. (Tested on Classic Era; \"Windowed (Fullscreen)\" is still being checked for Forever.)",
+                    "Esc → Options → Graphics → Display Mode: Windowed. Forever starts in \"Windowed (Fullscreen)\" – then it maximises itself again and cannot be placed, so switch it once.",
                     "Render Scale: 100 % so the picture stays crisp in small windows.",
                     "Raise Background FPS (Graphics → Advanced, or /console maxFPSBk 30) so follower windows stay smooth while you play the main.",
                 ],
@@ -50,7 +50,7 @@ public sealed class GuideViewModel : ObservableObject
                 [
                     "Choose 2–8 clients with the big number buttons.",
                     "Pick Main + side, Overlays, Grid, 2 monitors or Free for all.",
-                    "Fine-tune by dragging windows on the map. A green dot means the whole action bar fits (4:3 or wider).",
+                    "Fine-tune by dragging windows on the map. A green dot means the whole action bar fits; a solid dot is measured on the open game window, a ring is the plan.",
                 ],
                 "Everything is saved automatically, and the app opens with your last setup next time."),
             new(3, "Start your squad",
@@ -66,7 +66,7 @@ public sealed class GuideViewModel : ObservableObject
                 [
                     "Alt+Tab or clicking a window works without any extra setting.",
                     "Hover to activate: Windows can activate the window your mouse points at (Ease of Access → \"Make the mouse easier to use\").",
-                    "With overlays, set the floating followers to \"Always on top\" so the main window cannot cover them.",
+                    "With overlays, set the floating followers to \"Always on top\" so the main window cannot cover them – and leave the main window itself off \"on top\".",
                 ],
                 "Blizzard has not clearly said whether hover-to-activate counts as \"streamlining\". Alt+Tab and clicking are the safe defaults.",
                 "Open the Windows hover setting",
@@ -75,7 +75,7 @@ public sealed class GuideViewModel : ObservableObject
                 "Most problems have a simple cause. The app tells you what it sees.",
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
-                    "Action bar ends cut off: the window is narrower than 4:3. Choose \"4:3\" under Window rules, or widen the window.",
+                    "Action bar ends cut off: the game picture is narrower than 4:3. Press \"Fix action bar\" (one smaller UI Scale for all clients – written while WoW is closed, or it tells you what to set in game), or \"Shorten window instead\".",
                     "Still stuck: Settings → Diagnose writes a report you can send. It stays on your PC until you do.",
                 ],
                 "Reports hide your Windows user name, so they are safe to share."),

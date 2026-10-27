@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### v0.2.2 – owner's test of v0.2.1 fixed (2026-10-27)
+- **Always on top works both ways:** applied on every placement – also when the window is already in place (the main
+  window never became topmost) – and cleared with HWND_NOTOPMOST when switched off (followers stayed on top). Also at
+  app start and on every edit with live on. Checked on the real windows with `tools/topmost-check.ps1`.
+- **Only the selected game is arranged:** each window's game comes from its install folder (`_classic_era_`,
+  `_forever_` …; exe names are shared between games). Layouts remember their game (older files = Classic Era), each
+  game remembers its last layout, and the WoW client/account hints follow the game. `wbx --game classic|forever`.
+- **Forever client recorded:** `_forever_\Wow.exe`, class `waApplication Window`, starts in Windowed (Fullscreen)
+  (`docs/wow-display-findings.md`).
+- **Action bar, really solvable:** UI Scale is stored in the shared Config.wtf (verified on our own Forever client).
+  "Fix action bar" writes the one UI Scale the squad needs (owner: 0.93) – only while all clients of that install are
+  closed, with a backup – or shows the exact in-game steps. "UI Scale off" undoes it; "Shorten window instead" keeps
+  the old 4:3 route. The action-bar mark is now measured on the open window (solid dot) instead of guessed (ring);
+  "buttons clipped" starts below 1.30 (owner's screenshot). `wbx info`/`wbx snap` print the same verdict.
+- **Visible version:** title bar and About show the version (was stuck at 0.1.0), "What's new" once after an update.
+- Inspector: a window picker next to the header (keyboard and UI Automation friendly).
+
 ### v0.2.1 – "make it work" (unattended bug-hunt run)
 - **Classes never guessed:** slots show "Unknown class" (neutral colour) until set. Name, class and WoW account are set
   per row on the Squad tab; the account list and a "last played here" hint (with Use) come read-only from the WTF
