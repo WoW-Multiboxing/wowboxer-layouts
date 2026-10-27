@@ -22,6 +22,11 @@ Measured on the owner's PC, 2026-10-27: Classic Era 2026 (`WowClassic.exe`, clas
 - To see the full bar in a slot, its *game area* (client area, without the title bar) must be ≥ 4:3.
   Use `--min-aspect 1.334`, or arrange the windows wider.
 
+## Black bars (the 5:4 rule)
+- 1690×1392 (1.21) showed **no** black bars in a snapshot [verified]. So the launcher's 5:4 "minimum aspect" is not
+  a hard WoW limit for Classic Era 2026. It stays as an optional rule ("Window rules" in the app) and as a warning
+  colour, not as a claim of letterboxing.
+
 ## Title bar vs borderless
 - The owner saw the UI drawn at the wrong size after the PowerShell launcher removed title bars. With title bars
   kept (placed by their visible edges), the result looked right to him [verified by the owner].
