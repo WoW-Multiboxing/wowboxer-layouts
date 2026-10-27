@@ -32,7 +32,7 @@ internal sealed class Squad
             profile = ProfileJson.FromShareCode(o.ShareCode);
         else
         {
-            var options = new LayoutOptions { MinAspect = o.MinAspect, UseTaskbarArea = o.UseTaskbarArea, Borderless = o.Borderless, ResizeNudge = o.ResizeNudge };
+            var options = new LayoutOptions { MinAspect = o.MinAspect, UseTaskbarArea = o.UseTaskbarArea, Borderless = o.Borderless ?? false, ResizeNudge = o.ResizeNudge };
             var clients = Math.Clamp(o.Clients ?? defaultClients, Presets.MinClients, Presets.MaxClients);
             try
             {
@@ -49,7 +49,7 @@ internal sealed class Squad
         {
             Options = profile.Options with
             {
-                Borderless = profile.Options.Borderless && o.Borderless,
+                Borderless = o.Borderless ?? profile.Options.Borderless,
                 ResizeNudge = profile.Options.ResizeNudge && o.ResizeNudge,
             },
             Slots = profile.Slots.Select((s, i) => i < o.Names.Count ? s with { Name = o.Names[i] } : s).ToList(),

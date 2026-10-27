@@ -27,3 +27,6 @@ diagnose*.txt
 # OS
 Thumbs.db
 .DS_Store
+
+# Personal layouts saved with "wbx capture"
+my-*.json

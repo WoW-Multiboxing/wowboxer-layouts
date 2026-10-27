@@ -20,7 +20,7 @@ public static class WindowPlacer
     {
         if (!IsWindow(h)) return PlaceResult.Gone;
         if (IsZoomed(h) || IsIconic(h)) ShowWindowAsync(h, SW_SHOWNOACTIVATE);   // un-maximise / un-minimise without activating
-        var styleChanged = borderless && MakeBorderless(h);
+        var styleChanged = borderless ? MakeBorderless(h) : AddFrame(h);
         if (!styleChanged && IsAt(h, rect)) return PlaceResult.AlreadyThere;
 
         var (after, zFlag) = ZOrderArgs(z);
@@ -59,6 +59,15 @@ public static class WindowPlacer
         var borderless = style & ~BorderStyles;
         if (borderless == style) return false;
         SetWindowLong(h, GWL_STYLE, borderless);
+        return true;
+    }
+
+    /// <summary>Puts title bar and borders back (style only; the caller applies it with SWP_FRAMECHANGED). True if changed.</summary>
+    public static bool AddFrame(nint h)
+    {
+        var style = GetWindowLong(h, GWL_STYLE);
+        if ((style & BorderStyles) == BorderStyles) return false;
+        SetWindowLong(h, GWL_STYLE, style | BorderStyles);
         return true;
     }
 

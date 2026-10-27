@@ -14,7 +14,8 @@ internal sealed class CliOptions
     public string? ShareCode { get; private set; }
     public string Monitor { get; private set; } = "primary";
     public double MinAspect { get; private set; } = 1.25;
-    public bool Borderless { get; private set; } = true;
+    /// <summary>Null = keep what the profile says (presets: title bars on).</summary>
+    public bool? Borderless { get; private set; }
     public bool ResizeNudge { get; private set; } = true;
     public bool UseTaskbarArea { get; private set; }
     public IReadOnlyList<string> Names { get; private set; } = [];
@@ -47,7 +48,8 @@ internal sealed class CliOptions
           --monitor primary|N               monitor for the main window (default: primary)
           --min-aspect 1.25                 width/height below which WoW letterboxes (default 5:4)
           --taskbar                         use the whole screen, including the taskbar area
-          --no-borderless                   keep title bars and borders
+          --borderless                      remove title bars (off by default: WoW may draw its UI at the wrong size)
+          --no-borderless                   keep title bars, also when the layout file says borderless
           --no-nudge                        skip the 2 px resize nudge after placing
 
         Names and start:
@@ -87,7 +89,8 @@ internal sealed class CliOptions
                 case "--monitor": o.Monitor = Next(arg); break;
                 case "--min-aspect": o.MinAspect = ParseDouble(arg, Next(arg)); break;
                 case "--taskbar": o.UseTaskbarArea = true; break;
-                case "--no-borderless": o.Borderless = false; break;
+                case "--borderless": o.Borderless = true; break;
+                case "--no-borderless" or "--title-bars": o.Borderless = false; break;
                 case "--no-nudge": o.ResizeNudge = false; break;
                 case "--names": o.Names = SplitList(Next(arg)); break;
                 case "--accounts": o.Accounts = SplitList(Next(arg)); break;
