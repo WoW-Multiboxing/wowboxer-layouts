@@ -1,4 +1,4 @@
-﻿# Test plan
+# Test plan
 
 How the app is tested, and the result of the last full run. Rule for all tests: only the app's own window is driven
 (UI Automation, or a guarded real mouse that aborts if the cursor is over any other process). Nothing is ever sent to
@@ -32,6 +32,7 @@ Legend: âœ… passed Â· âš ï¸ passed with a note Â· âŒ failed (
 |---|---|
 | Unit tests (incl. squad install: most windows, tie stays, tie at start = opened first) | âœ… 830 |
 | UI sweep (paused app): no game selector / live switch / Full action bar / All monitors, one primary button, rows + chips, â–¾ details open and stay open, window rules + Auto-fit + tools in Settings, activity from the status bar, Fix action bar refuses with clients running, layouts Ã— counts, undo/reset, share codes, rename/delete, guide, settings | âœ… 73/73 |
+| 1 client (paused app): numbers 1–8 on one line, one window filling the monitor, other open clients "left as they are"; Undo restores the layout file byte for byte | ✅ (`setup-v0.2.4-one-client.png`) |
 | Real clients: the owner's 3 Classic Era windows are found at start, keep their slots: "All 3 connected", RE-ARRANGE | âœ… (screenshot `setup-after-v0.2.4.png`) |
 | Mixed installs: a fake Forever window â†’ "1 Forever window ignored Â· Include", not moved; Include â†’ "1 extra Forever window left as it is" (slots full), still not moved | âœ… |
 | Paused start: no window moved; resume â†’ fakes 1â€“3 placed in their slots on monitor 2, fakes 4â€“5 extra | âœ… |

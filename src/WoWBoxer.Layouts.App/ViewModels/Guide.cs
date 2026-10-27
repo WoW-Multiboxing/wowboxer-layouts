@@ -48,7 +48,7 @@ public sealed class GuideViewModel : ObservableObject
             new(2, "Pick clients and a layout",
                 "On the Setup tab, choose how many clients you run, then click a layout card. Your screens update instantly.",
                 [
-                    "Choose 2–8 clients with the big number buttons.",
+                    "Choose 2–8 clients with the big number buttons – or 1 for a normal single window when you play one character (no need to close the app).",
                     "Pick Main + side, Overlays, Grid, 2 monitors or Free for all.",
                     "Fine-tune by dragging windows on the map. A green dot means the whole action bar fits; a solid dot is measured on the open game window, a ring is the plan.",
                 ],

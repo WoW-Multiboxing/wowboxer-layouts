@@ -15,12 +15,12 @@ public enum PresetKind
 }
 
 /// <summary>
-/// Built-in layouts for 2–8 clients. Presets are built for a concrete monitor and stored in %,
+/// Built-in layouts for 1–8 clients (1 = a single window filling the monitor). Presets are built for a concrete monitor and stored in %,
 /// so the result resolves to whole, edge-sharing pixels on that monitor.
 /// </summary>
 public static class Presets
 {
-    public const int MinClients = 2;
+    public const int MinClients = 1;
     public const int MaxClients = 8;
 
     /// <summary>Overlay followers: aspect of each window, share of the screen width they may use, gap and margin.</summary>
@@ -52,7 +52,10 @@ public static class Presets
         var area = main.Area(options.UseTaskbarArea);
         var mainRef = MonitorRef(main);
 
-        var slots = kind switch
+        // One client: a plain single-window setup (not multiboxing) – the window fills the main monitor, whatever the card.
+        var slots = clients == 1
+            ? [Slot(1, SlotRole.Main, mainRef, area, 0, 0, area.Width, area.Height) with { Fit = FitMode.None, Z = ZOrder.Normal }]
+            : kind switch
         {
             PresetKind.Side => Side(clients, area, options.MinAspect, LayoutEngine.FrameSize(options, main.Dpi), mainRef),
             PresetKind.Overlay => Overlay(clients, area, mainRef),

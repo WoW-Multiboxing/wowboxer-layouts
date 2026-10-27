@@ -1136,7 +1136,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Title bar: "Awaiting clients · 1 of 3 connected" → "All 3 connected".</summary>
     public string HeaderStatus => _paused ? "Paused – WoW windows are left alone"
         : Missing > 0 ? $"Awaiting clients · {ConnectedCount} of {SlotCount} connected"
-        : ConnectedCount == SlotCount ? $"All {SlotCount} connected"
+        : ConnectedCount == SlotCount ? (SlotCount == 1 ? "Connected" : $"All {SlotCount} connected")
         : $"{ConnectedCount} of {SlotCount} in place · Re-arrange puts them back";
 
     /// <summary>For the title bar's dot: Paused, Ready (all connected), Awaiting, Moved.</summary>

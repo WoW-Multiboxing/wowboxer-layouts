@@ -13,7 +13,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Grid Margin="0,0,4,4" Width="31" Height="38">
+                        <Grid Margin="0,0,3,4" Width="28" Height="38">
                             <Border x:Name="Body" CornerRadius="5" BorderThickness="1.5" BorderBrush="#3A4560" Background="#121722">
                                 <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="14" Color="#E8C66A" Opacity="0" /></Border.Effect>
                             </Border>
@@ -248,7 +248,7 @@
                     <StackPanel>
                         <TextBlock Style="{StaticResource StepLabel}" Text="I  ·  HOW MANY CLIENTS?" />
                         <ListBox Margin="0,10,0,0" ItemsSource="{Binding ClientCounts}" SelectedItem="{Binding ClientCount}" ItemContainerStyle="{StaticResource SizeItem}"
-                                 ToolTip="How many WoW clients you play at once. The layout adapts instantly (Ctrl+ and Ctrl− work too).">
+                                 ToolTip="How many WoW clients you play at once. 1 = one normal window filling the screen, when you play a single character. The layout adapts instantly (Ctrl+ and Ctrl− work too).">
                             <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
                         </ListBox>
                     </StackPanel>

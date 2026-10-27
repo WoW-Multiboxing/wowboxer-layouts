@@ -147,10 +147,25 @@ public class PresetTests
     }
 
     [Theory]
-    [InlineData(1)]
+    [InlineData(0)]
     [InlineData(9)]
-    public void Client_counts_outside_2_to_8_are_refused(int n) =>
+    public void Client_counts_outside_1_to_8_are_refused(int n) =>
         Assert.Throws<ArgumentOutOfRangeException>(() => Presets.Create(PresetKind.Grid, n, TestMonitors.Reference));
+
+    [Theory]
+    [InlineData(PresetKind.Side)]
+    [InlineData(PresetKind.Overlay)]
+    [InlineData(PresetKind.Grid)]
+    [InlineData(PresetKind.Free)]
+    public void One_client_is_a_single_window_filling_the_work_area(PresetKind kind)
+    {
+        var profile = Presets.Create(kind, 1, TestMonitors.Reference, options: new LayoutOptions { Borderless = true });
+        var placed = LayoutEngine.Resolve(profile, TestMonitors.Reference);
+
+        Assert.Single(placed);
+        Assert.Equal(new PixelRect(0, 0, 2560, 1392), placed[0].Rect);
+        Assert.Equal(ZOrder.Normal, profile.Slots[0].Z);   // a normal window, not kept at the bottom
+    }
 
     [Fact]
     public void Grid_4_on_16_9_is_two_by_two()

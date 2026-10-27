@@ -43,7 +43,7 @@ internal sealed class CliOptions
 
         Layout:
           --preset side|overlay|grid|dual   built-in layout (default: side = main left, followers right)
-          --clients N                       2-8 (default: start 3, arrange = number of open windows)
+          --clients N                       1-8 (default: start 3, arrange = number of open windows)
           --profile FILE.json               use a saved wowboxer-layout/1 file instead of a preset
           --code WBX1:...                   use a layout share code instead of a preset
           --monitor primary|N               monitor for the main window (default: primary)
