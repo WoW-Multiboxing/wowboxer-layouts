@@ -26,9 +26,10 @@ public interface IUserDialogs
 }
 
 /// <summary>
-/// The whole app's state. Flow: how many clients → pick a layout card → fine-tune on the canvas → start the squad.
-/// The current layout is always a saved profile (auto-saved); every edit can be undone and, with "live" on,
-/// moves the running WoW windows right away.
+/// The whole app's state. Plug and play: the app always watches for WoW windows and puts each new one in the next free
+/// slot (Pause in the tray). Flow: how many clients → pick a layout card → fine-tune on the canvas; the one primary
+/// button opens the missing clients or re-arranges. The current layout is always a saved profile (auto-saved); every
+/// edit can be undone and moves the open WoW windows right away.
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
@@ -41,21 +42,26 @@ public sealed class MainViewModel : ObservableObject
     private readonly Stack<UndoStep> _undo = new();
 
     /// <summary>One undo step: the layout, and for squad reorders also which window and WoW account were in which row.</summary>
-    private sealed record UndoStep(LayoutProfile Profile, List<nint>? WindowOrder = null, List<string>? Accounts = null);
+    private sealed record UndoStep(LayoutProfile Profile, Dictionary<nint, int>? WindowSlots = null, List<string>? Accounts = null);
     private readonly SemaphoreSlim _liveLock = new(1, 1);
     private ProfileItem? _selectedProfile;
     private LayoutProfile? _current;
     private int _selectedSlotIndex = -1;
     private IReadOnlyList<MonitorInfo> _monitors = [];
-    private CancellationTokenSource? _watch, _live;
+    private CancellationTokenSource? _live;
     private bool _busy;
     private AppTab _tab;
     private StatusLine? _lastStatus;
     private bool _loaded;   // opening the app never moves windows; only edits do
     private readonly ClientLauncher _launcher = new();
+    private readonly SlotKeeper _keeper = new();   // which open window sits in which slot (always watching)
+    private bool _paused, _stepping;
+    private DateTime _openingUntil;                // after "Open N WoW clients": the button says "Awaiting clients" until then
 
-    public MainViewModel(AppSettings settings, IUserDialogs dialogs)
+    /// <param name="paused">Start with watching paused (tests; the tray's Pause does the same).</param>
+    public MainViewModel(AppSettings settings, IUserDialogs dialogs, bool paused = false)
     {
+        _paused = paused;
         _settings = settings;
         _dialogs = dialogs;
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
@@ -75,11 +81,12 @@ public sealed class MainViewModel : ObservableObject
         CaptureCommand = new RelayCommand(Capture);
         RefreshWindowsCommand = new RelayCommand(RefreshWindows);
         IdentifyCommand = new RelayCommand(Identify);
-        MoveWindowUpCommand = new RelayCommand(p => MoveWindow(p as GameWindowItem, -1));
-        MoveWindowDownCommand = new RelayCommand(p => MoveWindow(p as GameWindowItem, 1));
-        ArrangeCommand = new RelayCommand(() => _ = ArrangeAsync(), () => !_busy && Current is not null);
-        StartSquadCommand = new RelayCommand(() => _ = StartSquadAsync(), () => !_busy && Current is not null);
-        StopCommand = new RelayCommand(() => _watch?.Cancel(), () => IsWatching);
+        ArrangeCommand = new RelayCommand(() => _ = ArrangeAsync(), () => !_busy && Current is not null && Windows.Count > 0);
+        PrimaryCommand = new RelayCommand(Primary, () => !_busy && Current is not null && !Opening);
+        OpenClientsCommand = new RelayCommand(OpenClients, () => !_busy && Current is not null && Missing > 0);
+        OpenBattleNetCommand = new RelayCommand(OpenBattleNet);
+        IncludeCommand = new RelayCommand(Include);
+        PauseCommand = new RelayCommand(() => Paused = !Paused);
         RestoreFramesCommand = new RelayCommand(RestoreFrames);
         OpenLogsCommand = new RelayCommand(() => Open(StatusLog.LogFolder));
         OpenLayoutsFolderCommand = new RelayCommand(() => Open(AppSettings.ProfilesFolder));
@@ -87,7 +94,6 @@ public sealed class MainViewModel : ObservableObject
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
         ShowFirstRunCommand = new RelayCommand(() => FirstRunRequested?.Invoke());
-        StartFromSetupCommand = new RelayCommand(() => _ = StartSquadAsync(), () => !_busy && Current is not null);
 
         Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
         Cards =
@@ -111,10 +117,10 @@ public sealed class MainViewModel : ObservableObject
         ResetUiScaleCommand = new RelayCommand(ResetUiScale, () => UiScaleNow.Use);
 
         RefreshMonitors();
-        WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe, SelectedGame));
         LoadProfiles();
         RefreshWindows();
-        ApplyOnTop();   // "always on top" is restored at start; positions are not (opening the app never moves windows)
+        ReadWowAccounts();
+        ApplyOnTop();
         // Keeps "on top" right when Windows changes the foreground window or a WoW window moves (listening only).
         _guard = new ZOrderGuard(WantedZOrder, OnZCorrected);
         _lastRunning = RunningClientsNow();
@@ -126,26 +132,24 @@ public sealed class MainViewModel : ObservableObject
     private readonly Dictionary<nint, DateTime> _zLogged = [];
     private int _lastRunning;
 
-    /// <summary>The open WoW windows with the z-order of the slot each one is in (Windows[i] sits in slot i).</summary>
+    /// <summary>The open WoW windows with the z-order of the slot each one is in. Nothing while paused.</summary>
     private IReadOnlyList<(nint Handle, ZOrder Z)> WantedZOrder()
     {
-        if (Current is null) return [];
-        var list = new List<(nint, ZOrder)>();
-        for (var i = 0; i < Windows.Count && i < Current.Slots.Count; i++) list.Add((Windows[i].Window.Handle, Current.Slots[i].Z));
-        return list;
+        if (Current is null || _paused) return [];
+        return Windows.Where(w => w.Slot - 1 < Current.Slots.Count).Select(w => (w.Window.Handle, Current.Slots[w.Slot - 1].Z)).ToList();
     }
 
     private void OnZCorrected(nint handle, ZOrder z)
     {
-        var slot = Windows.Select(w => w.Window.Handle).ToList().IndexOf(handle) + 1;
+        var slot = Windows.FirstOrDefault(w => w.Window.Handle == handle)?.Slot ?? 0;
         if (_zLogged.TryGetValue(handle, out var at) && DateTime.UtcNow - at < TimeSpan.FromMinutes(1)) return;   // log once a minute per window
         _zLogged[handle] = DateTime.UtcNow;
         Status.Info($"Window {slot}: \"on top\" was {(z == ZOrder.Top ? "lost" : "set by something else")} – put right again.");
     }
 
-    /// <summary>How many clients of the selected game's install are running (Auto-fit may only write while this is 0).</summary>
+    /// <summary>How many clients of the squad's install are running (Auto-fit may only write while this is 0).</summary>
     private int RunningClientsNow() =>
-        GameInstall.FindExe(_settings.GameExe, SelectedGame) is { } exe ? UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!) : -1;
+        SquadExe is { } exe ? UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!) : -1;
 
     private LayoutCard Card(PresetKind kind, string title, string blurb) =>
         new(kind, title, blurb, new RelayCommand(() => ApplyKind(kind)));
@@ -159,7 +163,6 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
-    public ObservableCollection<CheckItem> Checklist { get; } = [];
     public IReadOnlyList<LayoutCard> Cards { get; }
     public IReadOnlyList<int> ClientCounts { get; } = Enumerable.Range(Presets.MinClients, Presets.MaxClients - Presets.MinClients + 1).ToList();
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
@@ -186,7 +189,6 @@ public sealed class MainViewModel : ObservableObject
             if (!Set(ref _tab, value)) return;
             _settings.LastTab = value.ToString();
             _settings.Save();
-            if (value == AppTab.Setup) RefreshWindows();
         }
     }
 
@@ -202,9 +204,13 @@ public sealed class MainViewModel : ObservableObject
         private set
         {
             if (!Set(ref _current, value)) return;
-            foreach (var name in new[] { nameof(FullActionBar), nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
+            foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
                 OnPropertyChanged(name);
-            if ((value?.Slots.Count ?? 0) != _slotChoices.Count) OnPropertyChanged(nameof(SlotChoices));
+            if ((value?.Slots.Count ?? 0) != _slotChoices.Count)
+            {
+                OnPropertyChanged(nameof(SlotChoices));
+                RefreshWindows();   // fewer slots free windows, more slots take waiting ones
+            }
             RefreshCards();
             RefreshParty();
             RaiseSlotProperties();
@@ -233,8 +239,34 @@ public sealed class MainViewModel : ObservableObject
         get => _selectedSlotIndex;
         set
         {
-            if (Set(ref _selectedSlotIndex, value)) RaiseSlotProperties();
+            if (!Set(ref _selectedSlotIndex, value)) return;
+            if (value != _expandedIndex) ExpandedIndex = -1;   // selecting another row closes the open details
+            RaiseSlotProperties();
         }
+    }
+
+    private int _expandedIndex = -1;
+
+    /// <summary>The squad row whose details are open (-1 = none). Its window is the selected one.</summary>
+    public int ExpandedIndex
+    {
+        get => _expandedIndex;
+        set
+        {
+            if (!Set(ref _expandedIndex, value)) return;
+            for (var i = 0; i < Party.Count; i++) Party[i].IsExpanded = i == value;
+        }
+    }
+
+    private void ToggleDetails(int index)
+    {
+        if (ExpandedIndex == index)
+        {
+            ExpandedIndex = -1;
+            return;
+        }
+        SelectedSlotIndex = index;
+        ExpandedIndex = index;
     }
 
     public bool Busy
@@ -246,7 +278,27 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public bool IsWatching => _watch is not null;
+    /// <summary>Watching paused (tray): no window is moved or re-stacked until it is resumed.</summary>
+    public bool Paused
+    {
+        get => _paused;
+        set
+        {
+            if (!Set(ref _paused, value)) return;
+            if (value)
+            {
+                _live?.Cancel();
+                Status.Info("Paused: WoW windows are not moved or kept on top until you resume (tray menu).");
+            }
+            else
+            {
+                _keeper.Settle();   // windows that opened or moved meanwhile go to their slots now
+                ApplyOnTop();
+                Status.Info("Watching again: every WoW window goes to its slot.");
+            }
+            RaiseSquadStatus();
+        }
+    }
 
     // =====================================================================================
     // Step 1 + 2: clients and layout cards
@@ -363,6 +415,9 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasSlot => Slot is not null;
 
+    /// <summary>The squad row of the selected window (its account and Identify, shown in the open details).</summary>
+    public PartyMember? SelectedMember => Party.ElementAtOrDefault(SelectedSlotIndex);
+
     /// <summary>
     /// "Window 1" … for the inspector's window picker (keyboard and UI Automation friendly). A new list only when the
     /// count changes: a new list would make the picker drop its selection on every edit.
@@ -460,7 +515,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The fix for a clipped bar: the UI Scale this window needs (one value is shared by every client).</summary>
     public string SlotUiScaleHint => SlotEffectiveAspect >= 4.0 / 3 - 0.001 || SlotGameAspect <= 0
         ? ""
-        : $"Fix: UI Scale {UiScale.ForFullBar(SlotGameAspect):0.00} or lower. WoW keeps one UI Scale for all clients of an install – \"Fix action bar\" sets it for the whole squad.";
+        : _settings.AutoFitActionBar && SquadGame == WowGame.ClassicEra
+            ? $"Auto-fit sets UI Scale {UiScale.ForSquad(Enumerable.Range(0, Current?.Slots.Count ?? 0).Select(PlannedAspect)):0.00} the next time all clients are closed."
+            : $"Fix: UI Scale {UiScale.ForFullBar(SlotGameAspect):0.00} or lower (Settings › Action bar), or shorten this window.";
 
     /// <summary>WoW's UI Scale for the selected game, read from the shared Config.wtf (read-only).</summary>
     public UiScaleSetting UiScaleNow { get; private set; } = UiScaleSetting.Automatic;
@@ -473,13 +530,15 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Re-reads UI Scale and measures every open window in its slot. Raises only when something changed.</summary>
     private void MeasureBars()
     {
-        var exe = GameInstall.FindExe(_settings.GameExe, SelectedGame);
+        var exe = SquadExe;
         var scale = exe is null ? UiScaleSetting.Automatic : UiScaleFix.Read(exe);
         var measured = new Dictionary<int, LiveSlot>();
-        for (var i = 0; i < Windows.Count && Current is not null && i < Current.Slots.Count; i++)
+        foreach (var item in Windows)
         {
-            var (w, h) = WindowFinder.ClientSizeOf(Windows[i].Window.Handle);
-            if (w > 0 && h > 0) measured[i] = new LiveSlot(w, h, UiScale.EffectiveAspect((double)w / h, scale), WindowPlacer.IsTopmost(Windows[i].Window.Handle));
+            var i = item.Slot - 1;
+            if (Current is null || i >= Current.Slots.Count) continue;
+            var (w, h) = WindowFinder.ClientSizeOf(item.Window.Handle);
+            if (w > 0 && h > 0) measured[i] = new LiveSlot(w, h, UiScale.EffectiveAspect((double)w / h, scale), WindowPlacer.IsTopmost(item.Window.Handle));
         }
         if (scale == UiScaleNow && measured.Count == LiveSlots.Count && measured.All(kv => LiveSlots.TryGetValue(kv.Key, out var old) && old == kv.Value)) return;
         UiScaleNow = scale;
@@ -487,6 +546,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(UiScaleNow));
         OnPropertyChanged(nameof(UiScaleEffective));
         OnPropertyChanged(nameof(LiveSlots));
+        OnPropertyChanged(nameof(UiScaleText));
         for (var i = 0; i < Party.Count; i++)
         {
             Party[i].OnTop = Current?.Slots.ElementAtOrDefault(i)?.Z == ZOrder.Top;
@@ -508,9 +568,9 @@ public sealed class MainViewModel : ObservableObject
             Status.Ok("Every window of this layout already shows the whole action bar – no UI Scale needed.");
             return;
         }
-        if (GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe)
+        if (SquadExe is not { } exe)
         {
-            Status.Warn($"The {SelectedGameName} client was not found. Set it in Settings › WoW client.");
+            Status.Warn("The WoW client was not found. Set it in Settings › WoW client.");
             return;
         }
         if (UiScaleNow.Use && UiScaleNow.Scale <= need.Value + 0.001)
@@ -522,7 +582,7 @@ public sealed class MainViewModel : ObservableObject
         if (running > 0)
         {
             Status.Warn($"UI Scale {need:0.00} makes the whole action bar fit in every window of \"{Current.Name}\".");
-            Status.Info($"Either close all {running} {SelectedGameName} client(s) and press Fix action bar again – the app then writes it for you –");
+            Status.Info($"Either close all {running} {SquadGameName} client(s) and press Fix action bar again – the app then writes it for you –");
             Status.Info($"or in each client: Options › search \"UI Scale\" › tick Use UI Scale › set {need:0.00}. (One value for all clients; the last client to close saves it.)");
             return;
         }
@@ -532,13 +592,13 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
         MeasureBars();
-        Status.Ok($"UI Scale set to {need:0.00} in {SelectedGameName}'s Config.wtf (a backup was kept). Start your squad: every window shows the whole action bar.");
+        Status.Ok($"UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf (a backup was kept). Open your clients: every window shows the whole action bar.");
     }
 
     /// <summary>Turns "Use UI Scale" off again (automatic UI size), with the same closed-clients rule.</summary>
     private void ResetUiScale()
     {
-        if (GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe) return;
+        if (SquadExe is not { } exe) return;
         if (UiScaleFix.Write(exe, use: false, UiScaleNow.Scale) is { } error)
         {
             Status.Warn(error + " Or untick Use UI Scale in game.");
@@ -550,15 +610,13 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(AutoFitActionBar));
         }
         MeasureBars();
-        Status.Ok($"Use UI Scale is off again for {SelectedGameName} (automatic UI size). Auto-fit action bar is off too.");
+        Status.Ok($"Use UI Scale is off again for {SquadGameName} (automatic UI size). Auto-fit action bar is off too.");
     }
 
-    /// <summary>Layout option: every window that may be shortened gets a 4:3 game area (the whole Classic bar).</summary>
-    public bool FullActionBar
-    {
-        get => Current is not null && Math.Abs(Current.Options.MinAspect - 4.0 / 3) < 0.01;
-        set => EditOptions(o => o with { MinAspect = value ? 4.0 / 3 : 1.25 });
-    }
+    /// <summary>The squad install's UI Scale, for Settings.</summary>
+    public string UiScaleText => SquadExe is null
+        ? "WoW was not found."
+        : $"{SquadGameName}: UI Scale {UiScaleNow.Display}{(SquadGame == WowGame.ClassicEra ? "" : " · Auto-fit runs for Classic Era only (this game's bar is not verified yet)")}";
 
     /// <summary>Shortens the selected window just enough for a 4:3 game area (keeps its width and its anchor edge).</summary>
     private void FitActionBar()
@@ -580,7 +638,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void RaiseSlotProperties()
     {
-        foreach (var name in new[] { nameof(SlotBarText), nameof(SlotBarBrush), nameof(SlotUiScaleHint), nameof(FullActionBar), nameof(HasSlot), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
+        foreach (var name in new[] { nameof(SlotBarText), nameof(SlotBarBrush), nameof(SlotUiScaleHint), nameof(HasSlot), nameof(SelectedMember), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
             OnPropertyChanged(name);
     }
 
@@ -603,11 +661,14 @@ public sealed class MainViewModel : ObservableObject
     public ICommand CaptureCommand { get; }
     public ICommand RefreshWindowsCommand { get; }
     public ICommand IdentifyCommand { get; }
-    public ICommand MoveWindowUpCommand { get; }
-    public ICommand MoveWindowDownCommand { get; }
     public ICommand ArrangeCommand { get; }
-    public ICommand StartSquadCommand { get; }
-    public ICommand StopCommand { get; }
+    /// <summary>The one button: "Open N WoW clients" while slots are empty, else "Re-arrange".</summary>
+    public ICommand PrimaryCommand { get; }
+    public ICommand OpenClientsCommand { get; }
+    public ICommand OpenBattleNetCommand { get; }
+    /// <summary>"Include": other installs' windows join the squad (until the app restarts).</summary>
+    public ICommand IncludeCommand { get; }
+    public ICommand PauseCommand { get; }
     public ICommand RestoreFramesCommand { get; }
     public ICommand OpenLogsCommand { get; }
     public ICommand OpenLayoutsFolderCommand { get; }
@@ -615,7 +676,6 @@ public sealed class MainViewModel : ObservableObject
     public ICommand OpenUrlCommand { get; }
     public ICommand BrowseBattleNetCommand { get; }
     public ICommand ShowFirstRunCommand { get; }
-    public ICommand StartFromSetupCommand { get; }
     public ICommand CloseMineCommand { get; }
     public ICommand RefreshHintsCommand { get; }
     public ICommand BrowseGameCommand { get; }
@@ -640,13 +700,13 @@ public sealed class MainViewModel : ObservableObject
     private void LoadProfiles()
     {
         var errors = new List<string>();
-        var stored = _store.LoadAll(errors).Where(s => s.Profile.GameOrDefault == SelectedGame).ToList();
+        var stored = _store.LoadAll(errors).ToList();   // layouts work with every WoW install
         foreach (var e in errors) Status.Warn($"Skipped a broken layout file: {e}");
         if (stored.Count == 0 && Monitors.Count > 0)
         {
-            // First start (or first time with this game): a ready-to-use layout for 3 clients.
-            var name = _store.UniqueName(SelectedGame == WowGame.ClassicEra ? "My squad" : $"My {SelectedGameName} squad");
-            var profile = Presets.Create(PresetKind.Side, 3, Monitors, options: new LayoutOptions { MinAspect = 4.0 / 3 }) with { Name = name, Game = SelectedGame };
+            // First start: a ready-to-use layout for 3 clients.
+            var name = _store.UniqueName("My squad");
+            var profile = Presets.Create(PresetKind.Side, 3, Monitors, options: new LayoutOptions { MinAspect = 4.0 / 3 }) with { Name = name };
             stored.Add(new StoredProfile(_store.Save(profile), profile));
         }
         _selectedProfile = null;
@@ -664,21 +724,19 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>The last layout used with the selected game (each game remembers its own).</summary>
     private string? LastProfileName
     {
-        get => SelectedGame == WowGame.Forever ? _settings.LastProfileForever : _settings.LastProfile;
+        get => _settings.LastProfile;
         set
         {
-            if (SelectedGame == WowGame.Forever) _settings.LastProfileForever = value;
-            else _settings.LastProfile = value;
+            _settings.LastProfile = value;
             _settings.Save();
         }
     }
 
     private void AddAndSelect(LayoutProfile profile)
     {
-        profile = profile with { Name = _store.UniqueName(profile.Name), Game = SelectedGame };
+        profile = profile with { Name = _store.UniqueName(profile.Name), Game = null };   // a layout is for any WoW install
         var item = new ProfileItem(new StoredProfile(_store.Save(profile), profile));
         Profiles.Add(item);
         SelectedProfile = item;
@@ -717,6 +775,8 @@ public sealed class MainViewModel : ObservableObject
     {
         if (_selectedProfile is null || Current is null || profile == Current) return;
         if (pushUndo) _undo.Push(new UndoStep(Current));
+        // only a change of the windows' places moves them (a name, class or "on top" change does not)
+        var moved = Monitors.Count == 0 || !LayoutEngine.Resolve(Current, Monitors).Select(p => p.Rect).SequenceEqual(LayoutEngine.Resolve(profile, Monitors).Select(p => p.Rect));
         try
         {
             _selectedProfile.Path = _store.Save(profile, _selectedProfile.Path);
@@ -730,7 +790,7 @@ public sealed class MainViewModel : ObservableObject
         Current = profile;
         LastProfileName = profile.Name;
         ApplyOnTop();
-        ScheduleLive();
+        if (moved) ScheduleLive();
         if (_loaded && _settings.AutoFitActionBar && RunningClientsNow() == 0) AutoFitUiScale("the layout changed");
     }
 
@@ -762,13 +822,10 @@ public sealed class MainViewModel : ObservableObject
     {
         if (_undo.Count == 0) return;
         var step = _undo.Pop();
-        if (step.WindowOrder is { } order)
+        if (step.WindowSlots is { } map)
         {
             // a squad reorder: put the windows and accounts back in their rows too, not only names and classes
-            var items = Windows.ToList();
-            Windows.Clear();
-            foreach (var w in items.OrderBy(w => order.IndexOf(w.Window.Handle) is var i && i >= 0 ? i : int.MaxValue)) Windows.Add(w);
-            for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
+            _keeper.Restore(map);
             if (step.Accounts is { } accounts)
             {
                 _settings.Accounts = accounts.ToList();
@@ -776,8 +833,9 @@ public sealed class MainViewModel : ObservableObject
             }
         }
         Update(step.Profile, pushUndo: false);
-        if (step.WindowOrder is not null)
+        if (step.WindowSlots is not null)
         {
+            RefreshWindows();
             RefreshParty();
             ApplyOnTop();
             ScheduleLive();
@@ -834,7 +892,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Makes a new layout from where the WoW windows are now (arranged by hand, Windows Snap …).</summary>
     private void Capture()
     {
-        var open = WindowFinder.FindGameWindows(SelectedGame);
+        var open = Windows.Select(w => w.Window).ToList();
         if (open.Count == 0)
         {
             Status.Warn("No World of Warcraft windows found to capture. Arrange your game windows first.");
@@ -850,39 +908,10 @@ public sealed class MainViewModel : ObservableObject
     // Settings
     // =====================================================================================
 
-    /// <summary>The game whose windows the app arranges. Each game has its own layouts; other games' windows are left alone.</summary>
-    public WowGame SelectedGame => _settings.Forever ? WowGame.Forever : WowGame.ClassicEra;
-
-    public string SelectedGameName => GameDetection.DisplayName(SelectedGame);
-
-    public bool Forever
-    {
-        get => _settings.Forever;
-        set
-        {
-            if (value == _settings.Forever) return;
-            SetSetting(() => _settings.Forever = value);
-            OnPropertyChanged(nameof(SelectedGame));
-            OnPropertyChanged(nameof(SelectedGameName));
-            OnPropertyChanged(nameof(GameExe));
-            Windows.Clear();
-            LoadProfiles();
-            ReadWowAccounts();
-            RefreshWindows();
-            Status.Info($"Game: {SelectedGameName}. Only {SelectedGameName} windows are arranged, with {SelectedGameName} layouts.");
-        }
-    }
-
     public bool RenameWindows
     {
         get => _settings.RenameWindows;
         set => SetSetting(() => _settings.RenameWindows = value);
-    }
-
-    public bool LiveApply
-    {
-        get => _settings.LiveApply;
-        set => SetSetting(() => _settings.LiveApply = value);
     }
 
     public bool Animations
@@ -903,42 +932,22 @@ public sealed class MainViewModel : ObservableObject
         set => SetSetting(() => _settings.BattleNetExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
     }
 
+    /// <summary>The WoW client the app opens and reads (UI Scale, accounts): the open clients' install, else the last used one.</summary>
     public string GameExe
     {
-        get => GameInstall.FindExe(_settings.GameExe, SelectedGame) ?? _settings.GameExe ?? "";
+        get => SquadExe ?? _settings.GameExe ?? "";
         set
         {
             SetSetting(() => _settings.GameExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
             ReadWowAccounts();
+            MeasureBars();
         }
-    }
-
-    public bool LaunchLoginScreens
-    {
-        get => _settings.LaunchLoginScreens;
-        set
-        {
-            SetSetting(() => _settings.LaunchLoginScreens = value);
-            OnPropertyChanged(nameof(LaunchViaBattleNet));
-        }
-    }
-
-    public bool LaunchViaBattleNet
-    {
-        get => !LaunchLoginScreens;
-        set => LaunchLoginScreens = !value;
     }
 
     private void BrowseGame()
     {
         var path = _dialogs.OpenFile("WoW client|Wow*.exe|Programs (*.exe)|*.exe");
-        if (path is null) return;
-        if (GameDetection.GameOf(path) is var game && game != SelectedGame && game != WowGame.Unknown)
-        {
-            Status.Warn($"That is the {GameDetection.DisplayName(game)} client. Pick the {SelectedGameName} one, or switch the game first.");
-            return;
-        }
-        GameExe = path;
+        if (path is not null) GameExe = path;
     }
 
     private void SetSetting(Action change, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
@@ -958,9 +967,240 @@ public sealed class MainViewModel : ObservableObject
     // Squad
     // =====================================================================================
 
-    public string SquadHint => Windows.Count == 0
-        ? "No WoW windows are open yet. Press Start squad, then press Play in Battle.net once per account – each window jumps into its place."
-        : $"{Windows.Count} WoW window(s) open. Click a row to edit its window; drag ⋮⋮ to change the order; Identify shows who is who.";
+    public string SquadHint => "Drag ⋮⋮ to change who sits where – the real windows follow. ▾ opens a window's details: class, WoW account, always on top, Identify, size.";
+
+    // ---------- which windows: the squad's install, always watching ----------
+
+    private string? _squadExe;   // a client exe of the install the squad follows (null: no squad window open)
+    private readonly HashSet<string> _included = new(StringComparer.OrdinalIgnoreCase);   // other installs the user let in
+    private readonly Dictionary<uint, DateTime> _startTimes = [];
+    private List<string> _ignoredInstalls = [];
+    private bool _firstSync = true;
+    private string? _squadInstall;   // the install folder the squad follows (to notice when it changes)
+
+    /// <summary>
+    /// The WoW client the squad uses: the install of the open squad windows, else the last used one, else Classic Era's.
+    /// UI Scale, accounts and "Open WoW clients" follow it.
+    /// </summary>
+    public string? SquadExe => _squadExe ?? (File.Exists(_settings.GameExe) ? _settings.GameExe : GameInstall.FindExe(null));
+
+    public WowGame SquadGame => GameDetection.GameOf(SquadExe);
+
+    public string SquadGameName => GameDetection.DisplayName(SquadGame);
+
+    /// <summary>Open WoW windows of other installs, left alone ("1 Forever window ignored"); "" when none.</summary>
+    public string IgnoredText { get; private set; } = "";
+
+    /// <summary>More squad windows than slots: the extra ones stay where they are; "" when none.</summary>
+    public string ExtraText { get; private set; } = "";
+
+    private static string InstallOf(WindowInfo w) => Path.GetDirectoryName(w.ExePath) ?? "";
+
+    private DateTime StartedAt(uint pid)
+    {
+        if (!_startTimes.TryGetValue(pid, out var t)) _startTimes[pid] = t = ProcessInfo.StartTime(pid) ?? DateTime.MaxValue;
+        return t;
+    }
+
+    private void Include()
+    {
+        foreach (var install in _ignoredInstalls) _included.Add(install);
+        Status.Info("The other WoW windows join the squad now (until the app restarts).");
+        RefreshWindows();
+    }
+
+    /// <summary>
+    /// Looks at every open WoW window: the squad follows the install with the most windows (tie: the one opened first);
+    /// each squad window keeps its slot, a new one takes the slot it already sits in or the next free one. Windows of
+    /// other installs are left alone. Placing happens in <see cref="Tick"/> (not while paused).
+    /// </summary>
+    public void RefreshWindows()
+    {
+        if (Current is null) return;
+        var all = WindowFinder.FindGameWindows();
+        var install = GameDetection.SquadInstall(all.Select(w => (InstallOf(w), StartedAt(w.Pid))), _squadInstall);
+        bool InSquad(WindowInfo w) => string.Equals(InstallOf(w), install, StringComparison.OrdinalIgnoreCase) || _included.Contains(InstallOf(w));
+        var squad = all.Where(InSquad).OrderBy(w => StartedAt(w.Pid)).ToList();
+        var ignored = all.Where(w => !InSquad(w)).ToList();
+
+        var exe = squad.FirstOrDefault(w => string.Equals(InstallOf(w), install, StringComparison.OrdinalIgnoreCase))?.ExePath;
+        if (!string.Equals(exe ?? _squadExe, _squadExe, StringComparison.OrdinalIgnoreCase))
+        {
+            _squadExe = exe;
+            _settings.GameExe = exe;   // the last used install: "Open WoW clients" uses it when nothing is open
+            _settings.Save();
+            foreach (var name in new[] { nameof(GameExe), nameof(SquadGame), nameof(SquadGameName) }) OnPropertyChanged(name);
+            if (!_firstSync) ReadWowAccounts();
+        }
+        _squadExe = exe ?? _squadExe;
+
+        _ignoredInstalls = ignored.Select(InstallOf).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        IgnoredText = string.Join(" · ", ignored.GroupBy(w => w.Game).Select(g => $"{g.Count()} {GameDetection.DisplayName(g.Key)} window{(g.Count() == 1 ? "" : "s")} ignored"));
+
+        var switched = install is not null && _squadInstall is not null && !string.Equals(install, _squadInstall, StringComparison.OrdinalIgnoreCase);
+        _squadInstall = install ?? _squadInstall;
+        var (added, removed) = _keeper.Sync(squad, Current.Slots.Count, SitsIn);
+        if (_firstSync)
+        {
+            if (added.Count > 0) Status.Info($"Found {added.Count} open WoW window(s): each keeps its slot or gets the next free one.");
+        }
+        else if (switched)
+        {
+            Status.Info($"The squad now follows the {GameDetection.DisplayName(GameDetection.GameOf(exe))} install with the most open windows ({squad.Count}); other WoW windows are left alone.");
+        }
+        else
+        {
+            foreach (var (h, slot) in removed)
+                Status.Info(WindowFinder.Exists(h) ? $"Window {slot + 1}'s slot is gone (fewer clients): that window is left where it is." : $"Window {slot + 1} closed – its slot is free again.");
+            foreach (var (_, slot) in added)
+                Status.Ok($"New WoW window → window {slot + 1} ({Party.ElementAtOrDefault(slot)?.Title ?? $"slot {slot + 1}"}).");
+        }
+        _firstSync = false;
+        var extra = squad.Where(w => !_keeper.Slots.ContainsKey(w.Handle)).ToList();
+        ExtraText = extra.Count == 0 ? ""
+            : string.Join(" · ", extra.GroupBy(w => w.Game).Select(g => $"{g.Count()} extra {GameDetection.DisplayName(g.Key)} window{(g.Count() == 1 ? "" : "s")}"))
+              + $" left as {(extra.Count == 1 ? "it is" : "they are")} – more windows than slots";
+        OnPropertyChanged(nameof(IgnoredText));
+        OnPropertyChanged(nameof(ExtraText));
+
+        var byHandle = squad.ToDictionary(w => w.Handle);
+        var mapping = _keeper.Slots.Where(kv => byHandle.ContainsKey(kv.Key)).OrderBy(kv => kv.Value).Select(kv => (kv.Key, kv.Value + 1)).ToList();
+        if (!mapping.SequenceEqual(Windows.Select(w => (w.Window.Handle, w.Slot))))
+        {
+            Windows.Clear();
+            foreach (var (h, slot) in mapping) Windows.Add(new GameWindowItem(byHandle[h]) { Slot = slot });
+            CommandManager.InvalidateRequerySuggested();
+        }
+        if (added.Count > 0) ApplyOnTop();
+        UpdatePartyWindows();
+    }
+
+    /// <summary>The slot a window already sits in exactly (so windows arranged earlier keep their places), or -1.</summary>
+    private int SitsIn(nint h)
+    {
+        if (Current is null || Monitors.Count == 0) return -1;
+        var placed = LayoutEngine.Resolve(Current, Monitors);
+        return Enumerable.Range(0, placed.Count).FirstOrDefault(i => WindowPlacer.IsAt(h, placed[i].Rect), -1);
+    }
+
+    private GameWindowItem? WindowAt(int index) => Windows.FirstOrDefault(w => w.Slot == index + 1);
+
+    /// <summary>
+    /// Called every second while the app runs (also in the tray): new windows get their slot and are placed, "on top"
+    /// stays right, and when the last client of the install closes, Auto-fit may set the UI Scale.
+    /// </summary>
+    public void Tick()
+    {
+        if (!Busy) RefreshWindows();
+        if (!_paused)
+        {
+            _guard?.Reassert();   // safety net next to the event hooks
+            if (!_stepping && !Busy && Plan() is { } plan) _ = StepAsync(plan);
+        }
+        var running = RunningClientsNow();
+        if (running == 0 && _lastRunning > 0) AutoFitUiScale("the last client closed");
+        _lastRunning = running;
+        if (_openingUntil != default && !Opening)
+        {
+            _openingUntil = default;
+            RaiseSquadStatus();
+        }
+    }
+
+    private async Task StepAsync(SquadPlan plan)
+    {
+        _stepping = true;
+        try
+        {
+            await _keeper.StepAsync(plan, Status);
+        }
+        finally
+        {
+            _stepping = false;
+        }
+    }
+
+    // ---------- status and the one button ----------
+
+    /// <summary>Slots whose window is open and in place.</summary>
+    public int ConnectedCount => Party.Count(p => p.State == PartyState.Connected);
+
+    /// <summary>Slots without a window yet.</summary>
+    public int Missing => Current is null ? 0 : Math.Max(0, Current.Slots.Count - Windows.Count);
+
+    /// <summary>Just after "Open N WoW clients", until the windows are there (or 2 minutes passed).</summary>
+    private bool Opening => DateTime.UtcNow < _openingUntil && Missing > 0;
+
+    private int SlotCount => Current?.Slots.Count ?? 0;
+
+    /// <summary>Title bar: "Awaiting clients · 1 of 3 connected" → "All 3 connected".</summary>
+    public string HeaderStatus => _paused ? "Paused – WoW windows are left alone"
+        : Missing > 0 ? $"Awaiting clients · {ConnectedCount} of {SlotCount} connected"
+        : ConnectedCount == SlotCount ? $"All {SlotCount} connected"
+        : $"{ConnectedCount} of {SlotCount} in place · Re-arrange puts them back";
+
+    /// <summary>For the title bar's dot: Paused, Ready (all connected), Awaiting, Moved.</summary>
+    public string SquadState => _paused ? "Paused" : Missing > 0 ? "Awaiting" : ConnectedCount == SlotCount ? "Ready" : "Moved";
+
+    public string PrimaryText => Opening ? $"AWAITING CLIENTS {ConnectedCount}/{SlotCount}"
+        : Missing > 0 ? $"OPEN {Missing} WOW CLIENT{(Missing == 1 ? "" : "S")}"
+        : "RE-ARRANGE";
+
+    public string PrimaryTip => Opening ? "Log in to each login screen yourself – each window snaps into its slot as it opens."
+        : Missing > 0 ? $"Opens {Missing} {SquadGameName} login screen(s), one per empty slot. You log in to each yourself – nothing is typed for you. (Ctrl+Enter)"
+        : "Snaps every WoW window back into its slot (Ctrl+Enter or F5).";
+
+    private void RaiseSquadStatus()
+    {
+        foreach (var name in new[] { nameof(HeaderStatus), nameof(SquadState), nameof(PrimaryText), nameof(PrimaryTip), nameof(ConnectedCount), nameof(Missing), nameof(SlotStates) })
+            OnPropertyChanged(name);
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>Per slot: Awaiting / Placing / Connected / Moved (the map draws it on each window).</summary>
+    public IReadOnlyList<PartyState> SlotStates => Party.Select(p => p.State).ToList();
+
+    private void Primary()
+    {
+        if (Missing > 0) OpenClients();
+        else _ = ArrangeAsync();
+    }
+
+    /// <summary>
+    /// "Open N WoW clients": one login screen per empty slot, from the squad's install (the open clients' one, else the
+    /// last used). The user logs in to each – nothing is typed or clicked for them.
+    /// </summary>
+    private void OpenClients()
+    {
+        if (Current is null || Missing == 0) return;
+        if (SquadExe is not { } exe)
+        {
+            Status.Warn("WoW was not found. Set the WoW client in Settings.");
+            return;
+        }
+        if (RunningClientsNow() == 0) AutoFitUiScale("before opening the clients");
+        var missing = Missing;
+        Status.Title($"Opening {missing} {SquadGameName} login screen(s) for \"{Current.Name}\"");
+        if (_launcher.Start(exe, missing, Status) == 0) return;
+        _openingUntil = DateTime.UtcNow.AddMinutes(2);
+        for (var i = 0; i < Party.Count; i++)
+        {
+            if (WindowAt(i) is not null) continue;
+            var account = i < _settings.Accounts.Count && _settings.Accounts[i].Length > 0 ? $"  ({_settings.Accounts[i]})" : "";
+            Status.Info($"   Window {i + 1}: {Party[i].Title}{account}");
+        }
+        RaiseSquadStatus();
+    }
+
+    /// <summary>"Open Battle.net instead": starts it if needed and says what to press. Never clicks anything in it.</summary>
+    private void OpenBattleNet()
+    {
+        SquadWatcher.EnsureBattleNet(Status, _settings.BattleNetExe, ProcessInfo.CurrentElevation() == Elevation.Elevated);
+        Status.Info(SquadWatcher.BattleNetInstructions(SquadGame == WowGame.Forever));
+        Status.Info("Then press Play once per account – each window snaps into its slot as it opens.");
+    }
+
+    // ---------- rows ----------
 
     /// <summary>
     /// Rows mirror the layout's slots (name, class) plus the local WoW-account choice. Rows are reused when the slot
@@ -973,7 +1213,6 @@ public sealed class MainViewModel : ObservableObject
         {
             var accounts = WowAccounts.Select(a => a.Name).Prepend("").ToList();
             var lastPlayed = WowAccounts.ToDictionary(a => a.Name, a => a.LastPlayed, StringComparer.OrdinalIgnoreCase);
-            var states = Party.ToDictionary(p => p.Number, p => p.State);
             Party.Clear();
             for (var i = 0; i < Current.Slots.Count; i++)
             {
@@ -985,12 +1224,14 @@ public sealed class MainViewModel : ObservableObject
                     Accounts = accounts,
                     LastPlayed = lastPlayed,
                     Identify = new RelayCommand(() => IdentifySlot(index)),
+                    ToggleDetails = new RelayCommand(() => ToggleDetails(index)),
                     NameChanged = (k, name) => EditSlotAt(k, s => s with { Name = name.Length == 0 ? null : name }),
                     ClassChanged = (k, c) => EditSlotAt(k, s => s with { Class = c == WowClasses.Automatic ? null : c.Id }),
                     AccountChanged = SaveAccount,
-                    State = states.GetValueOrDefault(i + 1),
+                    IsExpanded = index == ExpandedIndex,
                 });
             }
+            if (ExpandedIndex >= Party.Count) ExpandedIndex = -1;
         }
         for (var i = 0; i < Party.Count; i++)
         {
@@ -1000,14 +1241,14 @@ public sealed class MainViewModel : ObservableObject
         UpdatePartyWindows();
     }
 
-    /// <summary>WoW accounts and characters from the game's WTF folder (read-only hints; refreshed on demand).</summary>
+    /// <summary>WoW accounts and characters from the squad install's WTF folder (read-only hints).</summary>
     public IReadOnlyList<WtfAccount> WowAccounts { get; private set; } = [];
 
     private void ReadWowAccounts()
     {
         try
         {
-            WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe, SelectedGame));
+            WowAccounts = GameInstall.Accounts(SquadExe);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -1026,12 +1267,12 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>
     /// Squad drag and drop: the character in row <paramref name="from"/> (name, class, WoW account and its open window)
     /// moves to slot position <paramref name="to"/>; the others shift. Slot rectangles stay where they are, so the
-    /// canvas, the rows and – with live on – the real windows all follow the same order.
+    /// canvas, the rows and the real windows all follow the same order.
     /// </summary>
     public void MoveCharacter(int from, int to)
     {
         if (Current is null || from == to || from < 0 || to < 0 || from >= Current.Slots.Count || to >= Current.Slots.Count) return;
-        var before = new UndoStep(Current, Windows.Select(w => w.Window.Handle).ToList(), _settings.Accounts.ToList());
+        var before = new UndoStep(Current, new Dictionary<nint, int>(_keeper.Slots), _settings.Accounts.ToList());
         var people = Current.Slots.Select(s => (s.Name, s.Class)).ToList();
         var person = people[from];
         people.RemoveAt(from);
@@ -1044,14 +1285,11 @@ public sealed class MainViewModel : ObservableObject
         _settings.Accounts.Insert(to, account);
         _settings.Save();
 
-        if (from < Windows.Count && to < Windows.Count)
-        {
-            Windows.Move(from, to);
-            for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
-        }
+        _keeper.Move(from, to, Current.Slots.Count);
         _undo.Push(before);   // also when the names did not change (unnamed rows): the windows did
         Update(Current with { Slots = slots }, pushUndo: false);
         // The window order changed even when names did not (unnamed rows): always refresh and move the windows.
+        RefreshWindows();
         RefreshParty();
         ApplyOnTop();
         ScheduleLive();
@@ -1060,7 +1298,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>
     /// Canvas drag and drop: dropping window <paramref name="a"/> onto window <paramref name="b"/> swaps their places on
-    /// screen. Each keeps its number, character and class; with live on the real windows swap too.
+    /// screen. Each keeps its number, character and class; the real windows swap too.
     /// </summary>
     public void SwapSlots(int a, int b)
     {
@@ -1074,67 +1312,33 @@ public sealed class MainViewModel : ObservableObject
         Status.Info($"Swapped the places of window {a + 1} and window {b + 1}. Ctrl+Z undoes it.");
     }
 
-    /// <summary>Row texts, statuses and the start checklist from the open windows.</summary>
+    /// <summary>Row statuses from the open windows: Awaiting → Placing → Connected (or Moved when it left its slot).</summary>
     private void UpdatePartyWindows()
     {
         if (Current is null || Monitors.Count == 0) return;
         var placed = LayoutEngine.Resolve(Current, Monitors);
         for (var i = 0; i < Party.Count; i++)
         {
-            var w = i < Windows.Count ? Windows[i] : null;
+            var w = WindowAt(i);
             Party[i].Window = w is null ? "No window yet" : $"{w.Process} · {w.Detail}";
-            if (Party[i].State == PartyState.Problem && w is null) continue;
-            Party[i].State = w is null ? PartyState.Waiting
-                : i < placed.Count && WindowPlacer.IsAt(w.Window.Handle, placed[i].Rect) ? PartyState.Placed
-                : PartyState.Elsewhere;
+            Party[i].State = w is null ? PartyState.Awaiting
+                : i < placed.Count && WindowPlacer.IsAt(w.Window.Handle, placed[i].Rect) ? PartyState.Connected
+                : !_paused && _keeper.IsSettling(w.Window.Handle) ? PartyState.Placing
+                : PartyState.Moved;
         }
-        var steps = new List<(string Label, bool Done)> { ("Battle.net is running", BattleNet.IsRunning()) };
-        for (var i = 0; i < Party.Count; i++)
-        {
-            var account = Party[i].Account is { Length: > 0 } a ? a : $"account {i + 1}";
-            steps.Add(($"Log in with {account} – {Party[i].Title}", Party[i].State == PartyState.Placed));
-        }
-        if (Checklist.Count != steps.Count || Checklist.Select(c => c.Label).Where((l, i) => l != steps[i].Label).Any())
-        {
-            Checklist.Clear();
-            foreach (var (label, _) in steps) Checklist.Add(new CheckItem(label));
-        }
-        for (var i = 0; i < steps.Count; i++) Checklist[i].Done = steps[i].Done;
-        OnPropertyChanged(nameof(HeaderStatus));
+        RaiseSquadStatus();
         MeasureBars();
     }
-
-    /// <summary>Short live status for the title bar.</summary>
-    public string HeaderStatus => IsWatching ? "Watching for game windows …" : Windows.Count switch
-    {
-        0 => "No WoW windows open",
-        1 => "1 WoW window open",
-        var n => $"{n} WoW windows open",
-    };
 
     private void IdentifySlot(int index)
     {
         RefreshWindows();
-        if (index >= Windows.Count)
+        if (WindowAt(index) is not { } w)
         {
             Status.Warn($"Slot {index + 1} has no WoW window yet.");
             return;
         }
-        var w = Windows[index];
         _dialogs.ShowIdentify([(WindowFinder.VisibleRectOf(w.Window.Handle), w.Slot.ToString(), Party.ElementAtOrDefault(index)?.Title ?? w.Process)]);
-    }
-
-    /// <summary>
-    /// Called every couple of seconds while the app runs: rows, statuses and "on top" follow what happens (windows
-    /// opening and closing), and when the last client of the install closes, Auto-fit may set the UI Scale.
-    /// </summary>
-    public void Tick()
-    {
-        if (!Busy) RefreshWindows();
-        _guard?.Reassert();   // safety net next to the event hooks
-        var running = RunningClientsNow();
-        if (running == 0 && _lastRunning > 0) AutoFitUiScale("the last client closed");
-        _lastRunning = running;
     }
 
     public bool AutoFitActionBar
@@ -1144,12 +1348,13 @@ public sealed class MainViewModel : ObservableObject
         {
             SetSetting(() => _settings.AutoFitActionBar = value);
             if (value && RunningClientsNow() == 0) AutoFitUiScale("Auto-fit was switched on");
+            RaiseSlotProperties();
         }
     }
 
     private string _uiScaleNotice = "";
 
-    /// <summary>A short line under the map after Auto-fit changed the UI Scale ("" = nothing to say).</summary>
+    /// <summary>A short line on the map after Auto-fit changed the UI Scale ("" = nothing to say).</summary>
     public string UiScaleNotice { get => _uiScaleNotice; private set => Set(ref _uiScaleNotice, value); }
 
     /// <summary>
@@ -1158,10 +1363,10 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private void AutoFitUiScale(string why)
     {
-        // Only where the bar rule is verified in game (Classic Era); Forever's UI is not known yet – the button still works there.
-        if (!_settings.AutoFitActionBar || Current is null || SelectedGame != WowGame.ClassicEra) return;
+        // Only where the bar rule is verified in game (Classic Era); other games' UI is not known yet – the button still works there.
+        if (!_settings.AutoFitActionBar || Current is null || SquadGame != WowGame.ClassicEra) return;
         var need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
-        if (need is null || GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe) return;
+        if (need is null || SquadExe is not { } exe) return;
         var now = UiScaleFix.Read(exe);
         if (now.Use && now.Scale <= need.Value + 0.001) return;
         if (UiScaleFix.Write(exe, use: true, need.Value) is { } error)
@@ -1171,7 +1376,7 @@ public sealed class MainViewModel : ObservableObject
         }
         MeasureBars();
         UiScaleNotice = $"UI Scale set to {need:0.00} so the full action bar fits in every window ({why}; backup kept).";
-        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SelectedGameName}'s Config.wtf so the full bar fits in every window of \"{Current.Name}\" ({why}; backup kept).");
+        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf so the full bar fits in every window of \"{Current.Name}\" ({why}; backup kept).");
     }
 
     private void SaveAccount(int index, string account)
@@ -1180,74 +1385,6 @@ public sealed class MainViewModel : ObservableObject
         _settings.Accounts[index] = account.Trim();
         _settings.Save();
         UpdatePartyWindows();
-    }
-
-    private void SetPartyState(int slotIndex, PartyState state)
-    {
-        if (slotIndex >= 0 && slotIndex < Party.Count) Party[slotIndex].State = state;
-    }
-
-    /// <summary>
-    /// Start squad decides which window goes to which slot; the rows (and "on top") must use the same mapping, not the
-    /// launch order, or a window could get another slot's "on top".
-    /// </summary>
-    private void SyncWindowsTo(IReadOnlyDictionary<nint, int> assigned)
-    {
-        var found = WindowFinder.FindGameWindows(SelectedGame);
-        var bySlot = found.Where(w => assigned.ContainsKey(w.Handle)).OrderBy(w => assigned[w.Handle]).ToList();
-        var rest = found.Where(w => !assigned.ContainsKey(w.Handle));
-        Windows.Clear();
-        foreach (var w in bySlot.Concat(rest)) Windows.Add(new GameWindowItem(w) { Slot = Windows.Count + 1 });
-        OnPropertyChanged(nameof(SquadHint));
-        UpdatePartyWindows();
-        ApplyOnTop();
-    }
-
-    public void RefreshWindows()
-    {
-        var found = WindowFinder.FindGameWindows(SelectedGame);
-        // keep the user's order for windows we already know; new ones go to the end (launch order)
-        var known = Windows.Select(w => w.Window.Handle).ToList();
-        var ordered = known.Count == 0 ? MatchToSlots(found) : found.OrderBy(w => known.IndexOf(w.Handle) is var i && i >= 0 ? i : int.MaxValue).ToList();
-        Windows.Clear();
-        for (var i = 0; i < ordered.Count; i++) Windows.Add(new GameWindowItem(ordered[i]) { Slot = i + 1 });
-        CommandManager.InvalidateRequerySuggested();
-        OnPropertyChanged(nameof(SquadHint));
-        UpdatePartyWindows();
-    }
-
-    /// <summary>
-    /// First look at the open windows: a window that already sits exactly in a slot gets that slot, the rest fill the
-    /// free slots in launch order. So rows, canvas and screen agree even when the windows were arranged earlier.
-    /// </summary>
-    private List<WindowInfo> MatchToSlots(List<WindowInfo> found)
-    {
-        if (Current is null || Monitors.Count == 0) return found;
-        var placed = LayoutEngine.Resolve(Current, Monitors);
-        var bySlot = new WindowInfo?[Math.Max(found.Count, placed.Count)];
-        var rest = new List<WindowInfo>();
-        foreach (var w in found)
-        {
-            var k = Enumerable.Range(0, placed.Count).FirstOrDefault(i => bySlot[i] is null && WindowPlacer.IsAt(w.Handle, placed[i].Rect), -1);
-            if (k >= 0) bySlot[k] = w;
-            else rest.Add(w);
-        }
-        var queue = new Queue<WindowInfo>(rest);
-        for (var i = 0; i < bySlot.Length && queue.Count > 0; i++) bySlot[i] ??= queue.Dequeue();
-        return bySlot.Where(w => w is not null).Select(w => w!).ToList();
-    }
-
-    private void MoveWindow(GameWindowItem? item, int delta)
-    {
-        if (item is null) return;
-        var i = Windows.IndexOf(item);
-        var j = i + delta;
-        if (i < 0 || j < 0 || j >= Windows.Count) return;
-        Windows.Move(i, j);
-        for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
-        UpdatePartyWindows();
-        ApplyOnTop();
-        ScheduleLive();
     }
 
     private void Identify()
@@ -1264,7 +1401,7 @@ public sealed class MainViewModel : ObservableObject
             return (WindowFinder.VisibleRectOf(w.Window.Handle), w.Slot.ToString(), name ?? w.Process);
         }).ToList();
         _dialogs.ShowIdentify(labels);
-        Status.Info("Showing the slot number on each WoW window. Reorder the list to change who goes where.");
+        Status.Info("Showing the slot number on each WoW window. Drag the rows to change who goes where.");
     }
 
     private SquadPlan? Plan()
@@ -1274,21 +1411,21 @@ public sealed class MainViewModel : ObservableObject
         return new SquadPlan(Current, Monitors, RenameWindows && Current.Slots.Any(s => s.Name is { Length: > 0 }));
     }
 
-    private List<WindowInfo> OrderedWindows()
-    {
-        if (Windows.Count == 0 || Windows.Any(w => !WindowFinder.Exists(w.Window.Handle))) RefreshWindows();
-        return Windows.Select(w => w.Window).ToList();
-    }
+    /// <summary>The open squad windows with their slot index (slots without a window are left out).</summary>
+    private List<(WindowInfo Window, int Slot)> Placements() =>
+        Windows.Where(w => WindowFinder.Exists(w.Window.Handle)).Select(w => (w.Window, w.Slot - 1)).ToList();
 
+    /// <summary>"Re-arrange": snaps every open squad window back into its slot.</summary>
     private async Task ArrangeAsync()
     {
         if (Plan() is not { } plan) return;
-        var windows = OrderedWindows();
+        RefreshWindows();
+        var placements = Placements();
         Busy = true;
         try
         {
-            Status.Title($"Arrange now: \"{plan.Profile.Name}\"");
-            await Task.Run(() => Arranger.ArrangeAsync(plan, windows, Status));
+            Status.Title($"Re-arrange: \"{plan.Profile.Name}\"");
+            await Task.Run(() => Arranger.ArrangeAsync(plan, placements, Status));
         }
         finally
         {
@@ -1298,8 +1435,8 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Makes "always on top" of the open windows match their slots right away (set and cleared, no move) – with live
-    /// on or off, because it never moves a window. Runs at start, after every edit and after reordering.
+    /// Makes "always on top" of the open windows match their slots right away (set and cleared, no move). Runs at start,
+    /// after every edit and after reordering.
     /// </summary>
     private void ApplyOnTop()
     {
@@ -1309,14 +1446,13 @@ public sealed class MainViewModel : ObservableObject
             _guard.Reassert(ours: true);   // through the guard, so it does not mistake our own change for someone else's
             return;
         }
-        for (var i = 0; i < Windows.Count && i < Current.Slots.Count; i++)
-            WindowPlacer.ApplyZOrder(Windows[i].Window.Handle, Current.Slots[i].Z);
+        foreach (var (h, z) in WantedZOrder()) WindowPlacer.ApplyZOrder(h, z);
     }
 
-    /// <summary>"Live": after an edit, move the open WoW windows to the new layout (debounced, quiet).</summary>
+    /// <summary>After an edit, move the open WoW windows to the new layout (debounced, quiet). Not while paused.</summary>
     private void ScheduleLive()
     {
-        if (!_loaded || !LiveApply || IsWatching || Busy) return;
+        if (!_loaded || _paused || Busy) return;
         _live?.Cancel();
         _live = new CancellationTokenSource();
         _ = LiveAsync(_live.Token);
@@ -1327,14 +1463,14 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             await Task.Delay(350, cancel);
-            if (WindowFinder.FindGameWindows(SelectedGame).Count == 0 || Plan() is not { } plan) return;
-            var windows = OrderedWindows();
+            if (Windows.Count == 0 || Plan() is not { } plan) return;
+            var placements = Placements();
             await _liveLock.WaitAsync(cancel);
             try
             {
                 var quiet = new QuietSink(Status);
-                var ok = await Task.Run(() => Arranger.ArrangeAsync(plan, windows, quiet, cancel), cancel);
-                if (ok) Status.Ok($"Moved {Math.Min(windows.Count, plan.Slots.Count)} WoW window(s) to \"{plan.Profile.Name}\".");
+                var ok = await Task.Run(() => Arranger.ArrangeAsync(plan, placements, quiet, cancel), cancel);
+                if (ok) Status.Ok($"Moved {placements.Count} WoW window(s) to \"{plan.Profile.Name}\".");
                 RefreshWindows();
             }
             finally
@@ -1361,69 +1497,18 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public async Task StartSquadAsync()
+    /// <summary>Desktop shortcut ("--start NAME"): that layout, and the missing clients' login screens.</summary>
+    public void StartLayout(string name)
     {
-        if (Plan() is not { } plan || IsWatching) return;
-        _live?.Cancel();
-        Busy = true;
-        _watch = new CancellationTokenSource();
-        OnPropertyChanged(nameof(IsWatching));
-        OnPropertyChanged(nameof(HeaderStatus));
-        foreach (var p in Party) p.State = PartyState.Waiting;
-        try
-        {
-            Status.Title($"Start squad: \"{plan.Profile.Name}\"");
-            if (RunningClientsNow() == 0) AutoFitUiScale("before Start squad");
-            if (LaunchLoginScreens)
-            {
-                var missing = Math.Max(0, plan.Slots.Count - WindowFinder.FindGameWindows(SelectedGame).Count);
-                if (missing == 0) Status.Info("All clients are already open.");
-                else if (GameInstall.FindExe(_settings.GameExe, SelectedGame) is { } exe) _launcher.Start(exe, missing, Status);
-                else Status.Warn("WoW was not found. Set the game exe in Settings.");
-                Status.Title("Log in to each login screen yourself – in this order:");
-            }
-            else
-            {
-                SquadWatcher.EnsureBattleNet(Status, _settings.BattleNetExe, plan.ToolIsAdmin);
-                Status.Title(SquadWatcher.BattleNetInstructions(Forever));
-                Status.Title("Then pick the account and press Play – in this order:");
-            }
-            for (var i = 0; i < plan.Slots.Count; i++)
-            {
-                var account = i < _settings.Accounts.Count && _settings.Accounts[i].Length > 0 ? $"   ({_settings.Accounts[i]})" : "";
-                Status.Title($"   {i + 1}. {Party.ElementAtOrDefault(i)?.Title ?? plan.Slots[i].Slot.Label}{account}");
-            }
-            Status.Info("Each game window snaps into place as soon as it appears.");
-            var watcher = new SquadWatcher(plan, Status);
-            var dispatcher = Application.Current.Dispatcher;
-            watcher.AssignmentChanged += (_, slot) =>
-            {
-                var assigned = watcher.Assigned.ToDictionary(kv => kv.Key, kv => kv.Value);   // snapshot on the watcher's thread
-                dispatcher.BeginInvoke(() =>
-                {
-                    SyncWindowsTo(assigned);
-                    if (slot >= 0) SetPartyState(slot, PartyState.Placed);
-                });
-            };
-            var token = _watch.Token;
-            var order = OrderedWindows().Select(w => w.Handle).ToList();   // the rows' order, not launch order
-            var ok = await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token, order));
-            RefreshWindows();
-            if (!ok) foreach (var p in Party.Where(p => p.State != PartyState.Placed)) p.State = PartyState.Problem;
-        }
-        finally
-        {
-            _watch.Dispose();
-            _watch = null;
-            Busy = false;
-            OnPropertyChanged(nameof(IsWatching));
-            OnPropertyChanged(nameof(HeaderStatus));
-        }
+        if (!SelectProfile(name)) return;
+        RefreshWindows();
+        if (Missing > 0) OpenClients();
+        else _ = ArrangeAsync();
     }
 
     private void RestoreFrames()
     {
-        var open = WindowFinder.FindGameWindows(SelectedGame);
+        var open = Windows.Select(w => w.Window).ToList();
         foreach (var w in open) WindowPlacer.RestoreFrame(w.Handle);
         Status.Info($"Gave {open.Count} WoW window(s) their title bars back.");
     }

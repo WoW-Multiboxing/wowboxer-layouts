@@ -15,7 +15,10 @@ P1 = next, P2 = soon, P3 = later. Sources: design notes rounds 1–3 (project fo
    UI Scale), because Forever starts in Windowed (Fullscreen) and cannot be placed then.
 3. **Addon bridge (with workstream E):** read character, class, level and realm from the WoWBoxer addon's
    SavedVariables per account → fill name and class automatically (`docs/classes-and-accounts.md`).
-4. **Release v0.2.3** (tag) and the SignPath application.
+4. **Release v0.2.4** (tag) and the SignPath application. (v0.2.4 = plug and play: always watching, one button, no game
+   selector, compact rows.)
+4c. Keyboard reorder of squad rows (Alt+↑/↓) – also lets the UI tests reorder without the real mouse.
+4d. Make the "?" help marks reachable by keyboard and screen readers (tooltips on a Border are mouse-only).
 4b. **Owner field test of always-on-top with real alt-tab, clicks and hover-to-activate** (the automated test can only
    switch focus between our own windows – it never activates a WoW window).
 

@@ -40,6 +40,9 @@ public sealed class LayoutCanvas : FrameworkElement
         nameof(LiveSlots), typeof(IReadOnlyDictionary<int, ViewModels.LiveSlot>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty UiScaleProperty = DependencyProperty.Register(
         nameof(UiScale), typeof(double), typeof(LayoutCanvas), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty SlotStatesProperty = DependencyProperty.Register(
+        nameof(SlotStates), typeof(IReadOnlyList<ViewModels.PartyState>), typeof(LayoutCanvas),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((LayoutCanvas)d).UpdatePulse()));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
         nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
@@ -54,6 +57,9 @@ public sealed class LayoutCanvas : FrameworkElement
     public IReadOnlyDictionary<int, ViewModels.LiveSlot>? LiveSlots { get => (IReadOnlyDictionary<int, ViewModels.LiveSlot>?)GetValue(LiveSlotsProperty); set => SetValue(LiveSlotsProperty, value); }
     /// <summary>WoW's UI Scale (1 = automatic), used for the planned state of slots without an open window (ring dot).</summary>
     public double UiScale { get => (double)GetValue(UiScaleProperty); set => SetValue(UiScaleProperty, value); }
+
+    /// <summary>Per slot: Awaiting (pulsing ring), Placing / Moved (amber), Connected (green). Null: no status drawn.</summary>
+    public IReadOnlyList<ViewModels.PartyState>? SlotStates { get => (IReadOnlyList<ViewModels.PartyState>?)GetValue(SlotStatesProperty); set => SetValue(SlotStatesProperty, value); }
 
     /// <summary>Raised when a drag or nudge has finished with the slot's new position.</summary>
     public event EventHandler<SlotEditedEventArgs>? SlotEdited;
@@ -80,12 +86,24 @@ public sealed class LayoutCanvas : FrameworkElement
     private DateTime _animStart;
     private bool _animating;
 
+    // "Awaiting…" rings pulse: a light timer redraws only while a slot is waiting and the map is visible
+    private readonly System.Windows.Threading.DispatcherTimer _pulse = new() { Interval = TimeSpan.FromMilliseconds(66) };
+
     public LayoutCanvas()
     {
         Focusable = true;
         FocusVisualStyle = null;
         ClipToBounds = true;
         UseLayoutRounding = false;   // smooth sub-pixel motion while gliding
+        _pulse.Tick += (_, _) => InvalidateVisual();
+        IsVisibleChanged += (_, _) => UpdatePulse();
+        Unloaded += (_, _) => _pulse.Stop();
+    }
+
+    private void UpdatePulse()
+    {
+        var on = !Compact && Animate && IsVisible && SlotStates?.Contains(ViewModels.PartyState.Awaiting) == true;
+        if (on != _pulse.IsEnabled) _pulse.IsEnabled = on;
     }
 
     private LayoutOptions Options => Profile?.Options ?? new LayoutOptions();
@@ -301,6 +319,7 @@ public sealed class LayoutCanvas : FrameworkElement
             var mc = new Point(r.X + r.Width / 2, y + radiusM);
             dc.DrawEllipse(new RadialGradientBrush(Color.FromRgb(0x23, 0x2B, 0x3E), Color.FromRgb(0x0B, 0x0E, 0x14)),
                 new Pen(new LinearGradientBrush(Color.FromRgb(0xF7, 0xE3, 0xA6), Color.FromRgb(0x8C, 0x6B, 0x26), 90), Math.Max(1.5, radiusM * 0.12)), mc, radiusM, radiusM);
+            DrawStatus(dc, item.Index, mc, radiusM, r, edge, ppd);
             var num = Text($"{item.Slot.N}", radiusM * 1.15, new SolidColorBrush(Color.FromRgb(0xFF, 0xD1, 0x00)), ppd, display: true);
             Draw(dc, num, new Point(mc.X - num.Width / 2, mc.Y - num.Height / 2), shadow: true);
             y += radiusM * 2 + 6;
@@ -534,6 +553,32 @@ public sealed class LayoutCanvas : FrameworkElement
             size, brush, pixelsPerDip);
 
     /// <summary>A small push-pin: round head with a needle, pointing down-left.</summary>
+    private static readonly Color Ok = Color.FromRgb(0x8C, 0xCB, 0x7A), Amber = Color.FromRgb(0xE6, 0xB4, 0x55);
+
+    /// <summary>The slot's status: a ring round the number (pulsing while awaiting its window) and a label in the corner.</summary>
+    private void DrawStatus(DrawingContext dc, int index, Point centre, double radius, Rect r, double edge, double ppd)
+    {
+        if (SlotStates is not { } states || index >= states.Count) return;
+        var state = states[index];
+        var (color, text) = state switch
+        {
+            ViewModels.PartyState.Connected => (Ok, "CONNECTED"),
+            ViewModels.PartyState.Placing => (Amber, "PLACING…"),
+            ViewModels.PartyState.Moved => (Amber, "MOVED"),
+            _ => (GoldHi, "AWAITING…"),
+        };
+        var alpha = state != ViewModels.PartyState.Awaiting ? 1.0
+            : !_pulse.IsEnabled ? 0.55
+            : 0.25 + 0.6 * (0.5 + 0.5 * Math.Sin(DateTime.UtcNow.TimeOfDay.TotalSeconds * Math.PI * 2 / 1.6));
+        var ring = Brush((byte)(alpha * 255), color);
+        dc.DrawEllipse(null, new Pen(ring, state == ViewModels.PartyState.Awaiting ? 2 : 1.6), centre, radius + 4, radius + 4);
+        if (r.Width < 110 || r.Height < 50) return;
+        var label = Text(text, 9, new SolidColorBrush(color), ppd, display: true);
+        var x = r.Right - label.Width - 9;
+        dc.DrawEllipse(ring, null, new Point(x - 7, r.Y + edge + 3 + label.Height / 2), 3, 3);
+        Draw(dc, label, new Point(x, r.Y + edge + 3));
+    }
+
     private static void DrawPin(DrawingContext dc, Point head, Brush brush)
     {
         dc.DrawLine(new Pen(brush, 1.6) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, new Point(head.X - 1, head.Y + 1), new Point(head.X - 5, head.Y + 5));

@@ -61,6 +61,20 @@ public static class GameDetection
         _ => null,
     };
 
+    /// <summary>
+    /// The install the squad follows when windows of several WoW installs are open: the one with the most windows. On a
+    /// tie it stays with <paramref name="current"/> (so closing one client never swaps the squad to the other game),
+    /// else the one whose first window was opened first. Null when nothing is open.
+    /// </summary>
+    public static string? SquadInstall(IEnumerable<(string Install, DateTime Started)> windows, string? current = null)
+    {
+        var groups = windows.Where(w => w.Install.Length > 0).GroupBy(w => w.Install, StringComparer.OrdinalIgnoreCase).ToList();
+        if (groups.Count == 0) return null;
+        var most = groups.Max(g => g.Count());
+        var tied = groups.Where(g => g.Count() == most).ToList();
+        return (tied.FirstOrDefault(g => string.Equals(g.Key, current, StringComparison.OrdinalIgnoreCase)) ?? tied.MinBy(g => g.Min(w => w.Started)))!.Key;
+    }
+
     public static string DisplayName(WowGame game) => game switch
     {
         WowGame.ClassicEra => "Classic Era",

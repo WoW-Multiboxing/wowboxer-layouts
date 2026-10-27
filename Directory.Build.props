@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
     <Authors>WoWBoxer</Authors>
     <Product>WoWBoxer Window Layouts</Product>
     <Copyright>Copyright (c) 2026 WoWBoxer contributors</Copyright>

@@ -12,22 +12,16 @@ public sealed class AppSettings
 
     public bool FirstRunDone { get; set; }
     public string? LastProfile { get; set; }
-    public string? LastProfileForever { get; set; }
     /// <summary>The version that last ran; a newer one shows "What's new" once.</summary>
     public string? LastSeenVersion { get; set; }
-    public bool Forever { get; set; }
     public bool RenameWindows { get; set; } = true;
     /// <summary>Look for a new version on GitHub at start (installed copies only).</summary>
     public bool CheckForUpdates { get; set; } = true;
-    /// <summary>Move running WoW windows right away when the layout changes.</summary>
-    public bool LiveApply { get; set; } = true;
     public bool Animations { get; set; } = true;
     public string LastTab { get; set; } = "Setup";
     public string? BattleNetExe { get; set; }
-    /// <summary>The WoW client exe (WowClassic.exe …); found automatically when empty.</summary>
+    /// <summary>The last used WoW client exe (any install); updated from the open clients, found automatically when empty.</summary>
     public string? GameExe { get; set; }
-    /// <summary>Start squad: false = open Battle.net (press Play per account), true = open N WoW login screens.</summary>
-    public bool LaunchLoginScreens { get; set; }
     /// <summary>Set WoW's UI Scale automatically (while the clients are closed) so the whole action bar fits.</summary>
     public bool AutoFitActionBar { get; set; } = true;
     /// <summary>WoW account folder per slot (index = slot - 1). Local only, never part of a shared layout.</summary>

@@ -5,8 +5,9 @@ using Forms = System.Windows.Forms;
 namespace WoWBoxer.Layouts.App;
 
 /// <summary>
-/// Start-up: one instance only, optional "--tray" (start hidden in the tray) and "--start NAME" (start that layout's
-/// squad right away, used by desktop shortcuts), first-run screen, tray icon.
+/// Start-up: one instance only, optional "--tray" (start hidden in the tray), "--start NAME" (that layout, and open the
+/// missing clients – used by desktop shortcuts), "--pause" / "--resume" (watching, like the tray's Pause; also sent to a
+/// running copy, e.g. from a script), first-run screen, tray icon.
 /// </summary>
 public partial class App : Application
 {
@@ -15,6 +16,7 @@ public partial class App : Application
     private EventWaitHandle? _showSignal;
     private Forms.NotifyIcon? _tray;
     private MainWindow? _main;
+    private Forms.ToolStripMenuItem? _pauseItem;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -50,6 +52,7 @@ public partial class App : Application
 
         var settings = AppSettings.Load();
         var (startInTray, startProfile) = ParseArgs(e.Args);
+        var paused = PauseArg(e.Args) == true;
 
         if (!settings.FirstRunDone)
         {
@@ -60,7 +63,7 @@ public partial class App : Application
             startInTray = false;
         }
 
-        _main = new MainWindow(settings);
+        _main = new MainWindow(settings, paused);
         DispatcherUnhandledException += (_, args) =>
         {
             // Log and keep running: a placement tool must not vanish in the middle of a squad start.
@@ -89,6 +92,12 @@ public partial class App : Application
 
     private static string PendingArgsFile => System.IO.Path.Combine(AppSettings.Folder, "pending-args.txt");
 
+    /// <summary>"--pause" (or "--paused") = true, "--resume" = false, neither = null.</summary>
+    private static bool? PauseArg(string[] args) =>
+        args.Any(a => a.Equals("--pause", StringComparison.OrdinalIgnoreCase) || a.Equals("--paused", StringComparison.OrdinalIgnoreCase)) ? true
+        : args.Any(a => a.Equals("--resume", StringComparison.OrdinalIgnoreCase)) ? false
+        : null;
+
     private static (bool Tray, string? Start) ParseArgs(string[] args)
     {
         var tray = args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
@@ -112,6 +121,11 @@ public partial class App : Application
         {
         }
         var (tray, start) = ParseArgs(args);
+        if (PauseArg(args) is { } pause && _main is not null)
+        {
+            _main.ViewModel.Paused = pause;   // a pause/resume request only: the window stays as it is
+            return;
+        }
         if (!tray) ShowMain();
         if (start is not null) StartProfile(start);
     }
@@ -121,8 +135,8 @@ public partial class App : Application
         if (_main is null) return;
         if (_main.ViewModel.SelectProfile(name))
         {
-            _tray?.ShowBalloonTip(4000, "WoWBoxer", $"Starting \"{name}\". Log in to each client – the windows are placed as they appear.", Forms.ToolTipIcon.Info);
-            _ = _main.ViewModel.StartSquadAsync();
+            _tray?.ShowBalloonTip(4000, "WoWBoxer", $"\"{name}\": log in to each client – every window is placed as it opens.", Forms.ToolTipIcon.Info);
+            _main.ViewModel.StartLayout(name);
         }
         else
         {
@@ -135,9 +149,14 @@ public partial class App : Application
     {
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open WoWBoxer", null, (_, _) => ShowMain());
-        menu.Items.Add("Start squad", null, (_, _) => Run(_main!.ViewModel.StartSquadCommand));
-        menu.Items.Add("Arrange now", null, (_, _) => Run(_main!.ViewModel.ArrangeCommand));
+        menu.Items.Add("Open missing WoW clients", null, (_, _) => Run(_main!.ViewModel.OpenClientsCommand));
+        menu.Items.Add("Re-arrange", null, (_, _) => Run(_main!.ViewModel.ArrangeCommand));
         menu.Items.Add("Identify windows", null, (_, _) => Run(_main!.ViewModel.IdentifyCommand));
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        // The only way to stop the app from placing windows: it always watches otherwise.
+        _pauseItem = new Forms.ToolStripMenuItem("Pause watching", null, (_, _) => Run(_main!.ViewModel.PauseCommand));
+        menu.Items.Add(_pauseItem);
+        menu.Opening += (_, _) => _pauseItem.Text = _main!.ViewModel.Paused ? "Resume watching" : "Pause watching";
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
         TrayMenuStyle.Apply(menu);

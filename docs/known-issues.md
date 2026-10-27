@@ -3,6 +3,15 @@
 Newest first. "Workaround" is what to do today; "Plan" is the fix.
 
 ## Open
+- **The app now moves windows on its own** (always watching). A window you drag away by hand stays where you put it
+  (only the first 30 s of a new window are guarded); Re-arrange puts it back. To leave all windows alone: tray › Pause
+  watching. Opening the app also places windows that are open but not in a slot.
+- **Mixed installs:** the squad follows the install with the most open windows. Two installs with the same count keep
+  the squad on the one it already follows. "Include" (until restart) lets the other install's windows join as extra
+  windows or into free slots.
+- **Auto-fit is still Classic Era only** (Forever's bar not verified); Settings › Action bar shows which install it uses.
+- **"Open N WoW clients" opens login screens only** – Battle.net's own launch logs in the account selected there and
+  can disconnect a running client, so it is never used. "Open Battle.net instead" just starts Battle.net.
 - **Classes are not detected.** The app cannot see which character a client plays (no memory reading, and the WTF
   files hold no class). Class and name are set by hand per slot; "Unknown class" until then. *Plan:* the WoWBoxer
   addon writes character/class to its SavedVariables (`docs/classes-and-accounts.md`).

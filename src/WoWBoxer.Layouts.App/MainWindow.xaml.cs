@@ -16,10 +16,10 @@ public partial class MainWindow : Window, IUserDialogs
 {
     public MainViewModel ViewModel { get; }
 
-    public MainWindow(AppSettings settings)
+    public MainWindow(AppSettings settings, bool paused = false)
     {
         InitializeComponent();
-        ViewModel = new MainViewModel(settings, this);
+        ViewModel = new MainViewModel(settings, this, paused);
         ViewModel.FirstRunRequested += () => FirstRunWindow.Show(this);
         DataContext = ViewModel;
 
@@ -43,9 +43,16 @@ public partial class MainWindow : Window, IUserDialogs
 
         ViewModel.Status.Info("Ready. This app only moves and resizes windows – it never sends keys or clicks to the game.");
 
-        // Rows, statuses, "on top" and Auto-fit follow what happens (windows opening and closing) while the app runs,
-        // also in the tray. Paused while a squad row is dragged.
-        var live = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        // The activity log shows its newest line. Scroll after the list has processed the change (re-entrant otherwise).
+        ((System.Collections.Specialized.INotifyCollectionChanged)ViewModel.Status.Lines).CollectionChanged += (_, _) =>
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+            {
+                if (StatusList.Items.Count > 0) StatusList.ScrollIntoView(StatusList.Items[^1]);
+            });
+
+        // Always watching: new windows go to their slot, rows, statuses, "on top" and Auto-fit follow what happens while
+        // the app runs, also in the tray. Skipped while a squad row is dragged.
+        var live = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         live.Tick += (_, _) =>
         {
             if (!Views.SetupView.Dragging) ViewModel.Tick();
@@ -73,6 +80,8 @@ public partial class MainWindow : Window, IUserDialogs
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void OnMaximize(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    private void OnActivityClosed(object? sender, EventArgs e) => ActivityToggle.IsChecked = false;
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(ViewModel.RefreshMonitors);

@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### v0.2.4 – plug and play (2026-10-27)
+Owner: "it works well, but too much is going on". Before/after: `docs/screenshots/setup-before-v0.2.4.png`,
+`setup-after-v0.2.4.png` (+ `-details`, `settings-after-v0.2.4.png`).
+- **Always watching:** the app always waits for WoW windows and puts each new one in the next free slot (placed again
+  for 30 s while WoW loads); a closed window frees its slot, the others keep theirs; a window that already sits in a
+  slot keeps it. The "Move WoW windows live" switch, "Apply to open windows", "Start squad", "Stop watching" and the
+  start checklist are gone. **Pause watching** lives in the tray menu (and `--pause` / `--resume`, also sent to a running
+  copy); while paused nothing is moved or kept on top.
+- **Status instead of steps:** each slot on the map has a ring round its number (pulsing = Awaiting…, green =
+  Connected, amber = Placing… / Moved) and a label; each squad row has the same chip. Title bar: "Awaiting clients ·
+  1 of 3 connected" → "All 3 connected" (dot: pulsing gold / green / amber / grey when paused).
+- **One primary button:** "OPEN N WOW CLIENTS" (login screens for the empty slots only, from the open clients' install,
+  else the last used one) → "AWAITING CLIENTS 1/3" → "RE-ARRANGE" (snap everything back, also F5). "Open Battle.net
+  instead" link next to it. Undo/Reset are icon buttons; "Saved automatically as …" stays.
+- **No game selector:** every WoW install is treated the same (Classic Era, Forever, Retail, PTR …), found by its install
+  folder. With windows of several installs open the squad follows the install with the most windows (tie: it stays
+  with the one it follows; at the start the one opened first); the others are left alone with a notice "1 Forever
+  window ignored · Include". Layouts no longer belong to a game. UI Scale, Auto-fit and account hints follow the
+  squad's install.
+- **Less on screen:** "Full action bar" switch gone (Auto-fit action bar does it, on by default); the map shows the
+  monitors in use; Window rules, Action bar (UI Scale) and Tools (Identify all, Close clients I started, title bars
+  back, Diagnose) moved to Settings; Saved layout is a compact dropdown with Save as… and ⋯ (Rename, Delete, share,
+  import, capture); the help line is a "?" tooltip; the activity log opens from the status bar.
+- **Squad rows:** one line per window – drag handle, number in the class colour, name (optional), pin, status chip,
+  ▾. The ▾ details hold class, WoW account (+ last-played hint), Always on top, Identify, X/Y/W/H, Keep size and the
+  action-bar line.
+- Changing a name, class or "on top" no longer re-arranges every window (only a change of the windows' places does).
+- Fixes found while testing: an open row closed by itself after a moment (a focus style trigger undid the selection –
+  now a focus handler keeps it); a window closed while being placed was reported as "WoW runs as administrator";
+  extra windows were named after the squad's game.
+- New tools: `tools/plug-and-play-check.ps1` (19 checks with fake WoW windows on monitor 2, `tools/fakewow/FakeWow.cs`);
+  `ui-sweep.ps1` now needs the app started with `--pause`.
+
 ### v0.2.3 – owner's test of v0.2.2 fixed (2026-10-27)
 - **One main screen:** Squad is merged into Setup – clients, layout, saved layout and window rules on the left, the map
   in the middle, "Your squad" on the right (rows per window: number, name, class, account, status, pin, Identify, drag

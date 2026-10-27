@@ -1,8 +1,6 @@
-using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Threading;
 using WoWBoxer.Layouts.App.ViewModels;
 using WoWBoxer.Layouts.Win32;
 
@@ -21,19 +19,9 @@ public partial class SetupView : UserControl
         InitializeComponent();
         Canvas.SlotEdited += (_, e) => (DataContext as MainViewModel)?.OnSlotEdited(e.Index, e.Slot);
         Canvas.SlotsSwapped += (_, e) => (DataContext as MainViewModel)?.SwapSlots(e.A, e.B);
-        DataContextChanged += (_, e) =>
-        {
-            if (e.NewValue is not MainViewModel vm) return;
-            // Scroll after the list has processed the change (scrolling inside the event is re-entrant and throws).
-            ((INotifyCollectionChanged)vm.Status.Lines).CollectionChanged += (_, _) =>
-                Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
-                {
-                    if (StatusList.Items.Count > 0) StatusList.ScrollIntoView(StatusList.Items[^1]);
-                });
-        };
     }
 
-    /// <summary>"More ▾" opens its menu on a normal click.</summary>
+    /// <summary>The saved layout's "⋯" opens its menu on a normal click.</summary>
     private void OnMore(object sender, RoutedEventArgs e)
     {
         if (sender is Button { ContextMenu: { } menu } button)
@@ -43,6 +31,17 @@ public partial class SetupView : UserControl
             menu.DataContext = DataContext;
             menu.IsOpen = true;
         }
+    }
+
+    /// <summary>
+    /// Typing in a row's name box (or tabbing into its details) selects that row and its window on the map – and keeps
+    /// it selected when the focus moves on (a style trigger would undo the selection and close the details).
+    /// </summary>
+    private void OnRowFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (e.NewFocus is DependencyObject element && ItemsControl.ContainerFromElement(PartyList, element) is ListBoxItem { DataContext: PartyMember row }
+            && DataContext is MainViewModel vm && vm.SelectedSlotIndex != row.Index)
+            vm.SelectedSlotIndex = row.Index;
     }
 
     // ---------- drag squad rows by their handle to reorder (rows, map and real windows follow) ----------

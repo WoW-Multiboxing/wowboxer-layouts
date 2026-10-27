@@ -25,7 +25,7 @@ public partial class SettingsView : UserControl
             link.Arguments = $"--tray --start \"{profile.Name}\"";
             link.WorkingDirectory = Path.GetDirectoryName(exe);
             link.IconLocation = exe + ",0";
-            link.Description = $"Start Battle.net and arrange the WoW windows ({profile.Name})";
+            link.Description = $"Open the WoW clients and place their windows ({profile.Name})";
             link.Save();
             vm.Status.Report(Win32.StatusLevel.Ok, $"Desktop shortcut created: {Path.GetFileName(path)}.");
         }

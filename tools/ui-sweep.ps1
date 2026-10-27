@@ -1,10 +1,9 @@
 ﻿<#
   UI sweep for WoWBoxer Window Layouts – drives ONLY the app's own window through UI Automation (no mouse, no keys,
   nothing reaches a game window) and checks the results in the saved layout files and the app log.
-  Usage: start the app, then  powershell -ExecutionPolicy Bypass -File tools\ui-sweep.ps1
-  Turns "Move WoW windows live" off for the sweep (so open game windows are not moved) and restores it at the end.
+  Usage: start the app PAUSED (WoWBoxer.Layouts.exe --pause, so open game windows are never moved), then
+  powershell -ExecutionPolicy Bypass -File tools\ui-sweep.ps1   – it refuses to run when the app is not paused.
 #>
-param([switch]$KeepLive)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms
 # Our small dialogs (prompt, yes/no) do not appear in the UIA desktop list, so they are found by window handle.
@@ -66,9 +65,8 @@ function Prompt($text, $button = 'OK') {
 function Answer($button) { $d = Dialog; (Pattern (Find $button $d) ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600 }
 
 $script:startStamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-$liveBefore = (Settings).liveApply
 Pick 'SETUP'
-if (-not $KeepLive) { SetToggle 'Move WoW windows live' $false }
+if ((FindId 'HeaderStatus').Current.Name -notlike 'Paused*') { throw 'Start the app with --pause first: the sweep changes layouts, and a watching app would move your WoW windows.' }
 $original = (Settings).lastProfile
 
 # ---- layouts × client counts ----
@@ -89,19 +87,22 @@ foreach ($n in 2..8) {
 Pick '3'; Invoke 'Main + side'
 
 # ---- switches ----
-SetToggle 'Full action bar' $true;  Check 'Full action bar on → min aspect 4:3' { [math]::Abs((Current).options.minAspect - 4/3) -lt 0.01 }
-SetToggle 'Full action bar' $false; Check 'Full action bar off → min aspect 1.25' { [math]::Abs((Current).options.minAspect - 1.25) -lt 0.01 }
-SetToggle 'Cover the taskbar area' $true;  Check 'Cover taskbar on' { (Current).options.useTaskbarArea -eq $true }
-SetToggle 'Cover the taskbar area' $false; Check 'Cover taskbar off' { (Current).options.useTaskbarArea -eq $false }
-SetToggle 'All monitors' $true; SetToggle 'All monitors' $false; Check 'All monitors toggles without error' { (LogErrors) -eq 0 }
+Check 'Plug and play: no game selector, no live switch, no Full action bar / All monitors switches' { -not (Find 'Forever') -and -not (Find 'Classic Era') -and -not (Find 'Move WoW windows live') -and -not (Find 'Full action bar') -and -not (Find 'All monitors') }
+Check 'One primary button that follows the squad state' { (FindId 'PrimaryButton').Current.Name -match '^(OPEN \d WOW CLIENTS?|RE-ARRANGE|AWAITING CLIENTS \d/\d)$' -and [bool](Find 'Open Battle.net instead') }
+Check 'Help line under the map replaced by a ? tooltip' { -not (Find 'Drag a window to move it · drop it on another to swap · gold handles resize · Alt places freely · arrow keys nudge · Tab selects the next window · solid dot = measured on the open WoW window, ring = planned · pin = always on top') }
+Pick 'SETTINGS'
+SetToggle 'Cover the taskbar area' $true;  Check 'Window rules (Settings): cover taskbar on' { (Current).options.useTaskbarArea -eq $true }
+SetToggle 'Cover the taskbar area' $false; Check 'Window rules (Settings): cover taskbar off' { (Current).options.useTaskbarArea -eq $false }
+Pick 'SETUP'
 
 # ---- undo / reset ----
 Pick '4'; Invoke 'Undo'
 Check 'Undo after 3→4 clients gives 3 again' { (Current).clients -eq 3 }
 Invoke 'Reset to preset'; Check 'Reset to preset keeps 3 clients side' { $p = Current; $p.clients -eq 3 -and $p.preset -eq 'side' }
 
-# ---- inspector ----
-Invoke 'Shorten window instead'
+# ---- row details ----
+Invoke 'Details'
+Invoke 'Shorten this window instead'
 Check 'Shorten window instead (window 1) gives a 4:3 game area' {
   $s = @((Current).slots)[0]; $b = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
   $w = [math]::Round($b.Width * $s.w / 100); $h = [math]::Round($b.Height * $s.h / 100)
@@ -111,9 +112,14 @@ Check 'Shorten window instead (window 1) gives a 4:3 game area' {
 # window picker, measured action bar, Fix action bar (must refuse while clients of the install run)
 Check 'Your squad shows one row per window' { @((Main).FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem))) | Where-Object { $_.Current.Name -match '^Window \d$' }).Count -eq 3 }
 Pick 'Window 2'
-Check 'Selecting squad row 2 selects window 2 (details open in the row)' { (Pattern (Find 'Window 2') ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Current.IsSelected -and [bool](Find 'Always on top (floating overlay)') }
-Check 'Auto-fit action bar switch is there and on by default' { (ToggleState 'Auto-fit action bar') -eq 'On' -and (Settings).autoFitActionBar -ne $false }
+Check 'Selecting squad row 2 selects window 2 and closes the open details' { (Pattern (Find 'Window 2') ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Current.IsSelected -and -not (Find 'Always on top') }
+(Pattern ((Find 'Window 2').FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Details')))) ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 400
+Start-Sleep 2
+Check 'Row 2 details open (class, account, on top, Identify) and stay open' { [bool](Find 'Always on top') -and [bool](Find 'WoW account') -and [bool](Find 'Identify') }
+Check 'Each row shows a status chip' { @((Main).FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::AutomationIdProperty, 'RowState')))).Count -eq 3 }
 Check 'Action bar text says Now (measured) or Planned' { (FindId 'SlotBarText').Current.Name -match '^(Now|Planned): ' }
+Pick 'SETTINGS'
+Check 'Auto-fit action bar switch (Settings) is there and on by default' { (ToggleState 'Auto-fit action bar') -eq 'On' -and (Settings).autoFitActionBar -ne $false }
 $eraCfg = 'C:\Program Files (x86)\World of Warcraft\_classic_era_\WTF\Config.wtf'
 $wowRunning = @(Get-Process WowClassic -ErrorAction SilentlyContinue).Count
 if ($wowRunning -gt 0 -and (Test-Path $eraCfg)) {
@@ -121,33 +127,33 @@ if ($wowRunning -gt 0 -and (Test-Path $eraCfg)) {
   (Pattern (FindId 'FixUiScale') ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600
   Check 'Fix action bar with clients running writes nothing' { (Get-FileHash $eraCfg).Hash -eq $hash -and (Get-Item "$eraCfg.wowboxer-backup" -ErrorAction SilentlyContinue).LastWriteTimeUtc -eq $bak }
 } else { $results.Add('SKIP  Fix action bar refusal (no Classic Era client running)') }
+Pick 'SETUP'
 
 # ---- version ----
 Check 'Title bar shows the version' { (FindId 'TitleVersion').Current.Name -match '^v\d+\.\d+\.\d+$' -and (Main).Current.Name -match 'WoWBoxer Window Layouts \d+\.\d+\.\d+' }
 
 # ---- share codes ----
-Invoke 'More ▾'; Invoke 'Copy layout code (WBX1:)'
+Invoke 'More layout actions'; Invoke 'Copy layout code (WBX1:)'
 $code = [System.Windows.Forms.Clipboard]::GetText()
 Check 'Copy code puts a WBX1: code on the clipboard' { $code.StartsWith('WBX1:') }
-Invoke 'More ▾'; Invoke 'Paste a layout code…'; Prompt $code
+Invoke 'More layout actions'; Invoke 'Paste a layout code…'; Prompt $code
 Check 'Paste code imports a new layout' { (Settings).lastProfile -like 'UI sweep*' -and (Settings).lastProfile -ne $sweepName }
 $imported = (Settings).lastProfile
 
 # ---- rename / delete ----
-Invoke 'Rename'; Prompt 'UI sweep renamed'
+Invoke 'More layout actions'; Invoke 'Rename…'; Prompt 'UI sweep renamed'
 Check 'Rename moves the file' { (Test-Path (Join-Path $profiles 'UI sweep renamed.json')) -and -not (Test-Path (Join-Path $profiles ($imported + '.json'))) }
 Check 'Rename kept the renamed layout selected' { (Settings).lastProfile -eq 'UI sweep renamed' }
-if ((Settings).lastProfile -eq 'UI sweep renamed') { Invoke 'More ▾'; Invoke 'Delete this layout'; Answer 'Yes' }
+if ((Settings).lastProfile -eq 'UI sweep renamed') { Invoke 'More layout actions'; Invoke 'Delete this layout'; Answer 'Yes' }
 Check 'Delete removes the layout' { -not (Test-Path (Join-Path $profiles 'UI sweep renamed.json')) }
 
 # ---- other tabs ----
 Check 'No Squad tab any more (merged into Setup)' { -not (Find 'SQUAD') }
-Check 'Each squad row has Identify' { @((Main).FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Identify')))).Count -ge 3 }
-Pick 'Login screens'; Check 'Launch mode: login screens saved' { (Settings).launchLoginScreens -eq $true }
-Pick 'Battle.net';    Check 'Launch mode: Battle.net saved' { (Settings).launchLoginScreens -eq $false }
+(Pattern (FindAnywhere 'Activity') ([System.Windows.Automation.TogglePattern]::Pattern)).Toggle(); Start-Sleep -Milliseconds 500
+Check 'Activity opens from the status bar' { $pid0 = (Get-Process WoWBoxer.Layouts).Id; [bool]($A::RootElement.FindAll($Scope::Children, (New-Object System.Windows.Automation.PropertyCondition ($A::ProcessIdProperty, $pid0))) | ForEach-Object { $_.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Activity log'))) } | Where-Object { $_ }) }
 Pick 'GUIDE'
 Start-Sleep -Milliseconds 600
-foreach ($ch in 'Prepare your WoW clients', 'Pick clients and a layout', 'Start your squad', 'Switch between windows', 'If something looks wrong', 'What WoWBoxer never does') {
+foreach ($ch in 'Prepare your WoW clients', 'Pick clients and a layout', 'Open your clients', 'Switch between windows', 'If something looks wrong', 'What WoWBoxer never does') {
   Check "Guide chapter: $ch" { Invoke $ch; $true }
 }
 Check 'Guide tab is the current tab' { (Settings).lastTab -eq 'Guide' }
@@ -156,16 +162,13 @@ foreach ($t in 'Title WoW windows with the character names', 'Animations', 'Chec
   $before = ToggleState $t; SetToggle $t ($before -ne 'On'); SetToggle $t ($before -eq 'On')
   Check "Setting toggles and restores: $t" { (ToggleState $t) -eq $before }
 }
-# game switch: each game has its own layouts and last layout
-Pick 'Forever'; Check 'Game Forever: a Forever layout is selected' { (Settings).forever -eq $true -and [bool](Settings).lastProfileForever -and (Get-Content (Join-Path $profiles ((Settings).lastProfileForever + '.json')) -Raw | ConvertFrom-Json).game -eq 'forever' }
-Pick 'Classic Era'; Check 'Game Classic Era: back to the Classic layout' { (Settings).forever -eq $false -and (Settings).lastProfile -like 'UI sweep*' }
+Check 'Tools moved to Settings' { [bool](Find 'Diagnose') -and [bool](Find 'Close clients I started') -and [bool](Find 'Fix action bar now') }
 Pick 'ABOUT'; Check 'About shows the version' { [bool](Find 'Version') -or [bool](Find 'WINDOW LAYOUTS') }
 
 # ---- clean up ----
 # Never delete here: after a delete the app selects a neighbouring layout, which could be one of the user's.
 # The caller removes 'UI sweep.json' with the app closed and restores lastProfile = $original.
 Pick 'SETUP'
-if (-not $KeepLive -and $liveBefore) { SetToggle 'Move WoW windows live' $true }
 Check 'No errors in the app log during the sweep' { (LogErrors) -eq 0 }
 
 $results

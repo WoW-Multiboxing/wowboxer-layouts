@@ -19,7 +19,7 @@
         <KeyBinding Key="D4" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="About" />
         <KeyBinding Key="F5" Command="{Binding ArrangeCommand}" />
         <KeyBinding Key="I" Modifiers="Control" Command="{Binding IdentifyCommand}" />
-        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding StartSquadCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding PrimaryCommand}" />
         <KeyBinding Key="OemPlus" Modifiers="Control" Command="{Binding MoreClientsCommand}" />
         <KeyBinding Key="OemMinus" Modifiers="Control" Command="{Binding FewerClientsCommand}" />
     </Window.InputBindings>
@@ -77,11 +77,30 @@
                                 </Button>
                             </StackPanel>
 
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0" ToolTip="Live status">
-                                <Ellipse Width="8" Height="8" Margin="0,0,8,0" Fill="{StaticResource OkBrush}">
-                                    <Ellipse.Effect><DropShadowEffect ShadowDepth="0" BlurRadius="8" Color="#8CCB7A" Opacity="0.8" /></Ellipse.Effect>
+                            <!-- squad status: green = all connected, pulsing gold = awaiting clients, amber = a window left its slot, grey = paused -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0"
+                                        ToolTip="The app always watches for WoW windows and puts each one in its slot. Pause it in the tray menu.">
+                                <Ellipse x:Name="StatusDot" Width="8" Height="8" Margin="0,0,8,0">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SquadState}" Value="Awaiting">
+                                                    <Setter Property="Fill" Value="{StaticResource GoldHiBrush}" />
+                                                    <DataTrigger.EnterActions>
+                                                        <BeginStoryboard x:Name="Pulse">
+                                                            <Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:0.9" AutoReverse="True" RepeatBehavior="Forever" /></Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.EnterActions>
+                                                    <DataTrigger.ExitActions><StopStoryboard BeginStoryboardName="Pulse" /></DataTrigger.ExitActions>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding SquadState}" Value="Moved"><Setter Property="Fill" Value="{StaticResource WarnBrush}" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding SquadState}" Value="Paused"><Setter Property="Fill" Value="{StaticResource MutedBrush}" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
                                 </Ellipse>
-                                <TextBlock Text="{Binding HeaderStatus}" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                                <TextBlock Text="{Binding HeaderStatus}" Foreground="{StaticResource TextBrush}" FontSize="12.5" AutomationProperties.AutomationId="HeaderStatus" />
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Left">
@@ -110,14 +129,58 @@
                     <v:AboutView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=About}" />
                 </Grid>
 
-                <!-- ===== Status bar ===== -->
+                <!-- ===== Status bar: the last activity line; click it for the whole activity log ===== -->
                 <Border Grid.Row="2" Background="#CC07090E" BorderBrush="{StaticResource LineSoftBrush}" BorderThickness="0,1,0,0">
                     <DockPanel Margin="16,0">
                         <TextBlock DockPanel.Dock="Right" Text="{Binding MonitorSummary}" Foreground="{StaticResource MutedBrush}" FontSize="11.5" VerticalAlignment="Center" />
-                        <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding LastStatus.Brush, FallbackValue=Gray}" />
-                        <TextBlock Text="{Binding LastStatus.Message, FallbackValue=Ready}" Foreground="{StaticResource TextBrush}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <!-- not clickable while open: a click outside closes the popup, and must not open it again at once -->
+                        <ToggleButton x:Name="ActivityToggle" Cursor="Hand" Background="Transparent" BorderThickness="0" Focusable="True" HorizontalAlignment="Left"
+                                      IsHitTestVisible="{Binding IsOpen, ElementName=ActivityPopup, Converter={x:Static app:InvertBool.Instance}}"
+                                      AutomationProperties.Name="Activity" ToolTip="Show the activity log">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="Transparent"><ContentPresenter VerticalAlignment="Center" /></Border>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding LastStatus.Brush, FallbackValue=Gray}" />
+                                <TextBlock Text="{Binding LastStatus.Message, FallbackValue=Ready}" Foreground="{StaticResource TextBrush}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="900" />
+                                <TextBlock Text="  ·  Activity ▴" Foreground="{StaticResource GoldBrush}" FontSize="11.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </ToggleButton>
                     </DockPanel>
                 </Border>
+                <Popup x:Name="ActivityPopup" Grid.Row="2" IsOpen="{Binding IsChecked, ElementName=ActivityToggle}" PlacementTarget="{Binding ElementName=ActivityToggle}" Placement="Top"
+                       StaysOpen="False" Closed="OnActivityClosed" AllowsTransparency="True" VerticalOffset="-6">
+                    <Border Width="760" Height="320" CornerRadius="6" BorderThickness="1" BorderBrush="#8E8E8E" Padding="12,8">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#F00C0F1E" Offset="0" /><GradientStop Color="#F0060812" Offset="1" /></LinearGradientBrush></Border.Background>
+                        <DockPanel>
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Open logs" Command="{Binding OpenLogsCommand}" />
+                                <TextBlock Text="Activity" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" />
+                            </DockPanel>
+                            <ListBox x:Name="StatusList" ItemsSource="{Binding Status.Lines}" FontFamily="{StaticResource MonoFont}" FontSize="11" Background="Transparent" BorderThickness="0"
+                                     AutomationProperties.Name="Activity log" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem"><ContentPresenter Margin="0,1" /></ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock TextWrapping="Wrap" Foreground="{Binding Brush}">
+                                            <Run Text="{Binding TimeText, Mode=OneWay}" Foreground="#6B6F7A" /> <Run Text="{Binding Message, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+                </Popup>
             </Grid>
         </Grid>
     </Border>

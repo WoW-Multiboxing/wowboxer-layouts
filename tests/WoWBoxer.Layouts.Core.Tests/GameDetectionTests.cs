@@ -47,4 +47,34 @@ public class GameDetectionTests
         Assert.Equal(WowGame.Forever, ProfileJson.Deserialize(json).GameOrDefault);
         Assert.Equal(forever, ProfileJson.FromShareCode(ProfileJson.ToShareCode(forever)));
     }
+
+    private const string Era = @"C:\WoW\_classic_era_", Forever = @"C:\WoW\_forever_";
+    private static readonly DateTime T0 = new(2026, 10, 27, 20, 0, 0);
+
+    [Fact]
+    public void Squad_follows_the_install_with_most_windows()
+    {
+        Assert.Null(GameDetection.SquadInstall([]));
+        Assert.Equal(Era, GameDetection.SquadInstall([(Forever, T0), (Era, T0.AddMinutes(1)), (Era, T0.AddMinutes(2))]));
+        Assert.Equal(Forever, GameDetection.SquadInstall([(Forever, T0.AddMinutes(3)), (Era, T0.AddMinutes(1)), (Forever, T0.AddMinutes(2))]));
+    }
+
+    [Fact]
+    public void Squad_tie_goes_to_the_install_opened_first()
+    {
+        Assert.Equal(Forever, GameDetection.SquadInstall([(Era, T0.AddMinutes(2)), (Forever, T0.AddMinutes(1))]));
+        Assert.Equal(Era, GameDetection.SquadInstall([(Era, T0), (Forever, T0.AddMinutes(1)), (Forever, T0.AddMinutes(5)), (Era.ToUpperInvariant(), T0.AddMinutes(9))]));
+    }
+
+    [Fact]
+    public void Squad_stays_with_its_install_on_a_tie()
+    {
+        // 3 Forever + 2 Era with Forever followed, then one Forever client closes: 2 vs 2 – the squad stays with Forever.
+        (string, DateTime)[] tie = [(Era, T0), (Era, T0.AddMinutes(1)), (Forever, T0.AddMinutes(2)), (Forever, T0.AddMinutes(3))];
+        Assert.Equal(Forever, GameDetection.SquadInstall(tie, current: Forever));
+        Assert.Equal(Era, GameDetection.SquadInstall(tie, current: Era));
+        Assert.Equal(Era, GameDetection.SquadInstall(tie));   // no squad yet: the install opened first
+        // more windows still win over the current one
+        Assert.Equal(Forever, GameDetection.SquadInstall([(Era, T0), (Forever, T0.AddMinutes(1)), (Forever, T0.AddMinutes(2))], current: Era));
+    }
 }

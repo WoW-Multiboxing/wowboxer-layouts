@@ -25,7 +25,12 @@ $A = [System.Windows.Automation.AutomationElement]; $Scope = [System.Windows.Aut
 function Main { @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer Window Layouts*' } | Select-Object -First 1 }
 function ByName($name) { (Main).FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, $name))) }
 function Pattern($e, $p) { $o = $null; if ($e.TryGetCurrentPattern($p, [ref]$o)) { $o } else { $null } }
-function Select-Row($n) { (Pattern (ByName "Window $n") ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); Start-Sleep -Milliseconds 500 }
+# selects squad row n and opens its details (▾), where "Always on top" lives
+function Select-Row($n) {
+  $row = ByName "Window $n"; (Pattern $row ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); Start-Sleep -Milliseconds 300
+  $details = $row.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty, 'Details')))
+  (Pattern $details ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 500
+}
 function SetSwitch($name, $on) { $t = Pattern (ByName $name) ([System.Windows.Automation.TogglePattern]::Pattern); if (($t.Current.ToggleState -eq 'On') -ne $on) { $t.Toggle(); Start-Sleep -Milliseconds 500 } }
 
 $settingsPath = "$env:APPDATA\WoWBoxer\Layouts\settings.json"
@@ -34,7 +39,7 @@ $profilePath = Join-Path "$env:APPDATA\WoWBoxer\Layouts\profiles" ($settings.las
 function Wanted($n) { @((Get-Content $profilePath -Raw | ConvertFrom-Json).slots)[$n - 1].z -eq 'top' }
 
 (Pattern (ByName 'SETUP') ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); Start-Sleep -Milliseconds 600
-$apply = ByName 'APPLY TO OPEN WINDOWS'; (Pattern $apply ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Seconds 5
+$apply = ByName 'RE-ARRANGE'; (Pattern $apply ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Seconds 5
 
 # slot -> WoW window: the window sitting at the slot's planned place
 $wbx = Join-Path $PSScriptRoot '..\publish\wbx\wbx.exe'
@@ -49,28 +54,25 @@ $map = @(foreach ($slot in $slotRects) {
 $script:failures = 0; $script:checks = 0
 function Check($label, $ok) { $script:checks++; if (-not $ok) { $script:failures++ }; Write-Host ("{0} {1}" -f $(if ($ok) { 'PASS' } else { 'FAIL' }), $label) }
 
-# ---- part 1: toggling, live mode OFF ----
-$liveBefore = $settings.liveApply
-SetSwitch 'Move WoW windows live' $false
+# ---- part 1: toggling (the app never moves a window for this) ----
 foreach ($m in $map) {
   Select-Row $m.N
-  $toggle = Pattern (ByName 'Always on top (floating overlay)') ([System.Windows.Automation.TogglePattern]::Pattern)
+  $toggle = Pattern (ByName 'Always on top') ([System.Windows.Automation.TogglePattern]::Pattern)
   $original = $toggle.Current.ToggleState
   for ($i = 1; $i -le $Rounds * 2; $i++) {
     $toggle.Toggle(); Start-Sleep -Milliseconds 400
     $want = $toggle.Current.ToggleState -eq 'On'
     $is = [TopCheck]::IsTop($m.H); $saved = Wanted $m.N
-    Check ("slot {0} toggle {1} (live off): checkbox={2} saved={3} WS_EX_TOPMOST={4}" -f $m.N, $i, $want, $saved, $is) (($is -eq $want) -and ($saved -eq $want))
+    Check ("slot {0} toggle {1} : checkbox={2} saved={3} WS_EX_TOPMOST={4}" -f $m.N, $i, $want, $saved, $is) (($is -eq $want) -and ($saved -eq $want))
   }
   if ($toggle.Current.ToggleState -ne $original) { $toggle.Toggle(); Start-Sleep -Milliseconds 400 }
 }
-if ($liveBefore) { SetSwitch 'Move WoW windows live' $true }
 
 # ---- part 2: disturbances (slots in -TopSlots on top, the others not; restored afterwards) ----
 $originalTop = @{}
 foreach ($m in $map) {
   Select-Row $m.N
-  $t = Pattern (ByName 'Always on top (floating overlay)') ([System.Windows.Automation.TogglePattern]::Pattern)
+  $t = Pattern (ByName 'Always on top') ([System.Windows.Automation.TogglePattern]::Pattern)
   $originalTop[$m.N] = $t.Current.ToggleState -eq 'On'
   if ((($t.Current.ToggleState -eq 'On') -ne ($TopSlots -contains $m.N))) { $t.Toggle(); Start-Sleep -Milliseconds 400 }
 }
@@ -96,7 +98,7 @@ for ($d = 1; $d -le $Disturbances; $d++) {
 Stop-Process -Id $notepad.Id -ErrorAction SilentlyContinue
 foreach ($m in $map) {
   Select-Row $m.N
-  $t = Pattern (ByName 'Always on top (floating overlay)') ([System.Windows.Automation.TogglePattern]::Pattern)
+  $t = Pattern (ByName 'Always on top') ([System.Windows.Automation.TogglePattern]::Pattern)
   if (($t.Current.ToggleState -eq 'On') -ne $originalTop[$m.N]) { $t.Toggle(); Start-Sleep -Milliseconds 400 }
 }
 (Pattern $apply ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Seconds 3   # moved windows back exactly

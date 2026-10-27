@@ -12,12 +12,14 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes, shortest first. Keep it to what a player notices.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
-        ("One screen",
-            "Squad is now part of Setup: clients and layout on the left, your screens in the middle, \"Your squad\" on the right. Click a row to edit that window – its details and \"Always on top\" open right in the row."),
-        ("The action bar fits by itself",
-            "Auto-fit action bar (on by default) sets WoW's UI Scale for you whenever all clients are closed – before Start squad or when the last one closes. Verified: at 0.93 your followers show the whole bar."),
-        ("Always on top stays on top",
-            "Switching it applies at once, live mode on or off. The app now also watches (listening only) when windows change focus or move, and puts \"on top\" right again. A pin on the map and on each row shows the real state."),
+        ("Plug and play",
+            "The app always watches: every WoW window that opens goes straight into the next free slot. Each slot shows Awaiting… until its window is there, then Connected. Nothing to start, no live switch – Pause is in the tray menu."),
+        ("One button",
+            "\"Open N WoW clients\" opens a login screen for each empty slot (you log in yourself). When all are connected it becomes Re-arrange. \"Open Battle.net instead\" sits next to it."),
+        ("Any WoW install",
+            "No game picker: Classic Era, Forever, Retail … are found by their install folder. If two games are open, the squad follows the one with the most windows; the other's windows are left alone (Include adds them)."),
+        ("Less on screen",
+            "Squad rows are one line – ▾ opens class, account, always on top and Identify. Window rules, UI Scale and tools moved to Settings; the activity log opens from the status bar."),
     ];
 
     public static bool ShouldShow(AppSettings settings, string version) =>

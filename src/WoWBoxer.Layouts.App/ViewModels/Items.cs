@@ -52,7 +52,8 @@ public sealed class LayoutCard(PresetKind kind, string title, string blurb, ICom
     public bool IsAvailable => _unavailable is null;
 }
 
-public enum PartyState { Waiting, Placed, Elsewhere, Problem }
+/// <summary>A slot's window: none yet (Awaiting), being placed (first 30 s), in its slot (Connected), or moved out of it.</summary>
+public enum PartyState { Awaiting, Placing, Connected, Moved }
 
 /// <summary>
 /// One slot of the squad ("Your squad" panel on Setup): the character (name, class – set by hand, never guessed), the WoW account
@@ -80,6 +81,12 @@ public sealed class PartyMember : ObservableObject
     public Action<int, WowClass>? ClassChanged { get; init; }
     public Action<int, string>? AccountChanged { get; init; }
     public ICommand? Identify { get; init; }
+    /// <summary>Opens or closes this row's details (class, WoW account, always on top, size).</summary>
+    public ICommand? ToggleDetails { get; init; }
+
+    private bool _expanded;
+
+    public bool IsExpanded { get => _expanded; set => Set(ref _expanded, value); }
     public ICommand UseHint => new RelayCommand(() => { if (Hint is { } h) Name = h.Name; }, () => Hint is not null && Hint.Name != Name);
 
     /// <summary>Character name typed by the user ("" = not set).</summary>
@@ -181,16 +188,26 @@ public sealed class PartyMember : ObservableObject
         get => _state;
         set
         {
-            if (Set(ref _state, value)) OnPropertyChanged(nameof(StateText));
+            if (!Set(ref _state, value)) return;
+            OnPropertyChanged(nameof(StateText));
+            OnPropertyChanged(nameof(StateTip));
         }
     }
 
     public string StateText => State switch
     {
-        PartyState.Placed => "Placed",
-        PartyState.Elsewhere => "Not in place",
-        PartyState.Problem => "Check Activity",
-        _ => "No window",
+        PartyState.Connected => "Connected",
+        PartyState.Placing => "Placing…",
+        PartyState.Moved => "Moved",
+        _ => "Awaiting…",
+    };
+
+    public string StateTip => State switch
+    {
+        PartyState.Connected => "The window is open and in its slot",
+        PartyState.Placing => "A new window: it is put into its slot while WoW loads",
+        PartyState.Moved => "The window left its slot – Re-arrange puts it back",
+        _ => "No WoW window in this slot yet – it is placed as soon as one opens",
     };
 
     /// <summary>Sets values from the layout without calling back (no save loop).</summary>
@@ -203,15 +220,7 @@ public sealed class PartyMember : ObservableObject
     }
 }
 
-/// <summary>A line of the "Start your squad" checklist.</summary>
-public sealed class CheckItem(string label) : ObservableObject
-{
-    private bool _done;
-    public string Label { get; } = label;
-    public bool Done { get => _done; set => Set(ref _done, value); }
-}
-
-/// <summary>An open WoW window in launch order (the order decides who gets which slot).</summary>
+/// <summary>An open WoW window of the squad and the slot it sits in (1-based; slots may have no window).</summary>
 public sealed class GameWindowItem(WindowInfo window) : ObservableObject
 {
     private int _slot;
