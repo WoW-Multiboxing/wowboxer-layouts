@@ -1,0 +1,59 @@
+name: release
+
+# Push a tag like v0.2.0 to build the installer and publish a GitHub Release (Velopack, with delta updates).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without "v" (e.g. 0.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Version
+        id: v
+        shell: pwsh
+        run: |
+          $v = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}'.TrimStart('v') }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test WoWBoxer.Layouts.slnx -c Release
+
+      - name: Publish app and wbx
+        run: |
+          dotnet publish src/WoWBoxer.Layouts.App -c Release -r win-x64 --self-contained false -o publish/app -p:Version=${{ steps.v.outputs.version }}
+          dotnet publish src/WoWBoxer.Layouts.Cli -c Release -r win-x64 --self-contained false -o publish/app -p:Version=${{ steps.v.outputs.version }}
+
+      # Code signing: when the SignPath Foundation project is approved, sign publish/app/*.exe here
+      # (signpath/github-action-submit-signing-request) before packing. Until then the files are unsigned.
+
+      - name: Pack installer (Velopack)
+        shell: pwsh
+        run: |
+          dotnet tool install -g vpk --version 1.2.161
+          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o Releases
+          vpk pack --packId WoWBoxer.Layouts --packVersion ${{ steps.v.outputs.version }} --packDir publish/app `
+            --mainExe WoWBoxer.Layouts.exe --packTitle "WoWBoxer Window Layouts" --packAuthors "WoWBoxer" `
+            --icon src/WoWBoxer.Layouts.App/Assets/app.ico --runtime win-x64 --framework net10.0-x64-desktop -o Releases
+
+      - name: Publish GitHub Release
+        run: >
+          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+          -o Releases --publish --tag v${{ steps.v.outputs.version }} --releaseName "WoWBoxer Window Layouts ${{ steps.v.outputs.version }}"

@@ -71,6 +71,7 @@ public partial class App : Application
         _main.Closed += (_, _) => Shutdown();
         CreateTray();
         if (!startInTray) _main.Show();
+        if (settings.CheckForUpdates) _ = Updater.CheckAsync(_main.ViewModel.Status);
 
         if (startProfile is not null)
         {

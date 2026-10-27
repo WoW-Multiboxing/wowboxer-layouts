@@ -14,6 +14,8 @@ public sealed class AppSettings
     public string? LastProfile { get; set; }
     public bool Forever { get; set; }
     public bool RenameWindows { get; set; } = true;
+    /// <summary>Look for a new version on GitHub at start (installed copies only).</summary>
+    public bool CheckForUpdates { get; set; } = true;
     public string? BattleNetExe { get; set; }
     public List<string> Accounts { get; set; } = [];
 

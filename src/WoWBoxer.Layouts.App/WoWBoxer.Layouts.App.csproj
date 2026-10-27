@@ -14,7 +14,14 @@
     <!-- WPF0001: ThemeMode (Fluent / Windows 11 look) is marked experimental in .NET 10. -->
     <!-- WFO0003: WinForms wants DPI mode in code; this is a WPF app and the manifest is the right place. -->
     <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
+    <!-- Own Main (Program.cs): Velopack's install/update hooks must run before WPF starts. -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Installer + delta updates from GitHub Releases (docs/plan.md §3). -->
+    <PackageReference Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- WinForms is only used for the tray icon; keep WPF's types unambiguous. -->
