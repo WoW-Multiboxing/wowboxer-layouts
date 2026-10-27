@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Layout maths, profile JSON and presets. No Windows APIs here, so it is unit-tested on any OS. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>WoWBoxer.Layouts.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WoWBoxer.Layouts.Core.Tests" />
+  </ItemGroup>
+
+</Project>

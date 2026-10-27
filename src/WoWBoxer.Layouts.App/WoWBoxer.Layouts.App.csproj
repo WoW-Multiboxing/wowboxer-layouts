@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WPF app (monitor canvas, editor, profiles, tray). Only a stub until milestone M2. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WoWBoxer.Layouts.App</RootNamespace>
+    <AssemblyName>WoWBoxer.Layouts</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WoWBoxer.Layouts.Core\WoWBoxer.Layouts.Core.csproj" />
+    <ProjectReference Include="..\WoWBoxer.Layouts.Win32\WoWBoxer.Layouts.Win32.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- "wbx arrange | diagnose | start | info": headless front end over the same Core and Win32 code as the app. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WoWBoxer.Layouts.Cli</RootNamespace>
+    <AssemblyName>wbx</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WoWBoxer.Layouts.Core\WoWBoxer.Layouts.Core.csproj" />
+    <ProjectReference Include="..\WoWBoxer.Layouts.Win32\WoWBoxer.Layouts.Win32.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Window finding, placing, monitors, DPI and elevation checks (user32/kernel32/advapi32/shcore). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WoWBoxer.Layouts.Win32</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WoWBoxer.Layouts.Core\WoWBoxer.Layouts.Core.csproj" />
+  </ItemGroup>
+
+</Project>
