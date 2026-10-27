@@ -1,10 +1,21 @@
 using System.Text;
+using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.Cli;
 
 /// <summary>Writes to the console (with colour) and to a local log file. Nothing leaves the PC.</summary>
-internal sealed class Log : IDisposable
+internal sealed class Log : IDisposable, IStatusSink
 {
+    public void Report(StatusLevel level, string message) => Line(message, level switch
+    {
+        StatusLevel.Ok => ConsoleColor.Green,
+        StatusLevel.Warn => ConsoleColor.Yellow,
+        StatusLevel.Error => ConsoleColor.Red,
+        StatusLevel.Detail => ConsoleColor.DarkGray,
+        StatusLevel.Title => ConsoleColor.White,
+        _ => ConsoleColor.Gray,
+    });
+
     private readonly StreamWriter? _file;
     private readonly string _userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
