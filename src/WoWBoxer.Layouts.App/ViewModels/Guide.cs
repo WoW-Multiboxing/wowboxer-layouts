@@ -54,13 +54,13 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 "Everything is saved automatically, and the app opens with your last setup next time."),
             new(3, "Start your squad",
-                "Press Start squad. WoWBoxer opens Battle.net and waits. You press Play for each account, in order, and each window snaps into its place.",
+                "Press Start squad. Each window snaps into its place as it opens – you choose how the clients start.",
                 [
-                    "Press Start squad.",
-                    "In Battle.net, press Play with account 1, then 2, then 3 …",
-                    "Wrong order? Use ▲▼ on the Squad tab, or Identify to see which window is which.",
+                    "Battle.net (default): press Play with account 1, then 2, then 3 … – pick the account in Battle.net each time.",
+                    "Login screens: the app opens one WoW login screen per missing client; you log in to each yourself.",
+                    "Wrong order? Drag the rows on the Squad tab by ⋮⋮, or use Identify to see which window is which.",
                 ],
-                "WoWBoxer never logs in for you. You always press Play yourself."),
+                "WoWBoxer never logs in for you and never types anything. \"Close clients I started\" only closes the login screens it opened."),
             new(4, "Switch between windows",
                 "Two ways to move between clients. Pick what feels right – both keep one key press = one action on one character.",
                 [

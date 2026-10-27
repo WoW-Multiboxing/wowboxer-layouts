@@ -739,7 +739,7 @@ public sealed class MainViewModel : ObservableObject
 
     public string SquadHint => Windows.Count == 0
         ? "No WoW windows are open yet. Press Start squad, then press Play in Battle.net once per account – each window jumps into its place."
-        : $"{Windows.Count} WoW window(s) open. Arrange now puts them in this order; use ▲▼ or Identify to check who is who.";
+        : $"{Windows.Count} WoW window(s) open. Arrange now puts them in this order; drag a row by ⋮⋮ to change it, Identify shows who is who.";
 
     /// <summary>
     /// Rows mirror the layout's slots (name, class) plus the local WoW-account choice. Rows are reused when the slot
@@ -1099,7 +1099,8 @@ public sealed class MainViewModel : ObservableObject
                 if (slot >= 0) SetPartyState(slot, PartyState.Placed);
             });
             var token = _watch.Token;
-            var ok = await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token));
+            var order = OrderedWindows().Select(w => w.Handle).ToList();   // the rows' order, not launch order
+            var ok = await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token, order));
             RefreshWindows();
             if (!ok) foreach (var p in Party.Where(p => p.State != PartyState.Placed)) p.State = PartyState.Problem;
         }

@@ -19,9 +19,13 @@ public sealed class SquadWatcher(SquadPlan plan, IStatusSink sink)
 
     public IReadOnlyDictionary<nint, int> Assigned => _assigned;
 
+    /// <param name="initialOrder">Windows that already have a slot (index = slot), e.g. the app's squad rows; others follow launch order.</param>
     /// <returns>True if all slots were filled and every window is in place.</returns>
-    public async Task<bool> RunAsync(TimeSpan watchFor, CancellationToken cancel = default)
+    public async Task<bool> RunAsync(TimeSpan watchFor, CancellationToken cancel = default, IReadOnlyList<nint>? initialOrder = null)
     {
+        if (initialOrder is not null)
+            for (var i = 0; i < initialOrder.Count && i < plan.Slots.Count; i++)
+                if (WindowFinder.Exists(initialOrder[i]) && !_assigned.ContainsKey(initialOrder[i])) _assigned[initialOrder[i]] = i;
         var placedAt = new Dictionary<nint, DateTime>();
         var before = new Dictionary<nint, PixelRect>();
         var misses = new Dictionary<nint, int>();
@@ -31,6 +35,13 @@ public sealed class SquadWatcher(SquadPlan plan, IStatusSink sink)
         var deadline = DateTime.UtcNow + watchFor;
         var lastPlaced = DateTime.UtcNow;
         var firstRound = true;
+        foreach (var h in _assigned.Keys)
+        {
+            placedAt[h] = DateTime.UtcNow;
+            before[h] = WindowFinder.VisibleRectOf(h);
+            misses[h] = 0;
+            AssignmentChanged?.Invoke(h, _assigned[h]);
+        }
 
         while (DateTime.UtcNow < deadline && !cancel.IsCancellationRequested)
         {
