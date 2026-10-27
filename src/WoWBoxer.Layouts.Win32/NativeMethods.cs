@@ -21,7 +21,7 @@ internal static unsafe partial class NativeMethods
         public fixed char szDevice[32];
     }
 
-    public const int GWL_STYLE = -16;
+    public const int GWL_STYLE = -16, GWL_EXSTYLE = -20, WS_EX_TOPMOST = 0x00000008;
     public const int WS_CAPTION = 0x00C00000, WS_THICKFRAME = 0x00040000, WS_MINIMIZEBOX = 0x00020000,
         WS_MAXIMIZEBOX = 0x00010000, WS_SYSMENU = 0x00080000;
 

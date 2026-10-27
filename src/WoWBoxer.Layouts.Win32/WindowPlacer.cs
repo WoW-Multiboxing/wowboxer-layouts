@@ -21,12 +21,30 @@ public static class WindowPlacer
         if (!IsWindow(h)) return PlaceResult.Gone;
         if (IsZoomed(h) || IsIconic(h)) ShowWindowAsync(h, SW_SHOWNOACTIVATE);   // un-maximise / un-minimise without activating
         var styleChanged = borderless ? MakeBorderless(h) : AddFrame(h);
-        if (!styleChanged && IsAt(h, rect)) return PlaceResult.AlreadyThere;
+        // "Always on top" is applied every time, also when the window is already in place (it used to be skipped then,
+        // so a main window never became topmost and a follower could never be taken off "on top" again).
+        var zChanged = ApplyZOrder(h, z);
+        if (!styleChanged && IsAt(h, rect)) return zChanged ? PlaceResult.Requested : PlaceResult.AlreadyThere;
 
-        var (after, zFlag) = ZOrderArgs(z);
         var r = WithInvisibleFrame(h, rect);
-        SetWindowPos(h, after, r.X, r.Y, r.Width, r.Height, NoActivateAsync | SWP_FRAMECHANGED | SWP_SHOWWINDOW | zFlag);
+        SetWindowPos(h, 0, r.X, r.Y, r.Width, r.Height, NoActivateAsync | SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOZORDER);
         return PlaceResult.Requested;
+    }
+
+    /// <summary>True if the window has the "always on top" style (WS_EX_TOPMOST).</summary>
+    public static bool IsTopmost(nint h) => (GetWindowLong(h, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+
+    /// <summary>
+    /// Makes the window's "always on top" match the slot: <see cref="ZOrder.Top"/> sets it (HWND_TOPMOST), anything
+    /// else clears it (HWND_NOTOPMOST). Never activates the window. Returns true if a change was requested.
+    /// </summary>
+    public static bool ApplyZOrder(nint h, ZOrder z)
+    {
+        if (!IsWindow(h)) return false;
+        var top = z == ZOrder.Top;
+        if (IsTopmost(h) == top) return false;
+        SetWindowPos(h, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER | NoActivateAsync);
+        return true;
     }
 
     /// <summary>
@@ -86,7 +104,6 @@ public static class WindowPlacer
     /// </summary>
     public static void ShowAsOverlay(nint ownWindow, PixelRect rect)
     {
-        const int GWL_EXSTYLE = -20;
         const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_LAYERED = 0x80000, WS_EX_NOACTIVATE = 0x08000000;
         SetWindowLong(ownWindow, GWL_EXSTYLE, GetWindowLong(ownWindow, GWL_EXSTYLE) | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE);
         SetWindowPos(ownWindow, HWND_TOPMOST, rect.X, rect.Y, rect.Width, rect.Height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -117,11 +134,4 @@ public static class WindowPlacer
         fixed (char* text = title)
             return SendMessageTimeout(h, WM_SETTEXT, 0, text, SMTO_ABORTIFHUNG, 1000, out _) != 0;
     }
-
-    private static (nint After, uint Flag) ZOrderArgs(ZOrder z) => z switch
-    {
-        ZOrder.Top => (HWND_TOPMOST, SWP_NOOWNERZORDER),
-        ZOrder.Bottom => (HWND_NOTOPMOST, SWP_NOOWNERZORDER),
-        _ => (0, SWP_NOZORDER),
-    };
 }

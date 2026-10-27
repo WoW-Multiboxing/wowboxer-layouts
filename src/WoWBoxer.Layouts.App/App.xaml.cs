@@ -55,6 +55,7 @@ public partial class App : Application
         {
             FirstRunWindow.Show(null);
             settings.FirstRunDone = true;
+            settings.LastSeenVersion = ViewModels.MainViewModel.AppVersion;   // a fresh install has nothing "new"
             settings.Save();
             startInTray = false;
         }
@@ -74,6 +75,13 @@ public partial class App : Application
         _main.Closed += (_, _) => Shutdown();
         CreateTray();
         if (!startInTray) _main.Show();
+        var version = ViewModels.MainViewModel.AppVersion;
+        if (!startInTray && WhatsNewWindow.ShouldShow(settings, version))   // a tray start shows it next time
+        {
+            WhatsNewWindow.Show(_main, version);
+            settings.LastSeenVersion = version;
+            settings.Save();
+        }
         if (settings.CheckForUpdates) _ = Updater.CheckAsync(_main.ViewModel.Status);
 
         if (startProfile is not null) StartProfile(startProfile);

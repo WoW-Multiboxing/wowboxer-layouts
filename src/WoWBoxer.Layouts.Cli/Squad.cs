@@ -38,6 +38,7 @@ internal static class Squad
                 Borderless = o.Borderless ?? profile.Options.Borderless,
                 ResizeNudge = o.ResizeNudge,
             },
+            Game = o.Game ?? profile.Game ?? WowGame.ClassicEra,
             Slots = profile.Slots.Select((s, i) => i < o.Names.Count ? s with { Name = o.Names[i] } : s).ToList(),
         };
         return new SquadPlan(profile, monitors, rename: o.Names.Count > 0);

@@ -36,6 +36,10 @@ public sealed class LayoutCanvas : FrameworkElement
         nameof(Compact), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty ShowAllMonitorsProperty = DependencyProperty.Register(
         nameof(ShowAllMonitors), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty MeasuredBarsProperty = DependencyProperty.Register(
+        nameof(MeasuredBars), typeof(IReadOnlyDictionary<int, ViewModels.MeasuredBar>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty UiScaleProperty = DependencyProperty.Register(
+        nameof(UiScale), typeof(double), typeof(LayoutCanvas), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
         nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
@@ -46,6 +50,10 @@ public sealed class LayoutCanvas : FrameworkElement
     public bool Animate { get => (bool)GetValue(AnimateProperty); set => SetValue(AnimateProperty, value); }
     /// <summary>False: draw only the monitors the layout uses (bigger), true: every monitor (to drag windows across).</summary>
     public bool ShowAllMonitors { get => (bool)GetValue(ShowAllMonitorsProperty); set => SetValue(ShowAllMonitorsProperty, value); }
+    /// <summary>Slot index → what the open WoW window in that slot really draws. Those slots show the measured action-bar state (solid dot).</summary>
+    public IReadOnlyDictionary<int, ViewModels.MeasuredBar>? MeasuredBars { get => (IReadOnlyDictionary<int, ViewModels.MeasuredBar>?)GetValue(MeasuredBarsProperty); set => SetValue(MeasuredBarsProperty, value); }
+    /// <summary>WoW's UI Scale (1 = automatic), used for the planned state of slots without an open window (ring dot).</summary>
+    public double UiScale { get => (double)GetValue(UiScaleProperty); set => SetValue(UiScaleProperty, value); }
 
     /// <summary>Raised when a drag or nudge has finished with the slot's new position.</summary>
     public event EventHandler<SlotEditedEventArgs>? SlotEdited;
@@ -278,7 +286,9 @@ public sealed class LayoutCanvas : FrameworkElement
 
             // gold number medallion, class/character name, size, action-bar dot (app mockup v0.2)
             var (gw, gh) = LayoutEngine.GameArea(item.Fitted, LayoutEngine.FrameSize(Options, item.Monitor.Dpi));
-            var aspect = gh == 0 ? 0 : (double)gw / gh;   // what the game draws in, title bar excluded
+            // what the action bar sees: measured on the open window, or planned (game area / UI Scale)
+            var measured = MeasuredBars is { } bars && bars.TryGetValue(item.Index, out var bar) ? bar : null;
+            var aspect = measured?.Effective ?? (gh == 0 ? 0 : (double)gw / gh / Math.Max(0.1, UiScale));
             var radiusM = Math.Clamp(Math.Min(r.Width, r.Height) * 0.16, 9, 26);
             var lines = new List<FormattedText>();
             var label = item.Slot.Name ?? WowClasses.Find(item.Slot.Class)?.Name;
@@ -303,7 +313,10 @@ public sealed class LayoutCanvas : FrameworkElement
             {
                 var dot = 7.0;
                 var x0 = r.X + (r.Width - barText.Width - dot - 5) / 2;
-                dc.DrawEllipse(new SolidColorBrush(ActionBar.ColorFor(aspect)), null, new Point(x0 + dot / 2, y + barText.Height / 2 + 0.5), dot / 2, dot / 2);
+                var barBrush = new SolidColorBrush(ActionBar.ColorFor(aspect));
+                var centre = new Point(x0 + dot / 2, y + barText.Height / 2 + 0.5);
+                if (measured is not null) dc.DrawEllipse(barBrush, null, centre, dot / 2, dot / 2);   // measured on the real window
+                else dc.DrawEllipse(null, new Pen(barBrush, 1.4), centre, dot / 2 - 0.7, dot / 2 - 0.7);   // planned
                 Draw(dc, barText, new Point(x0 + dot + 5, y), shadow: true);
             }
             if (overlay && r.Width > 50)

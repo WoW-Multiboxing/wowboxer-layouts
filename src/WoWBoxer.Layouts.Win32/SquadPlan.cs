@@ -8,6 +8,8 @@ public sealed class SquadPlan
     public LayoutProfile Profile { get; }
     public IReadOnlyList<MonitorInfo> Monitors { get; }
     public IReadOnlyList<PlacedSlot> Slots { get; }
+    /// <summary>Only this game's windows are placed (from the layout).</summary>
+    public WowGame Game => Profile.GameOrDefault;
     public bool ToolIsAdmin { get; } = ProcessInfo.CurrentElevation() == Elevation.Elevated;
     /// <summary>Retitle placed windows "WoW - Name" for slots that have a name.</summary>
     public bool Rename { get; }

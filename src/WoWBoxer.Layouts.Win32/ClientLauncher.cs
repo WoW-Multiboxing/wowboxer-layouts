@@ -88,15 +88,17 @@ public sealed class ClientLauncher
 /// <summary>Where the WoW client lives: a running client, Blizzard's registry entry, or the default folder.</summary>
 public static class GameInstall
 {
-    public static string ClassicEraFolder => "_classic_era_";
-    private const string ClassicEraExe = "WowClassic.exe";
-
-    public static string? FindExe(string? configured)
+    /// <summary>The client exe of <paramref name="game"/>. A configured exe of another game is ignored.</summary>
+    public static string? FindExe(string? configured, WowGame game = WowGame.ClassicEra)
     {
-        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured) && GameDetection.GameOf(configured) is var g && (g == game || g == WowGame.Unknown))
+            return configured;
 
-        foreach (var w in WindowFinder.FindGameWindows())
-            if (ProcessInfo.ImagePath(w.Pid) is { Length: > 0 } running && File.Exists(running)) return running;
+        foreach (var w in WindowFinder.FindGameWindows(game))
+            if (w.ExePath is { Length: > 0 } running && File.Exists(running)) return running;
+
+        if (GameDetection.InstallOf(game) is not { } install) return null;
+        var (folder, exe) = install;
 
         var roots = new List<string>();
         foreach (var key in new[] { @"SOFTWARE\WOW6432Node\Blizzard Entertainment\World of Warcraft", @"SOFTWARE\Blizzard Entertainment\World of Warcraft" })
@@ -106,7 +108,7 @@ public static class GameInstall
                 roots.Add(Path.GetFullPath(Path.Combine(path.TrimEnd('\\'), "..")));   // InstallPath points at _retail_
         }
         roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "World of Warcraft"));
-        return roots.Select(r => Path.Combine(r, ClassicEraFolder, ClassicEraExe)).FirstOrDefault(File.Exists);
+        return roots.Select(r => Path.Combine(r, folder, exe)).FirstOrDefault(File.Exists);
     }
 
     /// <summary>The client folder (holds WTF) for an exe.</summary>

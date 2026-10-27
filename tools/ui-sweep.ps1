@@ -27,7 +27,7 @@ $log = Join-Path $env:LOCALAPPDATA 'WoWBoxer\Layouts\logs\app.log'
 $results = New-Object System.Collections.Generic.List[string]
 $fails = 0
 
-function Main { $w = $A::RootElement.FindFirst($Scope::Children, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'WoWBoxer Window Layouts'))); if (-not $w) { throw 'App window not found' }; $w }
+function Main { $w = @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer Window Layouts*' -and $_.Current.ClassName -notlike '*Wnd' } | Select-Object -First 1; if (-not $w) { throw 'App window not found' }; $w }   # title carries the version
 function Find($name, $root = (Main)) { if ($env:WBX_TRACE) { Write-Host "  > $name" }; $root.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, $name))) }
 function FindId($id, $root = (Main)) { $root.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::AutomationIdProperty, $id))) }
 function Pattern($e, $p) { $o = $null; if ($e.TryGetCurrentPattern($p, [ref]$o)) { $o } else { $null } }

@@ -10,6 +10,9 @@ using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.App.ViewModels;
 
+/// <summary>What an open WoW window really draws: its game area and the action bar's effective aspect (aspect / UI Scale).</summary>
+public sealed record MeasuredBar(int Width, int Height, double Effective);
+
 /// <summary>What the view model needs from the window (dialogs, clipboard, overlays).</summary>
 public interface IUserDialogs
 {
@@ -104,11 +107,14 @@ public sealed class MainViewModel : ObservableObject
         });
         BrowseGameCommand = new RelayCommand(BrowseGame);
         FitActionBarCommand = new RelayCommand(FitActionBar, () => HasSlot);
+        FixUiScaleCommand = new RelayCommand(FixUiScale, () => Current is not null);
+        ResetUiScaleCommand = new RelayCommand(ResetUiScale, () => UiScaleNow.Use);
 
         RefreshMonitors();
-        WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe));
+        WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe, SelectedGame));
         LoadProfiles();
         RefreshWindows();
+        ApplyOnTop();   // "always on top" is restored at start; positions are not (opening the app never moves windows)
         _loaded = true;
     }
 
@@ -137,7 +143,11 @@ public sealed class MainViewModel : ObservableObject
 
     public event Action? FirstRunRequested;
 
-    public string Version => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+    public static string AppVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+
+    public string Version => AppVersion;
+
+    public string WindowTitle => $"WoWBoxer Window Layouts {Version}";
 
     public AppTab SelectedTab
     {
@@ -165,6 +175,7 @@ public sealed class MainViewModel : ObservableObject
             if (!Set(ref _current, value)) return;
             foreach (var name in new[] { nameof(FullActionBar), nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
                 OnPropertyChanged(name);
+            if ((value?.Slots.Count ?? 0) != _slotChoices.Count) OnPropertyChanged(nameof(SlotChoices));
             RefreshCards();
             RefreshParty();
             RaiseSlotProperties();
@@ -183,8 +194,7 @@ public sealed class MainViewModel : ObservableObject
             _undo.Clear();
             Current = value.Profile;
             SelectedSlotIndex = 0;
-            _settings.LastProfile = value.Name;
-            _settings.Save();
+            LastProfileName = value.Name;
             ScheduleLive();
         }
     }
@@ -323,6 +333,22 @@ public sealed class MainViewModel : ObservableObject
         : default;
 
     public bool HasSlot => Slot is not null;
+
+    /// <summary>
+    /// "Window 1" … for the inspector's window picker (keyboard and UI Automation friendly). A new list only when the
+    /// count changes: a new list would make the picker drop its selection on every edit.
+    /// </summary>
+    public IReadOnlyList<string> SlotChoices
+    {
+        get
+        {
+            var n = Current?.Slots.Count ?? 0;
+            if (_slotChoices.Count != n) _slotChoices = Enumerable.Range(1, n).Select(i => $"Window {i}").ToList();
+            return _slotChoices;
+        }
+    }
+
+    private IReadOnlyList<string> _slotChoices = [];
     public string SlotHeader => Slot is { } s ? $"Window {s.N}{(s.Role == SlotRole.Main ? " · main" : "")}" : "Click a window";
     public Brush SlotBrush => Slot is { } s ? new SolidColorBrush(WowClasses.ColorFor(s.Class)) : Brushes.Gray;
 
@@ -372,25 +398,121 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>The selected window's game-area aspect and what it means for Classic's action bar.</summary>
-    private double SlotGameAspect
+    /// <summary>The game-area aspect a slot of the layout gives (title bar excluded).</summary>
+    private double PlannedAspect(int index)
+    {
+        if (Current is null || Monitors.Count == 0 || index < 0 || index >= Current.Slots.Count) return 0;
+        var s = Current.Slots[index];
+        var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
+        var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
+        var (w, h) = LayoutEngine.GameArea(LayoutEngine.Fit(SlotEditing.Raw(s, monitor, Current.Options), s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect, frame), frame);
+        return h == 0 ? 0 : (double)w / h;
+    }
+
+    private double SlotGameAspect => PlannedAspect(SelectedSlotIndex);
+
+    /// <summary>
+    /// The real action-bar state of the selected window when its WoW window is open: measured from the size the game
+    /// really draws at (the same picture "wbx snap" saves) and the UI Scale in Config.wtf. Otherwise the layout's plan.
+    /// </summary>
+    public string SlotBarText
     {
         get
         {
-            if (Slot is not { } s || Current is null || Monitors.Count == 0) return 0;
-            var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
-            var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
-            var (w, h) = LayoutEngine.GameArea(LayoutEngine.Fit(SlotRect, s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect, frame), frame);
-            return h == 0 ? 0 : (double)w / h;
+            if (MeasuredBars.TryGetValue(SelectedSlotIndex, out var m))
+                return $"Now: game draws {m.Width} × {m.Height}, UI Scale {UiScaleNow.Display} · {ActionBar.Verdict(m.Effective)}";
+            var planned = UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
+            return $"Planned: aspect {SlotGameAspect:0.00}, UI Scale {UiScaleNow.Display} · {ActionBar.Verdict(planned)}";
         }
     }
 
-    public string SlotBarText => $"Aspect {SlotGameAspect:0.00} · {ActionBar.Verdict(SlotGameAspect)}";
+    private double SlotEffectiveAspect => MeasuredBars.TryGetValue(SelectedSlotIndex, out var m) ? m.Effective : UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
 
-    /// <summary>In-game alternative: the UI Scale at which the whole bar fits this window (not yet verified in game).</summary>
-    public string SlotUiScaleHint => SlotGameAspect >= 4.0 / 3 - 0.001 || SlotGameAspect <= 0
+    /// <summary>The fix for a clipped bar: the UI Scale this window needs (one value is shared by every client).</summary>
+    public string SlotUiScaleHint => SlotEffectiveAspect >= 4.0 / 3 - 0.001 || SlotGameAspect <= 0
         ? ""
-        : $"Or in game: Options → Use UI Scale on, UI Scale {ActionBar.MaxUiScale(SlotGameAspect):0.00} or lower (not tested yet).";
+        : $"Fix: UI Scale {UiScale.ForFullBar(SlotGameAspect):0.00} or lower. WoW keeps one UI Scale for all clients of an install – \"Fix action bar\" sets it for the whole squad.";
+
+    /// <summary>WoW's UI Scale for the selected game, read from the shared Config.wtf (read-only).</summary>
+    public UiScaleSetting UiScaleNow { get; private set; } = UiScaleSetting.Automatic;
+
+    public double UiScaleEffective => UiScaleNow.Effective;
+
+    /// <summary>Slot index → what the open window in that slot really shows (game area and the bar's effective aspect).</summary>
+    public IReadOnlyDictionary<int, MeasuredBar> MeasuredBars { get; private set; } = new Dictionary<int, MeasuredBar>();
+
+    /// <summary>Re-reads UI Scale and measures every open window in its slot. Raises only when something changed.</summary>
+    private void MeasureBars()
+    {
+        var exe = GameInstall.FindExe(_settings.GameExe, SelectedGame);
+        var scale = exe is null ? UiScaleSetting.Automatic : UiScaleFix.Read(exe);
+        var measured = new Dictionary<int, MeasuredBar>();
+        for (var i = 0; i < Windows.Count && Current is not null && i < Current.Slots.Count; i++)
+        {
+            var (w, h) = WindowFinder.ClientSizeOf(Windows[i].Window.Handle);
+            if (w > 0 && h > 0) measured[i] = new MeasuredBar(w, h, UiScale.EffectiveAspect((double)w / h, scale));
+        }
+        if (scale == UiScaleNow && measured.Count == MeasuredBars.Count && measured.All(kv => MeasuredBars.TryGetValue(kv.Key, out var old) && old == kv.Value)) return;
+        UiScaleNow = scale;
+        MeasuredBars = measured;
+        OnPropertyChanged(nameof(UiScaleNow));
+        OnPropertyChanged(nameof(UiScaleEffective));
+        OnPropertyChanged(nameof(MeasuredBars));
+        RaiseSlotProperties();
+    }
+
+    /// <summary>
+    /// "Fix action bar": the one UI Scale at which every window of the layout shows the whole bar. Written to the
+    /// install's Config.wtf only while all its clients are closed; otherwise the exact in-game steps are shown.
+    /// </summary>
+    private void FixUiScale()
+    {
+        if (Current is null) return;
+        var need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
+        if (need is null)
+        {
+            Status.Ok("Every window of this layout already shows the whole action bar – no UI Scale needed.");
+            return;
+        }
+        if (GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe)
+        {
+            Status.Warn($"The {SelectedGameName} client was not found. Set it in Settings › WoW client.");
+            return;
+        }
+        if (UiScaleNow.Use && UiScaleNow.Scale <= need.Value + 0.001)
+        {
+            Status.Ok($"UI Scale is already {UiScaleNow.Display}: every window shows the whole action bar (from each client's next start).");
+            return;
+        }
+        var running = UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!);
+        if (running > 0)
+        {
+            Status.Warn($"UI Scale {need:0.00} makes the whole action bar fit in every window of \"{Current.Name}\".");
+            Status.Info($"Either close all {running} {SelectedGameName} client(s) and press Fix action bar again – the app then writes it for you –");
+            Status.Info($"or in each client: Options › search \"UI Scale\" › tick Use UI Scale › set {need:0.00}. (One value for all clients; the last client to close saves it.)");
+            return;
+        }
+        if (UiScaleFix.Write(exe, use: true, need.Value) is { } error)
+        {
+            Status.Warn(error);
+            return;
+        }
+        MeasureBars();
+        Status.Ok($"UI Scale set to {need:0.00} in {SelectedGameName}'s Config.wtf (a backup was kept). Start your squad: every window shows the whole action bar.");
+    }
+
+    /// <summary>Turns "Use UI Scale" off again (automatic UI size), with the same closed-clients rule.</summary>
+    private void ResetUiScale()
+    {
+        if (GameInstall.FindExe(_settings.GameExe, SelectedGame) is not { } exe) return;
+        if (UiScaleFix.Write(exe, use: false, UiScaleNow.Scale) is { } error)
+        {
+            Status.Warn(error + " Or untick Use UI Scale in game.");
+            return;
+        }
+        MeasureBars();
+        Status.Ok($"Use UI Scale is off again for {SelectedGameName} (automatic UI size).");
+    }
 
     /// <summary>Layout option: every window that may be shortened gets a 4:3 game area (the whole Classic bar).</summary>
     public bool FullActionBar
@@ -415,7 +537,7 @@ public sealed class MainViewModel : ObservableObject
         OnSlotEdited(SelectedSlotIndex, SlotEditing.WithRect(s, fitted, Monitors, Current.Options) with { Fit = FitMode.None });
         Status.Ok($"Window {s.N} is now {fitted.Width} × {fitted.Height}: the whole action bar fits.");
     }
-    public Brush SlotBarBrush => ActionBar.Brush(SlotGameAspect);
+    public Brush SlotBarBrush => ActionBar.Brush(SlotEffectiveAspect);
 
     private void RaiseSlotProperties()
     {
@@ -459,6 +581,8 @@ public sealed class MainViewModel : ObservableObject
     public ICommand RefreshHintsCommand { get; }
     public ICommand BrowseGameCommand { get; }
     public ICommand FitActionBarCommand { get; }
+    public ICommand FixUiScaleCommand { get; }
+    public ICommand ResetUiScaleCommand { get; }
 
     // =====================================================================================
     // Saved layouts
@@ -477,17 +601,19 @@ public sealed class MainViewModel : ObservableObject
     private void LoadProfiles()
     {
         var errors = new List<string>();
-        var stored = _store.LoadAll(errors);
+        var stored = _store.LoadAll(errors).Where(s => s.Profile.GameOrDefault == SelectedGame).ToList();
         foreach (var e in errors) Status.Warn($"Skipped a broken layout file: {e}");
         if (stored.Count == 0 && Monitors.Count > 0)
         {
-            // First start: a ready-to-use layout for 3 clients.
-            var profile = Presets.Create(PresetKind.Side, 3, Monitors, options: new LayoutOptions { MinAspect = 4.0 / 3 }) with { Name = "My squad" };
+            // First start (or first time with this game): a ready-to-use layout for 3 clients.
+            var name = _store.UniqueName(SelectedGame == WowGame.ClassicEra ? "My squad" : $"My {SelectedGameName} squad");
+            var profile = Presets.Create(PresetKind.Side, 3, Monitors, options: new LayoutOptions { MinAspect = 4.0 / 3 }) with { Name = name, Game = SelectedGame };
             stored.Add(new StoredProfile(_store.Save(profile), profile));
         }
+        _selectedProfile = null;
         Profiles.Clear();
         foreach (var s in stored) Profiles.Add(new ProfileItem(s));
-        SelectedProfile = Profiles.FirstOrDefault(p => p.Name == _settings.LastProfile) ?? Profiles.FirstOrDefault();
+        SelectedProfile = Profiles.FirstOrDefault(p => p.Name == LastProfileName) ?? Profiles.FirstOrDefault();
     }
 
     /// <summary>Selects a layout by name (used by "--start NAME" from a desktop shortcut).</summary>
@@ -499,9 +625,21 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>The last layout used with the selected game (each game remembers its own).</summary>
+    private string? LastProfileName
+    {
+        get => SelectedGame == WowGame.Forever ? _settings.LastProfileForever : _settings.LastProfile;
+        set
+        {
+            if (SelectedGame == WowGame.Forever) _settings.LastProfileForever = value;
+            else _settings.LastProfile = value;
+            _settings.Save();
+        }
+    }
+
     private void AddAndSelect(LayoutProfile profile)
     {
-        profile = profile with { Name = _store.UniqueName(profile.Name) };
+        profile = profile with { Name = _store.UniqueName(profile.Name), Game = SelectedGame };
         var item = new ProfileItem(new StoredProfile(_store.Save(profile), profile));
         Profiles.Add(item);
         SelectedProfile = item;
@@ -551,8 +689,8 @@ public sealed class MainViewModel : ObservableObject
         _selectedProfile.Profile = profile;
         _selectedProfile.Refresh();
         Current = profile;
-        _settings.LastProfile = profile.Name;
-        _settings.Save();
+        LastProfileName = profile.Name;
+        ApplyOnTop();
         ScheduleLive();
     }
 
@@ -636,7 +774,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Makes a new layout from where the WoW windows are now (arranged by hand, Windows Snap …).</summary>
     private void Capture()
     {
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(SelectedGame);
         if (open.Count == 0)
         {
             Status.Warn("No World of Warcraft windows found to capture. Arrange your game windows first.");
@@ -652,10 +790,27 @@ public sealed class MainViewModel : ObservableObject
     // Settings
     // =====================================================================================
 
+    /// <summary>The game whose windows the app arranges. Each game has its own layouts; other games' windows are left alone.</summary>
+    public WowGame SelectedGame => _settings.Forever ? WowGame.Forever : WowGame.ClassicEra;
+
+    public string SelectedGameName => GameDetection.DisplayName(SelectedGame);
+
     public bool Forever
     {
         get => _settings.Forever;
-        set => SetSetting(() => _settings.Forever = value);
+        set
+        {
+            if (value == _settings.Forever) return;
+            SetSetting(() => _settings.Forever = value);
+            OnPropertyChanged(nameof(SelectedGame));
+            OnPropertyChanged(nameof(SelectedGameName));
+            OnPropertyChanged(nameof(GameExe));
+            Windows.Clear();
+            LoadProfiles();
+            ReadWowAccounts();
+            RefreshWindows();
+            Status.Info($"Game: {SelectedGameName}. Only {SelectedGameName} windows are arranged, with {SelectedGameName} layouts.");
+        }
     }
 
     public bool RenameWindows
@@ -690,7 +845,7 @@ public sealed class MainViewModel : ObservableObject
 
     public string GameExe
     {
-        get => _settings.GameExe ?? GameInstall.FindExe(null) ?? "";
+        get => GameInstall.FindExe(_settings.GameExe, SelectedGame) ?? _settings.GameExe ?? "";
         set
         {
             SetSetting(() => _settings.GameExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
@@ -717,7 +872,13 @@ public sealed class MainViewModel : ObservableObject
     private void BrowseGame()
     {
         var path = _dialogs.OpenFile("WoW client|Wow*.exe|Programs (*.exe)|*.exe");
-        if (path is not null) GameExe = path;
+        if (path is null) return;
+        if (GameDetection.GameOf(path) is var game && game != SelectedGame && game != WowGame.Unknown)
+        {
+            Status.Warn($"That is the {GameDetection.DisplayName(game)} client. Pick the {SelectedGameName} one, or switch the game first.");
+            return;
+        }
+        GameExe = path;
     }
 
     private void SetSetting(Action change, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
@@ -786,7 +947,7 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
-            WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe));
+            WowAccounts = GameInstall.Accounts(GameInstall.FindExe(_settings.GameExe, SelectedGame));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -877,6 +1038,7 @@ public sealed class MainViewModel : ObservableObject
         }
         for (var i = 0; i < steps.Count; i++) Checklist[i].Done = steps[i].Done;
         OnPropertyChanged(nameof(HeaderStatus));
+        MeasureBars();
     }
 
     /// <summary>Short live status for the title bar.</summary>
@@ -920,7 +1082,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void RefreshWindows()
     {
-        var found = WindowFinder.FindGameWindows();
+        var found = WindowFinder.FindGameWindows(SelectedGame);
         // keep the user's order for windows we already know; new ones go to the end (launch order)
         var known = Windows.Select(w => w.Window.Handle).ToList();
         var ordered = known.Count == 0 ? MatchToSlots(found) : found.OrderBy(w => known.IndexOf(w.Handle) is var i && i >= 0 ? i : int.MaxValue).ToList();
@@ -1011,6 +1173,17 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Makes "always on top" of the open windows match their slots right away (set and cleared, no move). Runs at start
+    /// and after every edit while live is on; Arrange and Start squad apply it as part of placing.
+    /// </summary>
+    private void ApplyOnTop()
+    {
+        if (Current is null || !LiveApply) return;
+        for (var i = 0; i < Windows.Count && i < Current.Slots.Count; i++)
+            WindowPlacer.ApplyZOrder(Windows[i].Window.Handle, Current.Slots[i].Z);
+    }
+
     /// <summary>"Live": after an edit, move the open WoW windows to the new layout (debounced, quiet).</summary>
     private void ScheduleLive()
     {
@@ -1025,7 +1198,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             await Task.Delay(350, cancel);
-            if (WindowFinder.FindGameWindows().Count == 0 || Plan() is not { } plan) return;
+            if (WindowFinder.FindGameWindows(SelectedGame).Count == 0 || Plan() is not { } plan) return;
             var windows = OrderedWindows();
             await _liveLock.WaitAsync(cancel);
             try
@@ -1073,9 +1246,9 @@ public sealed class MainViewModel : ObservableObject
             Status.Title($"Start squad: \"{plan.Profile.Name}\"");
             if (LaunchLoginScreens)
             {
-                var missing = Math.Max(0, plan.Slots.Count - WindowFinder.FindGameWindows().Count);
+                var missing = Math.Max(0, plan.Slots.Count - WindowFinder.FindGameWindows(SelectedGame).Count);
                 if (missing == 0) Status.Info("All clients are already open.");
-                else if (GameInstall.FindExe(_settings.GameExe) is { } exe) _launcher.Start(exe, missing, Status);
+                else if (GameInstall.FindExe(_settings.GameExe, SelectedGame) is { } exe) _launcher.Start(exe, missing, Status);
                 else Status.Warn("WoW was not found. Set the game exe in Settings.");
                 Status.Title("Log in to each login screen yourself – in this order:");
             }
@@ -1116,7 +1289,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void RestoreFrames()
     {
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(SelectedGame);
         foreach (var w in open) WindowPlacer.RestoreFrame(w.Handle);
         Status.Info($"Gave {open.Count} WoW window(s) their title bars back.");
     }

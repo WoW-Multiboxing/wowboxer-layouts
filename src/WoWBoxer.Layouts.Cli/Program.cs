@@ -57,7 +57,7 @@ try
         "start" => await Commands.StartAsync(options, log, cancel.Token),
         "diagnose" => await Commands.DiagnoseAsync(options, log, dpiAwareness),
         "info" => Commands.Info(options, log),
-        "restore" => Commands.Restore(log),
+        "restore" => Commands.Restore(options, log),
         "capture" => Commands.Capture(options, log),
         "snap" => Commands.Snap(options, log),
         "layout" => Commands.Layout(options, log),

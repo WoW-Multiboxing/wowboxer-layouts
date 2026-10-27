@@ -28,7 +28,7 @@
                             <RadioButton Style="{StaticResource SmallSegButton}" Content="Classic Era" GroupName="game2" IsChecked="{Binding Forever, Converter={x:Static app:InvertBool.Instance}}" />
                             <RadioButton Style="{StaticResource SmallSegButton}" Content="Forever" GroupName="game2" IsChecked="{Binding Forever}" />
                         </StackPanel>
-                        <TextBlock Style="{StaticResource Explain}" Text="Only changes the Battle.net instructions. Window handling is the same for every client." />
+                        <TextBlock Style="{StaticResource Explain}" Text="Only this game's windows are arranged (found by their install folder), and each game keeps its own layouts. Other WoW windows are left alone." />
                     </StackPanel>
                 </ContentControl>
 

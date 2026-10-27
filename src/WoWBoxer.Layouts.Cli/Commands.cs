@@ -16,22 +16,23 @@ internal static class Commands
     {
         var squad = Squad.Create(o, defaultClients: 3);
         squad.Describe(log);
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(o.Game);
         log.Info($"WoW windows open right now: {open.Count}");
         foreach (var w in open)
         {
             var (cw, ch) = WindowFinder.ClientSizeOf(w.Handle);
             var borderless = (w.Style & 0x00C00000) == 0;   // no WS_CAPTION
-            log.Info($"  {w.ProcessName}.exe  pid {w.Pid}  window {w.Rect}  visible {WindowFinder.VisibleRectOf(w.Handle)}");
+            log.Info($"  {w.ProcessName}.exe  pid {w.Pid}  {GameDetection.DisplayName(w.Game)}  class \"{w.ClassName}\"  window {w.Rect}  visible {WindowFinder.VisibleRectOf(w.Handle)}  top-most {WindowPlacer.IsTopmost(w.Handle)}");
             log.Info($"      game renders {cw}x{ch} (aspect {(ch == 0 ? 0 : (double)cw / ch):F3})  {(borderless ? "borderless" : "title bar")}  style 0x{w.Style:X8}");
+            log.Info($"      {BarLine(w, cw, ch)}");
         }
         return 0;
     }
 
     /// <summary>Gives every WoW window its title bar and borders back (undo borderless). Moves nothing.</summary>
-    public static int Restore(Log log)
+    public static int Restore(CliOptions o, Log log)
     {
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(o.Game);
         if (open.Count == 0)
         {
             log.Warn("No World of Warcraft windows found.");
@@ -48,7 +49,7 @@ internal static class Commands
     /// <summary>Saves where the WoW windows are now (oldest = slot 1) as a layout file. Moves nothing.</summary>
     public static int Capture(CliOptions o, Log log)
     {
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(o.Game);
         if (open.Count == 0)
         {
             log.Warn("No World of Warcraft windows found. Arrange them first, then capture.");
@@ -79,7 +80,7 @@ internal static class Commands
     /// <summary>Saves a PNG of what each WoW window draws (read-only), oldest first: slot1.png, slot2.png ...</summary>
     public static int Snap(CliOptions o, Log log)
     {
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(o.Game);
         if (open.Count == 0)
         {
             log.Warn("No World of Warcraft windows found.");
@@ -98,8 +99,19 @@ internal static class Commands
             var path = Path.Combine(folder, $"slot{i + 1}.png");
             WindowCapture.SavePng(shot, path);
             log.Ok($"Window {i + 1}: {shot.Width}x{shot.Height} ({shot.Method}) -> {path}");
+            log.Info($"   {BarLine(open[i], shot.Width, shot.Height)}");
         }
         return 0;
+    }
+
+    /// <summary>The action bar as this window really shows it: its game area and the UI Scale in its install's Config.wtf.</summary>
+    private static string BarLine(WindowInfo w, int width, int height)
+    {
+        if (height == 0) return "action bar: unknown (no game area)";
+        var scale = w.ExePath.Length > 0 ? UiScaleFix.Read(w.ExePath) : UiScaleSetting.Automatic;
+        var effective = UiScale.EffectiveAspect((double)width / height, scale);
+        var fix = effective >= 4.0 / 3 - 0.001 ? "" : $"  (fix: UI Scale {UiScale.ForFullBar((double)width / height):0.00} or lower)";
+        return $"action bar: {UiScale.BarVerdict(effective)}  [UI Scale {scale.Display}]{fix}";
     }
 
     public static int Layout(CliOptions o, Log log)
@@ -121,13 +133,13 @@ internal static class Commands
     /// <summary>Place the WoW windows that are open now, oldest first (the launcher's Arrange mode).</summary>
     public static async Task<int> ArrangeAsync(CliOptions o, Log log)
     {
-        var open = WindowFinder.FindGameWindows();
+        var plan = Squad.Create(o, defaultClients: WindowFinder.FindGameWindows(o.Game ?? WowGame.ClassicEra).Count);
+        var open = WindowFinder.FindGameWindows(plan.Game);   // only the layout's game: a Forever window never joins a Classic layout
         if (open.Count == 0)
         {
-            log.Warn("No World of Warcraft windows found. Start the games first (or run \"wbx diagnose\").");
+            log.Warn($"No {GameDetection.DisplayName(plan.Game)} windows found. Start the games first (or run \"wbx diagnose\").");
             return 1;
         }
-        var plan = Squad.Create(o, defaultClients: open.Count);
         plan.Describe(log);
         log.Line();
         return await Arranger.ArrangeAsync(plan, open, log) ? 0 : 1;
@@ -141,7 +153,7 @@ internal static class Commands
         if (o.StartBattleNet) SquadWatcher.EnsureBattleNet(log, o.BattleNetExe, plan.ToolIsAdmin);
 
         log.Line();
-        log.Title(SquadWatcher.BattleNetInstructions(o.Game == Game.Forever));
+        log.Title(SquadWatcher.BattleNetInstructions(plan.Game == WowGame.Forever));
         log.Title("Then choose the account and press Play - in this order:");
         for (var i = 0; i < plan.Slots.Count; i++)
         {
@@ -158,7 +170,7 @@ internal static class Commands
     /// <summary>Write a report of what Windows sees, then try one synchronous placement per game window.</summary>
     public static async Task<int> DiagnoseAsync(CliOptions o, Log log, string dpiAwareness)
     {
-        var open = WindowFinder.FindGameWindows();
+        var open = WindowFinder.FindGameWindows(o.Game);
         var plan = Squad.Create(o, defaultClients: open.Count > 0 ? open.Count : 3);
         await Diagnostics.RunAsync(plan, open, log, $"wbx {Version}", dpiAwareness);
         log.Line();

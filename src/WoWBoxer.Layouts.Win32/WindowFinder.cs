@@ -6,7 +6,13 @@ using static WoWBoxer.Layouts.Win32.NativeMethods;
 namespace WoWBoxer.Layouts.Win32;
 
 /// <summary>A top-level window and the facts we use to recognise and place it.</summary>
-public sealed record WindowInfo(nint Handle, uint Pid, string ProcessName, string ClassName, string Title, PixelRect Rect, int Style);
+public sealed record WindowInfo(nint Handle, uint Pid, string ProcessName, string ClassName, string Title, PixelRect Rect, int Style)
+{
+    /// <summary>Full path of the client exe ("" if Windows does not tell us).</summary>
+    public string ExePath { get; init; } = "";
+    /// <summary>Which WoW game the window belongs to, from its install folder.</summary>
+    public WowGame Game => GameDetection.GameOf(ExePath);
+}
 
 /// <summary>
 /// Finds World of Warcraft windows. Rules from the launcher: window class <c>GxWindowClass*</c> (older clients), or a
@@ -45,8 +51,11 @@ public static unsafe class WindowFinder
         return 1;
     }
 
-    /// <summary>WoW game windows, oldest process first (= the order the user pressed Play).</summary>
-    public static List<WindowInfo> FindGameWindows()
+    /// <summary>
+    /// WoW game windows, oldest process first (= the order the user pressed Play). With <paramref name="game"/> only
+    /// that game's clients (e.g. a Forever window is never pulled into a Classic Era layout).
+    /// </summary>
+    public static List<WindowInfo> FindGameWindows(WowGame? game = null)
     {
         var wowPids = new HashSet<uint>();
         foreach (var p in Process.GetProcesses())
@@ -74,7 +83,9 @@ public static unsafe class WindowFinder
             if (!gx && !wowPids.Contains(pid) && !IsWowPath(ProcessInfo.ImagePath(pid))) continue;
             var rect = RectOf(h);
             if (!gx && (rect.Width < MinWidth || rect.Height < MinHeight)) continue;
-            found.Add((Describe(h), ProcessInfo.StartTime(pid) ?? DateTime.MaxValue));
+            var info = Describe(h);
+            if (game is { } g && info.Game != g) continue;
+            found.Add((info, ProcessInfo.StartTime(pid) ?? DateTime.MaxValue));
         }
         return found.OrderBy(f => f.Start).ThenBy(f => f.Window.Handle).Select(f => f.Window).ToList();
     }
@@ -82,7 +93,7 @@ public static unsafe class WindowFinder
     public static WindowInfo Describe(nint h)
     {
         var pid = PidOf(h);
-        return new WindowInfo(h, pid, ProcessInfo.Name(pid), ClassOf(h), TitleOf(h), RectOf(h), GetWindowLong(h, GWL_STYLE));
+        return new WindowInfo(h, pid, ProcessInfo.Name(pid), ClassOf(h), TitleOf(h), RectOf(h), GetWindowLong(h, GWL_STYLE)) { ExePath = ProcessInfo.ImagePath(pid) };
     }
 
     public static uint PidOf(nint h)

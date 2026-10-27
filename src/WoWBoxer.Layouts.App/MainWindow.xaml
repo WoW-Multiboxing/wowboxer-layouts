@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:WoWBoxer.Layouts.App"
         xmlns:v="clr-namespace:WoWBoxer.Layouts.App.Views"
-        Title="WoWBoxer Window Layouts" Width="1440" Height="900" MinWidth="1120" MinHeight="700"
+        Title="{Binding WindowTitle, Mode=OneWay}" Width="1440" Height="900" MinWidth="1120" MinHeight="700"
         WindowStartupLocation="CenterScreen" Icon="Assets/app.ico"
         Background="{StaticResource NightBrush}" Foreground="{StaticResource TextBrush}"
         FontFamily="{StaticResource BodyFont}" FontSize="13.5"
@@ -62,6 +62,8 @@
                                     <Run Text="WoW" /><Run Text="Boxer" Foreground="{StaticResource GoldHiBrush}" />
                                 </TextBlock>
                                 <TextBlock Text="WINDOW LAYOUTS" VerticalAlignment="Center" Margin="10,3,0,0" FontFamily="{StaticResource DisplaySemiFont}" FontSize="10.5" Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Text="{Binding Version, StringFormat=v{0}, Mode=OneWay}" VerticalAlignment="Center" Margin="8,3,0,0" FontSize="11" Foreground="{StaticResource GoldBrush}" Opacity="0.85"
+                                           AutomationProperties.AutomationId="TitleVersion" ToolTip="Installed version – see About for what changed" />
                             </StackPanel>
 
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True">

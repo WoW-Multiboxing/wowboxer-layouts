@@ -152,7 +152,7 @@
                     <TextBlock Style="{StaticResource H2}" FontSize="19" Text="Start your squad" />
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <RadioButton Style="{StaticResource SmallSegButton}" Content="Classic Era" GroupName="game"
-                                     IsChecked="{Binding Forever, Converter={x:Static app:InvertBool.Instance}}" ToolTip="Changes only the Battle.net instructions" />
+                                     IsChecked="{Binding Forever, Converter={x:Static app:InvertBool.Instance}}" ToolTip="Only this game's windows are arranged; each game has its own layouts" />
                         <RadioButton Style="{StaticResource SmallSegButton}" Content="Forever" GroupName="game" IsChecked="{Binding Forever}" />
                     </StackPanel>
                     <TextBlock Style="{StaticResource StepLabel}" Text="HOW TO START" Margin="0,16,0,8" />

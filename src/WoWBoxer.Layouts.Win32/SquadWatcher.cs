@@ -54,7 +54,7 @@ public sealed class SquadWatcher(SquadPlan plan, IStatusSink sink)
                 AssignmentChanged?.Invoke(h, -1);
             }
 
-            foreach (var w in WindowFinder.FindGameWindows())
+            foreach (var w in WindowFinder.FindGameWindows(plan.Game))
             {
                 if (_assigned.ContainsKey(w.Handle)) continue;
                 var free = Enumerable.Range(0, plan.Slots.Count).FirstOrDefault(s => !_assigned.ContainsValue(s), -1);

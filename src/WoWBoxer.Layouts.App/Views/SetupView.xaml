@@ -186,7 +186,7 @@
                     <TextBlock Text="{Binding LayoutTitle}" Style="{StaticResource H2}" Margin="16,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </DockPanel>
 
-                <c:LayoutCanvas x:Name="Canvas" Grid.Row="1" Margin="0,8,0,4" Profile="{Binding Current}" Monitors="{Binding Monitors}"
+                <c:LayoutCanvas x:Name="Canvas" Grid.Row="1" Margin="0,8,0,4" Profile="{Binding Current}" Monitors="{Binding Monitors}" MeasuredBars="{Binding MeasuredBars}" UiScale="{Binding UiScaleEffective}"
                                 SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}"
                                 ShowAllMonitors="{Binding IsChecked, ElementName=AllMonitors}" />
 
@@ -254,7 +254,9 @@
                     <StackPanel>
                         <DockPanel>
                             <Ellipse DockPanel.Dock="Left" Width="12" Height="12" Fill="{Binding SlotBrush}" Margin="0,0,9,0" VerticalAlignment="Center" />
-                            <TextBlock Style="{StaticResource H2}" FontSize="15" Text="{Binding SlotHeader}" />
+                            <ComboBox DockPanel.Dock="Right" Width="112" ItemsSource="{Binding SlotChoices}" SelectedIndex="{Binding SelectedSlotIndex}"
+                                      AutomationProperties.AutomationId="SlotPicker" AutomationProperties.Name="Edit window" ToolTip="The window to edit (or click it on the map)" />
+                            <TextBlock Style="{StaticResource H2}" FontSize="15" Text="{Binding SlotHeader}" VerticalAlignment="Center" />
                         </DockPanel>
                         <TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0" Text="Click a window on the map to edit it."
                                    Visibility="{Binding HasSlot, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
@@ -296,13 +298,19 @@
                                     <TextBlock Text="Action bar" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" />
                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                         <Ellipse Width="8" Height="8" Fill="{Binding SlotBarBrush}" Margin="0,0,7,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding SlotBarText}" Foreground="#E4E4E4" />
+                                        <TextBlock Text="{Binding SlotBarText}" Foreground="#E4E4E4" TextWrapping="Wrap" MaxWidth="250" AutomationProperties.AutomationId="SlotBarText" />
                                     </StackPanel>
-                                    <TextBlock Text="Tip: 4:3 or wider shows the whole bar." Foreground="#1EFF00" FontSize="12" Margin="0,4,0,0" />
+                                    <TextBlock Text="Solid dot on the map: measured on the open WoW window. Ring: planned. The whole bar needs a 4:3 picture, or a smaller UI Scale." Foreground="#1EFF00" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0" />
                                     <TextBlock Text="{Binding SlotUiScaleHint}" Foreground="#C8C8C8" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"
                                                Visibility="{Binding SlotUiScaleHint, Converter={x:Static app:BoolVisibility.Instance}}" />
-                                    <Button Content="Fit action bar" Command="{Binding FitActionBarCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" Padding="12,5"
-                                            ToolTip="Shortens this window just enough for the whole bar (keeps its width)" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button Content="Fix action bar" Command="{Binding FixUiScaleCommand}" Margin="0,0,6,6" Padding="12,5" AutomationProperties.AutomationId="FixUiScale"
+                                                ToolTip="Sets WoW's UI Scale so every window of this layout shows the whole bar. Writes Config.wtf only while all clients are closed; otherwise tells you what to set in game." />
+                                        <Button Content="Shorten window instead" Command="{Binding FitActionBarCommand}" Margin="0,0,6,6" Padding="12,5"
+                                                ToolTip="Shortens this window just enough for a 4:3 picture (keeps its width); no game setting changes" />
+                                        <Button Content="UI Scale off" Command="{Binding ResetUiScaleCommand}" Margin="0,0,6,6" Padding="12,5"
+                                                ToolTip="Turns Use UI Scale off again (automatic size). Only while all clients are closed." />
+                                    </WrapPanel>
                                 </StackPanel>
                             </Border>
                             <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" FontSize="11.5" Text="{Binding SlotInfo}" />

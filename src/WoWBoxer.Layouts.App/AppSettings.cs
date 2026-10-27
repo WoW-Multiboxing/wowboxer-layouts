@@ -12,6 +12,9 @@ public sealed class AppSettings
 
     public bool FirstRunDone { get; set; }
     public string? LastProfile { get; set; }
+    public string? LastProfileForever { get; set; }
+    /// <summary>The version that last ran; a newer one shows "What's new" once.</summary>
+    public string? LastSeenVersion { get; set; }
     public bool Forever { get; set; }
     public bool RenameWindows { get; set; } = true;
     /// <summary>Look for a new version on GitHub at start (installed copies only).</summary>

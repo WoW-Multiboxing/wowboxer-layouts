@@ -27,11 +27,18 @@ public sealed record LayoutProfile
     /// <summary>The preset this layout was made from (for "Reset to preset"); null for captured or imported layouts.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PresetKind? Preset { get; init; }
+    /// <summary>The game this layout is for (null in older files = Classic Era). Each game keeps its own layouts.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WowGame? Game { get; init; }
     public IReadOnlyList<LayoutSlot> Slots { get; init; } = [];
+
+    /// <summary>The game, with older files (no game) counted as Classic Era – the only game before Forever.</summary>
+    [JsonIgnore]
+    public WowGame GameOrDefault => Game is null or WowGame.Unknown ? WowGame.ClassicEra : Game.Value;
     public LayoutOptions Options { get; init; } = new();
 
     public bool Equals(LayoutProfile? other) =>
-        other is not null && Format == other.Format && Name == other.Name && Clients == other.Clients && Preset == other.Preset
+        other is not null && Format == other.Format && Name == other.Name && Clients == other.Clients && Preset == other.Preset && Game == other.Game
         && Options == other.Options && Slots.SequenceEqual(other.Slots);
 
     public override int GetHashCode() => HashCode.Combine(Format, Name, Clients, Options, Slots.Count);

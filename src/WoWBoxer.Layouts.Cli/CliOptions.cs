@@ -3,8 +3,6 @@ using WoWBoxer.Layouts.Core;
 
 namespace WoWBoxer.Layouts.Cli;
 
-internal enum Game { ClassicEra, Forever }
-
 internal sealed class CliOptions
 {
     public string Command { get; private set; } = "help";
@@ -20,7 +18,8 @@ internal sealed class CliOptions
     public bool UseTaskbarArea { get; private set; }
     public IReadOnlyList<string> Names { get; private set; } = [];
     public IReadOnlyList<string> Accounts { get; private set; } = [];
-    public Game Game { get; private set; } = Game.ClassicEra;
+    /// <summary>Only this game's windows (null: the layout's game for arrange/start, every game for info/snap/diagnose).</summary>
+    public WowGame? Game { get; private set; }
     public bool StartBattleNet { get; private set; } = true;
     public string? BattleNetExe { get; private set; }
     public double WatchMinutes { get; private set; } = 10;
@@ -57,7 +56,7 @@ internal sealed class CliOptions
         Names and start:
           --names A,B,C                     slot names; windows are retitled "WoW - A" etc.
           --accounts A,B,C                  Battle.net account labels, only shown in the instructions
-          --game classic|forever            only changes the instructions (default: classic)
+          --game classic|forever            which game's windows (default: the layout's game; Classic Era)
           --no-battlenet                    do not start Battle.net
           --battlenet-exe PATH              Battle.net.exe if it is not found automatically
           --watch-minutes 10                how long "start" watches for new windows
@@ -101,8 +100,8 @@ internal sealed class CliOptions
                     var g = Next(arg).ToLowerInvariant();
                     o.Game = g switch
                     {
-                        "classic" or "classicera" or "classic-era" or "era" => Game.ClassicEra,
-                        "forever" => Game.Forever,
+                        "classic" or "classicera" or "classic-era" or "era" => WowGame.ClassicEra,
+                        "forever" => WowGame.Forever,
                         _ => throw new UsageException($"Unknown game \"{g}\". Use classic or forever."),
                     };
                     break;
