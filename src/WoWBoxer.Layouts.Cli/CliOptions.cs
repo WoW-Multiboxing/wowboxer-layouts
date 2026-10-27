@@ -1,0 +1,123 @@
+using System.Globalization;
+using WoWBoxer.Layouts.Core;
+
+namespace WoWBoxer.Layouts.Cli;
+
+internal enum Game { ClassicEra, Forever }
+
+internal sealed class CliOptions
+{
+    public string Command { get; private set; } = "help";
+    public PresetKind Preset { get; private set; } = PresetKind.Side;
+    public int? Clients { get; private set; }
+    public string? ProfilePath { get; private set; }
+    public string? ShareCode { get; private set; }
+    public string Monitor { get; private set; } = "primary";
+    public double MinAspect { get; private set; } = 1.25;
+    public bool Borderless { get; private set; } = true;
+    public bool ResizeNudge { get; private set; } = true;
+    public bool UseTaskbarArea { get; private set; }
+    public IReadOnlyList<string> Names { get; private set; } = [];
+    public IReadOnlyList<string> Accounts { get; private set; } = [];
+    public Game Game { get; private set; } = Game.ClassicEra;
+    public bool StartBattleNet { get; private set; } = true;
+    public string? BattleNetExe { get; private set; }
+    public double WatchMinutes { get; private set; } = 10;
+    public bool Json { get; private set; }
+
+    public const string Usage = """
+        wbx - WoWBoxer Window Layouts (command line)
+        Moves and resizes World of Warcraft windows. Never sends keys or mouse clicks to the game.
+
+        Commands:
+          wbx start      start Battle.net, then place each WoW window as it opens (you press Play yourself)
+          wbx arrange    place the WoW windows that are open now, oldest first
+          wbx diagnose   write a report (monitors, windows, processes, admin rights) and try one placement
+          wbx info       show monitors, the planned slots and the open WoW windows (moves nothing)
+          wbx layout     print the layout as JSON and as a WBX1: share code
+
+        Layout:
+          --preset side|overlay|grid|dual   built-in layout (default: side = main left, followers right)
+          --clients N                       2-8 (default: start 3, arrange = number of open windows)
+          --profile FILE.json               use a saved wowboxer-layout/1 file instead of a preset
+          --code WBX1:...                   use a layout share code instead of a preset
+          --monitor primary|N               monitor for the main window (default: primary)
+          --min-aspect 1.25                 width/height below which WoW letterboxes (default 5:4)
+          --taskbar                         use the whole screen, including the taskbar area
+          --no-borderless                   keep title bars and borders
+          --no-nudge                        skip the 2 px resize nudge after placing
+
+        Names and start:
+          --names A,B,C                     slot names; windows are retitled "WoW - A" etc.
+          --accounts A,B,C                  Battle.net account labels, only shown in the instructions
+          --game classic|forever            only changes the instructions (default: classic)
+          --no-battlenet                    do not start Battle.net
+          --battlenet-exe PATH              Battle.net.exe if it is not found automatically
+          --watch-minutes 10                how long "start" watches for new windows
+          --json                            (layout) print only the JSON
+
+        Logs: %LOCALAPPDATA%\WoWBoxer\Layouts\logs
+        """;
+
+    public static CliOptions Parse(string[] args)
+    {
+        var o = new CliOptions();
+        var i = 0;
+        if (args.Length > 0 && !args[0].StartsWith('-')) o.Command = args[i++].ToLowerInvariant();
+
+        string Next(string name) => i < args.Length ? args[i++] : throw new UsageException($"{name} needs a value.");
+
+        while (i < args.Length)
+        {
+            var arg = args[i++];
+            switch (arg.ToLowerInvariant())
+            {
+                case "--preset":
+                    var p = Next(arg);
+                    o.Preset = Enum.TryParse<PresetKind>(p, ignoreCase: true, out var kind) && Enum.IsDefined(kind)
+                        ? kind : throw new UsageException($"Unknown preset \"{p}\". Use side, overlay, grid or dual.");
+                    break;
+                case "--clients": o.Clients = ParseInt(arg, Next(arg)); break;
+                case "--profile": o.ProfilePath = Next(arg); break;
+                case "--code": o.ShareCode = Next(arg); break;
+                case "--monitor": o.Monitor = Next(arg); break;
+                case "--min-aspect": o.MinAspect = ParseDouble(arg, Next(arg)); break;
+                case "--taskbar": o.UseTaskbarArea = true; break;
+                case "--no-borderless": o.Borderless = false; break;
+                case "--no-nudge": o.ResizeNudge = false; break;
+                case "--names": o.Names = SplitList(Next(arg)); break;
+                case "--accounts": o.Accounts = SplitList(Next(arg)); break;
+                case "--game":
+                    var g = Next(arg).ToLowerInvariant();
+                    o.Game = g switch
+                    {
+                        "classic" or "classicera" or "classic-era" or "era" => Game.ClassicEra,
+                        "forever" => Game.Forever,
+                        _ => throw new UsageException($"Unknown game \"{g}\". Use classic or forever."),
+                    };
+                    break;
+                case "--no-battlenet": o.StartBattleNet = false; break;
+                case "--battlenet-exe": o.BattleNetExe = Next(arg); break;
+                case "--watch-minutes": o.WatchMinutes = ParseDouble(arg, Next(arg)); break;
+                case "--json": o.Json = true; break;
+                case "-h" or "--help" or "/?": o.Command = "help"; break;
+                default: throw new UsageException($"Unknown option \"{arg}\".");
+            }
+        }
+        if (o.Clients is { } c && (c < Presets.MinClients || c > Presets.MaxClients))
+            throw new UsageException($"--clients must be {Presets.MinClients}-{Presets.MaxClients}.");
+        return o;
+    }
+
+    private static int ParseInt(string name, string value) =>
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : throw new UsageException($"{name}: \"{value}\" is not a number.");
+
+    private static double ParseDouble(string name, string value) =>
+        double.TryParse(value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && d > 0
+            ? d : throw new UsageException($"{name}: \"{value}\" is not a positive number.");
+
+    private static List<string> SplitList(string value) =>
+        value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+}
+
+internal sealed class UsageException(string message) : Exception(message);
