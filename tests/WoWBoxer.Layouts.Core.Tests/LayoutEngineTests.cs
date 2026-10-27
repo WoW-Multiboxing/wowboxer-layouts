@@ -13,9 +13,22 @@ public class LayoutEngineTests
         // 870 x 1392 is far narrower than 5:4, so the height becomes 870 / 1.25 = 696.
         var slot = new LayoutSlot { N = 1, X = 66.015625, Y = 0, W = 33.984375, H = 100, Anchor = anchor };
 
-        var rect = LayoutEngine.Resolve(slot, Area, new LayoutOptions());
+        var rect = LayoutEngine.Resolve(slot, Area, new LayoutOptions { Borderless = true });
 
         Assert.Equal(new PixelRect(1690, expectedY, 870, 696), rect);
+    }
+
+    [Fact]
+    public void With_title_bars_the_aspect_rule_applies_to_the_game_area()
+    {
+        // 870 wide window -> 868 wide game; 868 / 1.25 = 694 game height -> 726 window height (32 px frame)
+        var slot = new LayoutSlot { N = 1, X = 66.015625, W = 33.984375, H = 100 };
+
+        var rect = LayoutEngine.Resolve(slot, Area, new LayoutOptions());
+
+        Assert.Equal(new PixelRect(1690, 0, 870, 726), rect);
+        Assert.Equal((4, 64), LayoutEngine.FrameSize(new LayoutOptions(), 192));
+        Assert.Equal((0, 0), LayoutEngine.FrameSize(new LayoutOptions { Borderless = true }, 192));
     }
 
     [Fact]
@@ -31,7 +44,7 @@ public class LayoutEngineTests
     {
         var slot = new LayoutSlot { N = 1, W = 50, H = 100 };
 
-        var rect = LayoutEngine.Resolve(slot, Area, new LayoutOptions { MinAspect = 0.8 });
+        var rect = LayoutEngine.Resolve(slot, Area, new LayoutOptions { MinAspect = 0.8, Borderless = true });
 
         Assert.Equal(new PixelRect(0, 0, 1280, 1392), rect);
     }

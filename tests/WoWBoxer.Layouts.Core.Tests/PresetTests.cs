@@ -21,7 +21,9 @@ public class PresetTests
     [Fact]
     public void Side_3_matches_the_PowerShell_launcher_on_the_reference_setup()
     {
-        var placed = LayoutEngine.Resolve(Presets.Create(PresetKind.Side, 3, TestMonitors.Reference), TestMonitors.Reference);
+        // The launcher removed title bars, so compare borderless.
+        var borderless = new LayoutOptions { Borderless = true };
+        var placed = LayoutEngine.Resolve(Presets.Create(PresetKind.Side, 3, TestMonitors.Reference, options: borderless), TestMonitors.Reference);
 
         Assert.Equal(new PixelRect(0, 0, 1690, 1392), placed[0].Rect);
         Assert.Equal(new PixelRect(1690, 0, 870, 696), placed[1].Rect);
@@ -50,8 +52,11 @@ public class PresetTests
         var placed = Place(kind, n, setup);
 
         if (kind == PresetKind.Free) return;   // free windows keep whatever size the user drags
-        Assert.All(placed.Where(p => p.Slot.Role == SlotRole.Follower),
-            p => Assert.True(p.Rect.Aspect >= 1.25 - 0.005, $"slot {p.Slot.N} {p.Rect} aspect {p.Rect.Aspect:F3}"));
+        Assert.All(placed.Where(p => p.Slot.Role == SlotRole.Follower), p =>
+        {
+            var (w, h) = LayoutEngine.GameArea(p.Rect, LayoutEngine.FrameSize(new LayoutOptions(), p.Monitor.Dpi));
+            Assert.True((double)w / h >= 1.25 - 0.005, $"slot {p.Slot.N} {p.Rect} game area {w}x{h}");
+        });
     }
 
     [Theory]
@@ -115,6 +120,17 @@ public class PresetTests
         Assert.Equal(1, placed[0].Monitor.Index);
         Assert.Equal(placed[0].Monitor.WorkArea, placed[0].Rect);
         Assert.All(placed.Skip(1), p => Assert.Equal(2, p.Monitor.Index));
+    }
+
+    [Fact]
+    public void Side_3_with_title_bars_gives_followers_a_4_to_3_game_area()
+    {
+        var options = new LayoutOptions { MinAspect = 4.0 / 3 };
+        var placed = LayoutEngine.Resolve(Presets.Create(PresetKind.Side, 3, TestMonitors.Reference, options: options), TestMonitors.Reference);
+
+        // 696 high window -> 664 game height -> 886 game width (4:3, rounded up) -> 888 wide window
+        Assert.Equal(new PixelRect(1672, 0, 888, 696), placed[1].Rect);
+        Assert.Equal((886, 664), LayoutEngine.GameArea(placed[1].Rect, LayoutEngine.FrameSize(options)));
     }
 
     [Fact]

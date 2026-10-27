@@ -1,0 +1,128 @@
+<UserControl x:Class="WoWBoxer.Layouts.App.Views.GuideView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WoWBoxer.Layouts.App.ViewModels">
+    <UserControl.Resources>
+        <Style x:Key="Quest" TargetType="TextBlock" BasedOn="{StaticResource H2}">
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style x:Key="Point" TargetType="TextBlock" BasedOn="{StaticResource Body}">
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="Key" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="BorderBrush" Value="#6B5422" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Background" Value="#171A22" />
+            <Setter Property="Padding" Value="7,1" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid MaxWidth="1100" Margin="0,0,10,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- left column -->
+            <StackPanel Grid.Column="0">
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H1}" Text="Quick guide" />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,8,0,14" Foreground="{StaticResource MutedBrush}"
+                                   Text="Everything you need for a smooth start. The full guide with pictures lives on the WoWBoxer website." />
+                        <Button Style="{StaticResource EnterWorldButton}" FontSize="15" Padding="18,10" HorizontalAlignment="Left"
+                                Command="{Binding OpenUrlCommand}" CommandParameter="{x:Static vm:MainViewModel.WebsiteGuideUrl}"
+                                ToolTip="Opens the full guide in your browser">
+                            <TextBlock Text="FULL GUIDE ON THE WEBSITE  ↗" />
+                        </Button>
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="What this app does – and never does" />
+                        <TextBlock Style="{StaticResource Point}" Foreground="{StaticResource OkBrush}" Text="✓  Starts Battle.net and places each WoW window in your layout as it opens." />
+                        <TextBlock Style="{StaticResource Point}" Foreground="{StaticResource OkBrush}" Text="✓  Moves, resizes and restyles windows. Nothing else." />
+                        <TextBlock Style="{StaticResource Point}" Foreground="{StaticResource NoBrush}" Text="✗  Never sends keys or mouse clicks to the game and never broadcasts input." />
+                        <TextBlock Style="{StaticResource Point}" Foreground="{StaticResource NoBrush}" Text="✗  Never reads game memory, injects code or logs in for you." />
+                        <TextBlock Style="{StaticResource Point}" Margin="0,6,0,0"
+                                   Text="One key press = one action on one character. You press Play yourself, once per account, and you play every character yourself." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="1 · Set WoW to Windowed" />
+                        <TextBlock Style="{StaticResource Point}" Text="In every client: Esc → Options → Graphics → Display Mode → Windowed. The app then sizes each window to its place." />
+                        <TextBlock Style="{StaticResource Point}" Text="Keep the title bars (the default). In our tests WoW sometimes drew its action bars at the wrong size after a title bar was removed." />
+                        <TextBlock Style="{StaticResource Point}" Text="Leave Render Scale at 100 %." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="2 · See the whole action bar" />
+                        <TextBlock Style="{StaticResource Point}" Text="Classic's main action bar is only complete in a window that is at least 4:3 (for example 928 × 696). Narrower windows clip the bar's ends – the buttons stay usable down to about 1.2." />
+                        <TextBlock Style="{StaticResource Point}" Text="The numbers on each window in Setup turn green when it is wide enough. &quot;Narrowest window shape: 4:3&quot; keeps every follower wide enough." />
+                    </StackPanel>
+                </ContentControl>
+            </StackPanel>
+
+            <!-- right column -->
+            <StackPanel Grid.Column="2">
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="3 · Hover to focus or Alt+Tab?" />
+                        <TextBlock Style="{StaticResource Point}" Text="You decide which window gets your key presses. The app never switches focus for you." />
+                        <TextBlock Style="{StaticResource Point}" Text="Alt+Tab or a click works out of the box." />
+                        <TextBlock Style="{StaticResource Point}" Text="Hover to focus: Windows Settings → Accessibility → Mouse (or Control Panel → Ease of Access → &quot;Make the mouse easier to use&quot;) → &quot;Activate a window by hovering over it with the mouse&quot;." />
+                        <TextBlock Style="{StaticResource Point}" Text="With overlays, turn on &quot;Always on top&quot; for the floating followers, so the main window cannot cover them when it gets focus." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="4 · Keep the followers smooth" />
+                        <TextBlock Style="{StaticResource Point}" Text="WoW slows down windows that are not in focus. Raise Background FPS (Options → Graphics → Advanced, or /console maxFPSBk 30) so your followers keep moving smoothly." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="5 · If windows do not move" />
+                        <TextBlock Style="{StaticResource Point}" Text="Battle.net probably runs as administrator, and Windows then blocks other programs from moving its game windows. Start Battle.net normally (not &quot;Run as administrator&quot;)." />
+                        <TextBlock Style="{StaticResource Point}" Text="Settings → Diagnose writes a report you can send when you ask for help. It stays on your PC until you send it." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="26,22" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Quest}" Text="Keyboard shortcuts" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                            <Border Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="Ctrl+Enter" /></Border>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="Start squad" />
+                            <Border Grid.Row="1" Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="F5" /></Border>
+                            <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="Arrange now" />
+                            <Border Grid.Row="2" Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="Ctrl+I" /></Border>
+                            <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Text="Identify windows" />
+                            <Border Grid.Row="3" Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="Ctrl+Z" /></Border>
+                            <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Text="Undo" />
+                            <Border Grid.Row="4" Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="Ctrl+ / Ctrl−" /></Border>
+                            <TextBlock Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" Text="More / fewer clients" />
+                            <Border Grid.Row="5" Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="Ctrl+1 … 5" /></Border>
+                            <TextBlock Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" Text="Switch tabs" />
+                            <Border Grid.Row="6" Style="{StaticResource Key}" Margin="0,3,12,3"><TextBlock Text="Arrows · Tab" /></Border>
+                            <TextBlock Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" Text="On the map: nudge (Shift = 10 px, Ctrl = resize), next window" />
+                        </Grid>
+                    </StackPanel>
+                </ContentControl>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

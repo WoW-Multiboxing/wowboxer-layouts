@@ -13,32 +13,39 @@ public sealed class SlotEditedEventArgs(int index, LayoutSlot slot) : EventArgs
 }
 
 /// <summary>
-/// Draws the monitors to scale with the layout's slots on top, and lets the user move (drag), resize (handles),
-/// snap (edges of monitors and other slots; hold Alt to place freely) and nudge (arrow keys) slots.
+/// Draws the monitors to scale – exactly what will happen on screen, taskbar included – with the layout's windows
+/// on top. Windows glide to new positions when the layout changes. In edit mode the user moves (drag), resizes
+/// (handles), snaps (monitor and window edges; hold Alt to place freely) and nudges (arrow keys) windows.
+/// <see cref="Compact"/> draws a small, non-interactive preview for the layout cards.
 /// </summary>
 public sealed class LayoutCanvas : FrameworkElement
 {
     public static readonly DependencyProperty ProfileProperty = DependencyProperty.Register(
-        nameof(Profile), typeof(LayoutProfile), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+        nameof(Profile), typeof(LayoutProfile), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((LayoutCanvas)d).StartAnimation()));
     public static readonly DependencyProperty MonitorsProperty = DependencyProperty.Register(
         nameof(Monitors), typeof(IReadOnlyList<MonitorInfo>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty SelectedIndexProperty = DependencyProperty.Register(
         nameof(SelectedIndex), typeof(int), typeof(LayoutCanvas), new FrameworkPropertyMetadata(-1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+    public static readonly DependencyProperty CompactProperty = DependencyProperty.Register(
+        nameof(Compact), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty ShowAllMonitorsProperty = DependencyProperty.Register(
+        nameof(ShowAllMonitors), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
+        nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
     public LayoutProfile? Profile { get => (LayoutProfile?)GetValue(ProfileProperty); set => SetValue(ProfileProperty, value); }
     public IReadOnlyList<MonitorInfo>? Monitors { get => (IReadOnlyList<MonitorInfo>?)GetValue(MonitorsProperty); set => SetValue(MonitorsProperty, value); }
     public int SelectedIndex { get => (int)GetValue(SelectedIndexProperty); set => SetValue(SelectedIndexProperty, value); }
+    public bool Compact { get => (bool)GetValue(CompactProperty); set => SetValue(CompactProperty, value); }
+    public bool Animate { get => (bool)GetValue(AnimateProperty); set => SetValue(AnimateProperty, value); }
+    /// <summary>False: draw only the monitors the layout uses (bigger), true: every monitor (to drag windows across).</summary>
+    public bool ShowAllMonitors { get => (bool)GetValue(ShowAllMonitorsProperty); set => SetValue(ShowAllMonitorsProperty, value); }
 
     /// <summary>Raised when a drag or nudge has finished with the slot's new position.</summary>
     public event EventHandler<SlotEditedEventArgs>? SlotEdited;
 
-    public static readonly Color[] Palette =
-    [
-        Color.FromRgb(0x4D, 0xA3, 0xFF), Color.FromRgb(0xF0, 0xB4, 0x3C), Color.FromRgb(0x5B, 0xD0, 0x8A), Color.FromRgb(0xB4, 0x8C, 0xFF),
-        Color.FromRgb(0xFF, 0x6B, 0x6B), Color.FromRgb(0x3C, 0xD2, 0xD2), Color.FromRgb(0xFF, 0x9F, 0x43), Color.FromRgb(0xFF, 0x7A, 0xC6),
-    ];
-
-    private const double Padding = 18, LabelSpace = 20, HandleSize = 9, SnapScreenPixels = 10;
+    private const double HandleSize = 9, SnapScreenPixels = 10;
+    private static readonly TimeSpan AnimationTime = TimeSpan.FromMilliseconds(320);
 
     // view transform: canvas = (pixel - origin) * scale + offset
     private double _scale = 1;
@@ -46,38 +53,56 @@ public sealed class LayoutCanvas : FrameworkElement
     private int _originX, _originY;
 
     // drag state
-    private int _dragIndex = -1;
+    private int _dragIndex = -1, _hoverIndex = -1;
     private ResizeEdges _dragEdges;
     private PixelRect _dragStart, _dragRect;
     private Point _dragMouse;
+
+    // glide animation: rectangles shown on screen move from where they were to where the profile says
+    private Dictionary<int, Rect> _from = [], _shown = [];
+    private DateTime _animStart;
+    private bool _animating;
 
     public LayoutCanvas()
     {
         Focusable = true;
         FocusVisualStyle = null;
         ClipToBounds = true;
+        UseLayoutRounding = false;   // smooth sub-pixel motion while gliding
     }
 
     private LayoutOptions Options => Profile?.Options ?? new LayoutOptions();
+    private double Padding => Compact ? 4 : 18;
+    private double LabelSpace => Compact ? 0 : 22;
 
-    private IReadOnlyList<(int Index, LayoutSlot Slot, MonitorInfo Monitor, PixelRect Raw)> Items()
+    private sealed record Item(int Index, LayoutSlot Slot, MonitorInfo Monitor, PixelRect Raw, PixelRect Fitted);
+
+    private List<Item> Items()
     {
         if (Profile is null || Monitors is not { Count: > 0 } monitors) return [];
-        var list = new List<(int, LayoutSlot, MonitorInfo, PixelRect)>();
+        var list = new List<Item>();
         for (var i = 0; i < Profile.Slots.Count; i++)
         {
             var slot = Profile.Slots[i];
             var monitor = Core.Monitors.Find(monitors, slot.Monitor) ?? Core.Monitors.Primary(monitors);
             var raw = i == _dragIndex ? _dragRect : SlotEditing.Raw(slot, monitor, Options);
-            list.Add((i, slot, monitor, raw));
+            list.Add(new Item(i, slot, monitor, raw, LayoutEngine.Fit(raw, slot.Fit ?? Options.Fit, slot.Anchor, Options.MinAspect, LayoutEngine.FrameSize(Options, monitor.Dpi))));
         }
         // overlays (always on top) are drawn last and hit first
-        return list.OrderBy(t => t.Item2.Z == ZOrder.Top ? 1 : 0).ThenBy(t => t.Item1).ToList();
+        return list.OrderBy(t => t.Slot.Z == ZOrder.Top ? 1 : 0).ThenBy(t => t.Index).ToList();
+    }
+
+    /// <summary>The monitors to draw: all of them, or in a compact preview only those the layout uses.</summary>
+    private IReadOnlyList<MonitorInfo> Shown()
+    {
+        if (Monitors is not { Count: > 0 } all || (ShowAllMonitors && !Compact) || Profile is null) return Monitors ?? [];
+        var used = Profile.Slots.Select(s => (Core.Monitors.Find(all, s.Monitor) ?? Core.Monitors.Primary(all)).Index).ToHashSet();
+        return all.Where(m => used.Contains(m.Index)).ToList();
     }
 
     private void UpdateTransform()
     {
-        if (Monitors is not { Count: > 0 } monitors) return;
+        if (Shown() is not { Count: > 0 } monitors) return;
         int left = monitors.Min(m => m.Bounds.X), top = monitors.Min(m => m.Bounds.Y);
         int right = monitors.Max(m => m.Bounds.Right), bottom = monitors.Max(m => m.Bounds.Bottom);
         var w = Math.Max(ActualWidth - 2 * Padding, 10);
@@ -91,77 +116,184 @@ public sealed class LayoutCanvas : FrameworkElement
     private Rect ToCanvas(PixelRect r) =>
         new((r.X - _originX) * _scale + _offset.X, (r.Y - _originY) * _scale + _offset.Y, r.Width * _scale, r.Height * _scale);
 
+    // ---------- animation ----------
+
+    private void StartAnimation()
+    {
+        if (!Animate || _dragIndex >= 0 || _shown.Count == 0 || !IsLoaded)
+        {
+            _from.Clear();
+            return;
+        }
+        _from = new Dictionary<int, Rect>(_shown);
+        _animStart = DateTime.UtcNow;
+        if (!_animating)
+        {
+            _animating = true;
+            CompositionTarget.Rendering += OnFrame;
+        }
+    }
+
+    private void OnFrame(object? sender, EventArgs e)
+    {
+        InvalidateVisual();
+        if (DateTime.UtcNow - _animStart < AnimationTime) return;
+        CompositionTarget.Rendering -= OnFrame;
+        _animating = false;
+        _from.Clear();
+        InvalidateVisual();
+    }
+
+    /// <summary>Where a window is drawn this frame (gliding from its previous place, ease-out cubic).</summary>
+    private Rect Shown(int index, Rect target)
+    {
+        if (!_animating || !_from.TryGetValue(index, out var from)) return target;
+        var t = Math.Clamp((DateTime.UtcNow - _animStart).TotalMilliseconds / AnimationTime.TotalMilliseconds, 0, 1);
+        var k = 1 - Math.Pow(1 - t, 3);
+        return new Rect(from.X + (target.X - from.X) * k, from.Y + (target.Y - from.Y) * k,
+            Math.Max(0, from.Width + (target.Width - from.Width) * k), Math.Max(0, from.Height + (target.Height - from.Height) * k));
+    }
+
+    // ---------- drawing ----------
+
+    private static SolidColorBrush Brush(byte a, Color c) => new(Color.FromArgb(a, c.R, c.G, c.B));
+    private static readonly Color Gold = Color.FromRgb(0xC9, 0xA2, 0x4A), GoldHi = Color.FromRgb(0xE8, 0xC6, 0x6A), Parchment = Color.FromRgb(0xE9, 0xDF, 0xC4);
+    private static readonly FontFamily DisplayFont = new(new Uri("pack://application:,,,/"), "./Assets/Fonts/#Cinzel Bold");
+    private static readonly FontFamily BodyFont = new("Segoe UI Variable Text, Segoe UI");
+
     protected override void OnRender(DrawingContext dc)
     {
-        dc.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));   // makes the whole area hit-testable
-        var pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        dc.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));   // whole area hit-testable
+        var ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         if (Monitors is not { Count: > 0 } monitors)
         {
-            DrawText(dc, "No monitors found.", new Point(Padding, Padding), 14, Brushes.Gray, pixelsPerDip);
+            if (!Compact) Draw(dc, Text("No monitors found.", 14, Brushes.Gray, ppd), new Point(Padding, Padding));
             return;
         }
         UpdateTransform();
+        var radius = Compact ? 2.5 : 6;
 
-        var monitorFill = new SolidColorBrush(Color.FromRgb(0x22, 0x26, 0x30));
-        var taskbarFill = new SolidColorBrush(Color.FromRgb(0x17, 0x19, 0x20));
-        var monitorPen = new Pen(new SolidColorBrush(Color.FromRgb(0x4A, 0x50, 0x5E)), 1);
-        var labelBrush = new SolidColorBrush(Color.FromRgb(0x9A, 0xA3, 0xB5));
-        foreach (var m in monitors)
+        foreach (var m in Shown())
         {
             var bounds = ToCanvas(m.Bounds);
-            dc.DrawRoundedRectangle(taskbarFill, null, bounds, 6, 6);
-            var area = ToCanvas(m.Area(Options.UseTaskbarArea));
-            dc.DrawRectangle(monitorFill, null, area);
-            dc.DrawRoundedRectangle(null, monitorPen, bounds, 6, 6);
-            DrawText(dc, $"{m.Index}{(m.IsPrimary ? " · primary" : "")} · {m.Bounds.Width}×{m.Bounds.Height} · {m.ScalePercent} %",
-                new Point(bounds.X + 2, bounds.Y - 18), 11, labelBrush, pixelsPerDip);
+            // bezel + screen
+            if (!Compact)
+            {
+                var bezel = bounds;
+                bezel.Inflate(5, 5);
+                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(0x07, 0x09, 0x0E)), new Pen(Brush(0x70, Gold), 1), bezel, radius + 3, radius + 3);
+            }
+            var screen = new LinearGradientBrush(Color.FromRgb(0x10, 0x15, 0x20), Color.FromRgb(0x08, 0x0B, 0x11), 90);
+            dc.DrawRoundedRectangle(screen, new Pen(new SolidColorBrush(Color.FromRgb(0x3A, 0x45, 0x60)), Compact ? 0.8 : 1), bounds, radius, radius);
+
+            // the taskbar band (bounds minus work area), drawn as a taskbar so nobody wonders about the strip
+            foreach (var band in TaskbarBands(m))
+            {
+                var b = ToCanvas(band);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x1A, 0x1F, 0x2B)), null, b);
+                if (!Compact && b.Height >= 10 && b.Width > 140)
+                {
+                    var dots = Math.Min(7, (int)(b.Width / 28));
+                    var cx = b.X + b.Width / 2 - dots * 9;
+                    for (var i = 0; i < dots; i++)
+                        dc.DrawRoundedRectangle(Brush(0x55, Parchment), null, new Rect(cx + i * 18, b.Y + b.Height / 2 - 3, 9, 6), 1.5, 1.5);
+                    var label = Text(Options.UseTaskbarArea ? "Taskbar (windows go under it)" : "Taskbar", 10, Brush(0x99, Parchment), ppd);
+                    if (label.Width < b.Width / 2 - 70) Draw(dc, label, new Point(b.X + 8, b.Y + (b.Height - label.Height) / 2));
+                }
+            }
+
+            if (!Compact)
+            {
+                var title = Text($"{m.Index}{(m.IsPrimary ? " · PRIMARY" : "")}  ·  {m.Bounds.Width}×{m.Bounds.Height}  ·  {m.ScalePercent} %", 11, Brush(0xD0, Gold), ppd, display: true);
+                Draw(dc, title, new Point(bounds.X, bounds.Y - title.Height - 8));
+            }
         }
 
         var items = Items();
-        foreach (var (index, slot, _, raw) in items)
+        var shown = new Dictionary<int, Rect>();
+        foreach (var item in items)
         {
-            var color = Palette[index % Palette.Length];
-            var fitted = LayoutEngine.Fit(raw, slot.Fit ?? Options.Fit, slot.Anchor, Options.MinAspect);
-            var selected = index == SelectedIndex;
-            var stroke = new Pen(new SolidColorBrush(color), selected ? 2.5 : 1.4);
-            var fill = new SolidColorBrush(Color.FromArgb(selected ? (byte)0x70 : (byte)0x48, color.R, color.G, color.B));
+            var color = WowClasses.ColorFor(item.Slot.Class, item.Index);
+            var selected = item.Index == SelectedIndex && !Compact;
+            var hovered = item.Index == _hoverIndex && !Compact && _dragIndex < 0;
+            var target = ToCanvas(item.Fitted);
+            var r = Shown(item.Index, target);
+            shown[item.Index] = r;
+            var overlay = item.Slot.Z == ZOrder.Top;
 
-            var rawRect = ToCanvas(raw);
-            if (fitted != raw)
+            if (item.Fitted != item.Raw && !Compact && !_animating)
+                dc.DrawRectangle(null, new Pen(Brush(0x70, color), 1) { DashStyle = DashStyles.Dash }, ToCanvas(item.Raw));
+
+            // shadow under floating / selected windows
+            if (overlay || selected)
             {
-                var dashed = new Pen(new SolidColorBrush(Color.FromArgb(0x90, color.R, color.G, color.B)), 1) { DashStyle = DashStyles.Dash };
-                dc.DrawRectangle(null, dashed, rawRect);
+                var s = r;
+                s.Offset(0, Compact ? 1.5 : 4);
+                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0x90, 0, 0, 0)), null, s, 4, 4);
             }
-            var r = ToCanvas(fitted);
-            dc.DrawRoundedRectangle(fill, stroke, r, 3, 3);
+            // body: panel gradient (main gets a radial "game" glow), class-colour top edge, gold frame when selected
+            Brush body = item.Slot.Role == SlotRole.Main
+                ? new RadialGradientBrush(Color.FromRgb(0x26, 0x33, 0x4D), Color.FromRgb(0x0E, 0x13, 0x1D)) { Center = new Point(0.5, 0.4), GradientOrigin = new Point(0.5, 0.4), RadiusX = 0.8, RadiusY = 0.9 }
+                : new LinearGradientBrush(Color.FromRgb(0x22, 0x2A, 0x3E), Color.FromRgb(0x12, 0x17, 0x22), 70);
+            var frame = selected ? new Pen(new SolidColorBrush(GoldHi), 2) : new Pen(hovered ? Brush(0xB0, Gold) : new SolidColorBrush(Color.FromRgb(0x2E, 0x38, 0x50)), hovered ? 1.5 : 1);
+            if (selected)
+            {
+                var glow = r;
+                glow.Inflate(3, 3);
+                dc.DrawRoundedRectangle(null, new Pen(Brush(0x40, GoldHi), 5), glow, 6, 6);
+            }
+            dc.DrawRoundedRectangle(body, frame, r, Compact ? 1.5 : 3, Compact ? 1.5 : 3);
+            var edge = Math.Max(Compact ? 2 : 3, Math.Min(5, r.Height * 0.03));
+            if (r.Width > 2 && r.Height > edge)
+                dc.DrawRectangle(new SolidColorBrush(color), null, new Rect(r.X + 1, r.Y + 1, Math.Max(0, r.Width - 2), edge));
+
+            if (Compact)
+            {
+                if (r.Height > 14 && r.Width > 10)
+                {
+                    var n = Text($"{item.Slot.N}", Math.Clamp(r.Height * 0.32, 8, 13), new SolidColorBrush(Parchment), ppd, display: true);
+                    Draw(dc, n, new Point(r.X + (r.Width - n.Width) / 2, r.Y + (r.Height - n.Height) / 2 + edge / 2));
+                }
+                continue;
+            }
 
             // number, name, size and aspect
-            var big = Math.Clamp(r.Height * 0.32, 12, 44);
-            var center = new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
-            var number = Text($"{slot.N}", big, Brushes.White, pixelsPerDip, FontWeights.SemiBold);
-            var lines = new List<FormattedText> { number };
-            if (r.Height > 60 && slot.Name is { Length: > 0 }) lines.Add(Text(slot.Name, 12, Brushes.White, pixelsPerDip));
-            if (r.Height > 46 && r.Width > 70)
+            var big = Math.Clamp(r.Height * 0.28, 12, 46);
+            var lines = new List<FormattedText> { Text($"{item.Slot.N}", big, new SolidColorBrush(Parchment), ppd, display: true) };
+            if (r.Height > 64 && (item.Slot.Name is { Length: > 0 } || WowClasses.Find(item.Slot.Class) is not null))
+                lines.Add(Text(item.Slot.Name ?? WowClasses.Find(item.Slot.Class)!.Name, 12.5, new SolidColorBrush(color), ppd));
+            if (r.Height > 48 && r.Width > 80)
             {
-                var aspect = fitted.Height == 0 ? 0 : (double)fitted.Width / fitted.Height;
+                var (gw, gh) = LayoutEngine.GameArea(item.Fitted, LayoutEngine.FrameSize(Options, item.Monitor.Dpi));
+                var aspect = gh == 0 ? 0 : (double)gw / gh;   // what the game draws in, title bar excluded
                 // green = full Classic action bar (4:3+), amber = bar ends clipped, red = unusually narrow
-                var tone = aspect >= 4.0 / 3 - 0.001 ? Color.FromRgb(0x8E, 0xE6, 0xA8) : aspect >= 1.15 ? Color.FromRgb(0xF5, 0xD0, 0x7A) : Color.FromRgb(0xFF, 0x8A, 0x8A);
-                lines.Add(Text($"{fitted.Width}×{fitted.Height} · {aspect.ToString("0.00", CultureInfo.InvariantCulture)}", 11, new SolidColorBrush(tone), pixelsPerDip));
+                var tone = aspect >= 4.0 / 3 - 0.001 ? Color.FromRgb(0x8C, 0xCB, 0x7A) : aspect >= 1.15 ? Color.FromRgb(0xE6, 0xB4, 0x55) : Color.FromRgb(0xE3, 0x7A, 0x7E);
+                lines.Add(Text($"{item.Fitted.Width} × {item.Fitted.Height}  ·  {aspect.ToString("0.00", CultureInfo.InvariantCulture)}", 11, new SolidColorBrush(tone), ppd));
             }
-            var total = lines.Sum(l => l.Height);
-            var y = center.Y - total / 2;
+            var y = r.Y + edge / 2 + (r.Height - lines.Sum(l => l.Height)) / 2;
             foreach (var line in lines)
             {
-                dc.DrawText(line, new Point(center.X - line.Width / 2, y));
+                Draw(dc, line, new Point(r.X + (r.Width - line.Width) / 2, y), shadow: true);
                 y += line.Height;
             }
-            if (slot.Z == ZOrder.Top && r.Width > 40)
-                DrawText(dc, "on top", new Point(r.X + 4, r.Y + 2), 10, Brushes.White, pixelsPerDip);
+            if (overlay && r.Width > 50)
+                Draw(dc, Text("ON TOP", 9, Brush(0xC0, GoldHi), ppd, display: true), new Point(r.X + 5, r.Y + edge + 3));
 
-            if (selected)
-                foreach (var (handle, _) in Handles(rawRect))
-                    dc.DrawRectangle(Brushes.White, new Pen(new SolidColorBrush(color), 1.5), handle);
+            if (selected && !_animating)
+                foreach (var (handle, _) in Handles(ToCanvas(item.Raw)))
+                    dc.DrawRectangle(new SolidColorBrush(GoldHi), new Pen(Brushes.Black, 1), handle);
         }
+        _shown = shown;
+    }
+
+    /// <summary>The parts of the monitor outside its work area (where the taskbar is).</summary>
+    private static IEnumerable<PixelRect> TaskbarBands(MonitorInfo m)
+    {
+        PixelRect b = m.Bounds, w = m.WorkArea;
+        if (w.Bottom < b.Bottom) yield return new PixelRect(b.X, w.Bottom, b.Width, b.Bottom - w.Bottom);
+        if (w.Y > b.Y) yield return new PixelRect(b.X, b.Y, b.Width, w.Y - b.Y);
+        if (w.X > b.X) yield return new PixelRect(b.X, b.Y, w.X - b.X, b.Height);
+        if (w.Right < b.Right) yield return new PixelRect(w.Right, b.Y, b.Right - w.Right, b.Height);
     }
 
     private static IEnumerable<(Rect Handle, ResizeEdges Edges)> Handles(Rect r)
@@ -178,24 +310,27 @@ public sealed class LayoutCanvas : FrameworkElement
         yield return (new Rect(rr, cy, s, s), ResizeEdges.Right);
     }
 
+    // ---------- editing ----------
+
     private (int Index, ResizeEdges Edges) HitTest(Point p)
     {
         var items = Items();
         var sel = items.FirstOrDefault(i => i.Index == SelectedIndex);
-        if (SelectedIndex >= 0 && sel.Slot is not null)
+        if (sel is not null)
             foreach (var (handle, edges) in Handles(ToCanvas(sel.Raw)))
             {
                 var grow = handle;
-                grow.Inflate(3, 3);
+                grow.Inflate(4, 4);
                 if (grow.Contains(p)) return (sel.Index, edges);
             }
-        foreach (var item in items.Reverse())
-            if (ToCanvas(item.Raw).Contains(p)) return (item.Index, ResizeEdges.All);
+        foreach (var item in Enumerable.Reverse(items))
+            if (ToCanvas(item.Fitted).Contains(p) || ToCanvas(item.Raw).Contains(p)) return (item.Index, ResizeEdges.All);
         return (-1, ResizeEdges.None);
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
+        if (Compact) return;
         Focus();
         var (index, edges) = HitTest(e.GetPosition(this));
         SelectedIndex = index;
@@ -211,10 +346,16 @@ public sealed class LayoutCanvas : FrameworkElement
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
+        if (Compact) return;
         var p = e.GetPosition(this);
         if (_dragIndex < 0)
         {
-            var (_, edges) = HitTest(p);
+            var (index, edges) = HitTest(p);
+            if (index != _hoverIndex)
+            {
+                _hoverIndex = index;
+                InvalidateVisual();
+            }
             Cursor = edges switch
             {
                 ResizeEdges.All => Cursors.SizeAll,
@@ -239,6 +380,13 @@ public sealed class LayoutCanvas : FrameworkElement
         InvalidateVisual();
     }
 
+    protected override void OnMouseLeave(MouseEventArgs e)
+    {
+        if (_hoverIndex < 0) return;
+        _hoverIndex = -1;
+        InvalidateVisual();
+    }
+
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         if (_dragIndex < 0) return;
@@ -253,16 +401,14 @@ public sealed class LayoutCanvas : FrameworkElement
 
     protected override void OnLostMouseCapture(MouseEventArgs e)
     {
-        if (_dragIndex >= 0)
-        {
-            _dragIndex = -1;   // e.g. Escape or focus loss: cancel the drag
-            InvalidateVisual();
-        }
+        if (_dragIndex < 0) return;
+        _dragIndex = -1;   // e.g. Escape or focus loss: cancel the drag
+        InvalidateVisual();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (Profile is null || Monitors is null) return;
+        if (Compact || Profile is null || Monitors is null) return;
         if (e.Key == Key.Escape && _dragIndex >= 0)
         {
             ReleaseMouseCapture();
@@ -298,14 +444,24 @@ public sealed class LayoutCanvas : FrameworkElement
     private void Commit(int index, PixelRect rect)
     {
         if (Profile is null || Monitors is null) return;
+        _from.Clear();   // the user put it there – no glide
         SlotEdited?.Invoke(this, new SlotEditedEventArgs(index, SlotEditing.WithRect(Profile.Slots[index], rect, Monitors, Options)));
     }
 
-    private static FormattedText Text(string text, double size, Brush brush, double pixelsPerDip, FontWeight? weight = null) =>
-        new(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("Segoe UI Variable Display, Segoe UI"), FontStyles.Normal, weight ?? FontWeights.Normal, FontStretches.Normal),
+    // ---------- text ----------
+
+    private static FormattedText Text(string text, double size, Brush brush, double pixelsPerDip, bool display = false) =>
+        new(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new Typeface(display ? DisplayFont : BodyFont, FontStyles.Normal, display ? FontWeights.Normal : FontWeights.SemiBold, FontStretches.Normal),
             size, brush, pixelsPerDip);
 
-    private static void DrawText(DrawingContext dc, string text, Point at, double size, Brush brush, double pixelsPerDip) =>
-        dc.DrawText(Text(text, size, brush, pixelsPerDip), at);
+    private static void Draw(DrawingContext dc, FormattedText text, Point at, bool shadow = false)
+    {
+        if (shadow)
+        {
+            var dark = text.BuildGeometry(new Point(at.X, at.Y + 1));
+            dc.DrawGeometry(Brushes.Black, null, dark);
+        }
+        dc.DrawText(text, at);
+    }
 }

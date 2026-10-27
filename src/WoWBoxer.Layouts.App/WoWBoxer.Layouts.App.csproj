@@ -11,8 +11,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <!-- WPF0001: ThemeMode (Fluent / Windows 11 look) is marked experimental in .NET 10. -->
-    <!-- WFO0003: WinForms wants DPI mode in code; this is a WPF app and the manifest is the right place. -->
+        <!-- WFO0003: WinForms wants DPI mode in code; this is a WPF app and the manifest is the right place. -->
     <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
     <!-- Own Main (Program.cs): Velopack's install/update hooks must run before WPF starts. -->
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
@@ -32,6 +31,7 @@
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\app.png" />
+    <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 
   <ItemGroup>

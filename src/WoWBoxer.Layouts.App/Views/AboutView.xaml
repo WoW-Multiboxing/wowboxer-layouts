@@ -1,0 +1,48 @@
+<UserControl x:Class="WoWBoxer.Layouts.App.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WoWBoxer.Layouts.App.ViewModels">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ContentControl Style="{StaticResource OrnatePanel}" Padding="40,32" MaxWidth="760" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,0">
+            <StackPanel>
+                <Image Source="/Assets/app.png" Width="96" Height="96" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                <TextBlock HorizontalAlignment="Center" Margin="0,14,0,0" FontFamily="{StaticResource DisplayFont}" FontSize="34" Foreground="{StaticResource ParchmentBrush}" Effect="{StaticResource HardTextShadow}">
+                    <Run Text="WoW" /><Run Text="Boxer" Foreground="{StaticResource GoldHiBrush}" />
+                </TextBlock>
+                <TextBlock HorizontalAlignment="Center" FontFamily="{StaticResource DisplaySemiFont}" FontSize="14" Foreground="{StaticResource GoldBrush}" Text="WINDOW LAYOUTS" />
+                <TextBlock HorizontalAlignment="Center" Margin="0,8,0,0" Foreground="{StaticResource MutedBrush}">
+                    <Run Text="Version" /> <Run Text="{Binding Version, Mode=OneWay}" />
+                </TextBlock>
+                <ContentControl Style="{StaticResource Divider}" Margin="80,20" />
+
+                <TextBlock Style="{StaticResource Body}" TextAlignment="Center"
+                           Text="Free and open source for manual World of Warcraft multiboxing. It starts Battle.net and places your game windows where you want them – and nothing else." />
+
+                <Grid Margin="0,22,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="24" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" FontSize="14" Text="Licence" />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" Text="MIT licence. Use it, share it, change it." />
+                        <TextBlock Style="{StaticResource H2}" FontSize="14" Text="Privacy" Margin="0,16,0,0" />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" Text="No telemetry and no accounts. Layouts, settings and logs stay on your PC. The only network call is the update check, which you can switch off." />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Style="{StaticResource H2}" FontSize="14" Text="Credits" />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" Text="Cinzel typeface – The Cinzel Project Authors, SIL Open Font License 1.1." />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" Text="Velopack (installer and updates) – MIT." />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" Text=".NET and WPF – Microsoft, MIT." />
+                        <TextBlock Style="{StaticResource Body}" Margin="0,4,0,0" Text="Art, icons and ornaments are our own." />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,26,0,0">
+                    <Button Content="Source code on GitHub" Command="{Binding OpenUrlCommand}" CommandParameter="{x:Static vm:MainViewModel.RepoUrl}" Margin="0,0,10,0" />
+                    <Button Content="Website guide" Command="{Binding OpenUrlCommand}" CommandParameter="{x:Static vm:MainViewModel.WebsiteGuideUrl}" />
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Muted}" Margin="0,26,0,0" TextAlignment="Center" FontSize="11"
+                           Text="World of Warcraft® is a trademark of Blizzard Entertainment, Inc. This project is not affiliated with or endorsed by Blizzard." />
+            </StackPanel>
+        </ContentControl>
+    </ScrollViewer>
+</UserControl>

@@ -54,7 +54,7 @@ public static class Presets
 
         var slots = kind switch
         {
-            PresetKind.Side => Side(clients, area, options.MinAspect, mainRef),
+            PresetKind.Side => Side(clients, area, options.MinAspect, LayoutEngine.FrameSize(options, main.Dpi), mainRef),
             PresetKind.Overlay => Overlay(clients, area, mainRef),
             PresetKind.Grid => Grid(clients, area, options.MinAspect, mainRef),
             PresetKind.Dual => Dual(clients, main, monitors, options),
@@ -69,12 +69,13 @@ public static class Presets
     // The launcher's "FillHeight" rule, generalised: the follower column is exactly as wide as a 5:4 window of one
     // row's height, so the followers fill the full height without letterboxing; the main window gets the rest.
     // The column is kept between 25 % and 40 % of the width (50 % for two columns) so the main window stays big.
-    private static List<LayoutSlot> Side(int clients, PixelRect area, double minAspect, string monitor)
+    private static List<LayoutSlot> Side(int clients, PixelRect area, double minAspect, (int Width, int Height) frame, string monitor)
     {
         var followers = clients - 1;
         var cols = followers <= 4 ? 1 : 2;
         var rows = (followers + cols - 1) / cols;
-        var cellW = Geometry.Ceiling(minAspect * Geometry.Round((double)area.Height / rows));
+        // the game area (window minus frame) of one row is exactly minAspect wide
+        var cellW = Geometry.Ceiling(minAspect * (Geometry.Round((double)area.Height / rows) - frame.Height)) + frame.Width;
         var block = Math.Clamp(cellW * cols, Geometry.Ceiling(area.Width * 0.25), Geometry.Floor(area.Width * (cols == 1 ? 0.40 : 0.50)));
         var split = area.Width - block;
 

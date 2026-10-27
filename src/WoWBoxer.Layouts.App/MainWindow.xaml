@@ -1,229 +1,120 @@
 <Window x:Class="WoWBoxer.Layouts.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:c="clr-namespace:WoWBoxer.Layouts.App.Controls"
         xmlns:app="clr-namespace:WoWBoxer.Layouts.App"
-        Title="WoWBoxer Window Layouts" Width="1400" Height="860" MinWidth="1080" MinHeight="640"
-        WindowStartupLocation="CenterScreen" Icon="Assets/app.ico">
-    <Window.Resources>
-        <app:PresetNameConverter x:Key="PresetName" />
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <Style x:Key="Section" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,14,0,6" />
-        </Style>
-        <Style x:Key="Hint" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Opacity" Value="0.7" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-        <Style x:Key="Small" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Margin" Value="0,0,6,6" />
-            <Setter Property="Padding" Value="10,4" />
-        </Style>
-    </Window.Resources>
+        xmlns:v="clr-namespace:WoWBoxer.Layouts.App.Views"
+        Title="WoWBoxer Window Layouts" Width="1440" Height="900" MinWidth="1120" MinHeight="700"
+        WindowStartupLocation="CenterScreen" Icon="Assets/app.ico"
+        Background="{StaticResource NightBrush}" Foreground="{StaticResource TextBrush}"
+        FontFamily="{StaticResource BodyFont}" FontSize="13.5"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="56" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
     <Window.InputBindings>
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+        <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Setup" />
+        <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Squad" />
+        <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Guide" />
+        <KeyBinding Key="D4" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Settings" />
+        <KeyBinding Key="D5" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="About" />
+        <KeyBinding Key="F5" Command="{Binding ArrangeCommand}" />
+        <KeyBinding Key="I" Modifiers="Control" Command="{Binding IdentifyCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding StartSquadCommand}" />
+        <KeyBinding Key="OemPlus" Modifiers="Control" Command="{Binding MoreClientsCommand}" />
+        <KeyBinding Key="OemMinus" Modifiers="Control" Command="{Binding FewerClientsCommand}" />
     </Window.InputBindings>
 
-    <Grid Margin="12">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="250" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="330" />
-        </Grid.ColumnDefinitions>
+    <Border x:Name="Frame" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+        <Grid>
+            <!-- war-table background -->
+            <Rectangle Fill="{StaticResource WarTableBrush}" />
+            <Rectangle Fill="{StaticResource MapGridBrush}" />
 
-        <!-- ================= Layouts ================= -->
-        <DockPanel Grid.Column="0" Margin="0,0,12,0">
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-                <Image Source="Assets/app.png" Width="28" Height="28" Margin="0,0,10,0" />
-                <TextBlock Text="Layouts" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Bottom">
-                <WrapPanel>
-                    <Button Style="{StaticResource Small}" Content="New" Command="{Binding NewProfileCommand}" ToolTip="New layout from the preset below the canvas" />
-                    <Button Style="{StaticResource Small}" Content="Duplicate" Command="{Binding DuplicateCommand}" />
-                    <Button Style="{StaticResource Small}" Content="Rename" Command="{Binding RenameCommand}" />
-                    <Button Style="{StaticResource Small}" Content="Delete" Command="{Binding DeleteCommand}" />
-                </WrapPanel>
-                <TextBlock Style="{StaticResource Section}" Text="Share and capture" />
-                <WrapPanel>
-                    <Button Style="{StaticResource Small}" Content="Copy code" Command="{Binding CopyCodeCommand}" ToolTip="Copy this layout as a WBX1: code" />
-                    <Button Style="{StaticResource Small}" Content="Paste code" Command="{Binding ImportCodeCommand}" />
-                    <Button Style="{StaticResource Small}" Content="Open file…" Command="{Binding ImportFileCommand}" />
-                    <Button Style="{StaticResource Small}" Content="Save file…" Command="{Binding ExportFileCommand}" />
-                </WrapPanel>
-                <Button Content="Capture current windows" Command="{Binding CaptureCommand}" HorizontalAlignment="Stretch" Margin="0,4,0,0"
-                        ToolTip="Arrange the WoW windows by hand (e.g. Windows Snap), then save that as a layout" />
-            </StackPanel>
-            <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Margin="0,0,0,10">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Margin="2,3">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding Summary}" FontSize="11" Opacity="0.65" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </DockPanel>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="56" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="30" />
+                </Grid.RowDefinitions>
 
-        <!-- ================= Canvas + editor ================= -->
-        <Grid Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-
-            <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                <Button DockPanel.Dock="Right" Content="Undo" Command="{Binding UndoCommand}" ToolTip="Ctrl+Z" Padding="12,4" />
-                <StackPanel>
-                    <TextBlock Text="{Binding ProfileTitle}" FontSize="20" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding MonitorSummary}" Style="{StaticResource Hint}" />
-                </StackPanel>
-            </DockPanel>
-
-            <Border Grid.Row="1" CornerRadius="8" Background="#14FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
-                <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Current}" Monitors="{Binding Monitors}"
-                                SelectedIndex="{Binding SelectedSlotIndex}" />
-            </Border>
-            <TextBlock Grid.Row="2" Style="{StaticResource Hint}" Margin="2,6,0,0"
-                       Text="Drag a window to move it, drag the handles to resize. Edges snap to monitors and other windows (hold Alt to place freely). Arrow keys nudge (Shift = 10 px, Ctrl = resize), Tab selects the next window." />
-
-            <Grid Grid.Row="3" Margin="0,10,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- preset + options -->
-                <StackPanel Grid.Column="0">
-                    <TextBlock Style="{StaticResource Section}" Text="Preset" Margin="0,0,0,6" />
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox ItemsSource="{Binding PresetKinds}" SelectedItem="{Binding PresetKind}" Width="190" Margin="0,0,8,0">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource PresetName}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <ComboBox ItemsSource="{Binding ClientCounts}" SelectedItem="{Binding PresetClients}" Width="70" Margin="0,0,8,0" ToolTip="Number of clients" />
-                        <Button Content="Apply" Command="{Binding ApplyPresetCommand}" Padding="14,4" ToolTip="Replace this layout's windows with the preset (Ctrl+Z undoes it)" />
-                    </StackPanel>
-                    <TextBlock Style="{StaticResource Section}" Text="Window rules" />
-                    <ComboBox ItemsSource="{Binding AspectChoices}" SelectedItem="{Binding SelectedAspect}" Margin="0,0,0,8"
-                              ToolTip="Windows narrower than this lose height (they are not stretched) so WoW draws them without black bars" />
-                    <CheckBox Content="Remove title bars (borderless)" IsChecked="{Binding Borderless}"
-                              ToolTip="Off is safest: WoW can draw its UI at the wrong size when the frame is removed" />
-                    <CheckBox Content="Use the taskbar area too" IsChecked="{Binding UseTaskbarArea}" Margin="0,4,0,0" />
-                </StackPanel>
-
-                <!-- selected slot -->
-                <StackPanel Grid.Column="2" IsEnabled="{Binding HasSlot}">
-                    <TextBlock Style="{StaticResource Section}" Text="{Binding SlotHeader}" Margin="0,0,0,6" />
+                <!-- ===== Title bar: brand, tabs, caption buttons ===== -->
+                <Border Grid.Row="0">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#F70B0E14" Offset="0" /><GradientStop Color="#E00B0E14" Offset="1" /></LinearGradientBrush>
+                    </Border.Background>
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Name" VerticalAlignment="Center" Margin="0,0,10,0" />
-                        <TextBox Grid.Column="1" Text="{Binding SlotName, UpdateSourceTrigger=LostFocus}" ToolTip="Character name; the WoW window title becomes &quot;WoW - name&quot;" />
-                    </Grid>
-                    <UniformGrid Columns="4" Margin="0,8,0,0">
-                        <StackPanel Margin="0,0,6,0"><TextBlock Text="X" Style="{StaticResource Hint}" /><TextBox Text="{Binding SlotX, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Margin="0,0,6,0"><TextBlock Text="Y" Style="{StaticResource Hint}" /><TextBox Text="{Binding SlotY, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Margin="0,0,6,0"><TextBlock Text="Width" Style="{StaticResource Hint}" /><TextBox Text="{Binding SlotW, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel><TextBlock Text="Height" Style="{StaticResource Hint}" /><TextBox Text="{Binding SlotH, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                    </UniformGrid>
-                    <WrapPanel Margin="0,8,0,0">
-                        <CheckBox Content="Always on top (overlay)" IsChecked="{Binding SlotOnTop}" Margin="0,0,16,0" />
-                        <CheckBox Content="Keep exact size" IsChecked="{Binding SlotKeepSize}" ToolTip="Do not shrink this window to the aspect rule" />
-                    </WrapPanel>
-                    <TextBlock Text="{Binding SlotInfo}" Style="{StaticResource Hint}" Margin="0,8,0,0" />
-                </StackPanel>
-            </Grid>
-        </Grid>
+                        <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource GoldGlint}" Opacity="0.6" />
+                        <DockPanel LastChildFill="True">
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="16,0,26,0" VerticalAlignment="Center">
+                                <Viewbox Width="30" Height="34" Margin="0,0,10,0">
+                                    <Canvas Width="34" Height="38">
+                                        <Path Data="M17 1.5l14.5 5v12.2c0 9.3-6.3 15.8-14.5 18.3C8.8 34.5 2.5 28 2.5 18.7V6.5z" Stroke="{StaticResource GoldGradient}" StrokeThickness="2">
+                                            <Path.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#232B3E" Offset="0" /><GradientStop Color="#0B0E14" Offset="1" /></LinearGradientBrush></Path.Fill>
+                                        </Path>
+                                        <Rectangle Canvas.Left="8" Canvas.Top="10.5" Width="10" Height="15" RadiusX="1.2" RadiusY="1.2" Fill="{StaticResource GoldGradient}" />
+                                        <Rectangle Canvas.Left="19.5" Canvas.Top="10.5" Width="6.5" Height="7" RadiusX="1" RadiusY="1" Fill="#BFE8C66A" />
+                                        <Rectangle Canvas.Left="19.5" Canvas.Top="18.5" Width="6.5" Height="7" RadiusX="1" RadiusY="1" Fill="#BFE8C66A" />
+                                        <Path Data="M11 30.5h12" Stroke="{StaticResource GoldBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                    </Canvas>
+                                </Viewbox>
+                                <TextBlock VerticalAlignment="Center" FontFamily="{StaticResource DisplayFont}" FontSize="21" Foreground="{StaticResource ParchmentBrush}" Effect="{StaticResource HardTextShadow}">
+                                    <Run Text="WoW" /><Run Text="Boxer" Foreground="{StaticResource GoldHiBrush}" />
+                                </TextBlock>
+                                <TextBlock Text="WINDOW LAYOUTS" VerticalAlignment="Center" Margin="10,3,0,0" FontFamily="{StaticResource DisplaySemiFont}" FontSize="10.5" Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
 
-        <!-- ================= Squad ================= -->
-        <DockPanel Grid.Column="2" Margin="16,0,0,0">
-            <StackPanel DockPanel.Dock="Top">
-                <TextBlock Text="Squad" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,8" />
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <RadioButton Content="Classic Era" IsChecked="{Binding Forever, Converter={x:Static app:InvertBool.Instance}}" Margin="0,0,16,0" />
-                    <RadioButton Content="Forever" IsChecked="{Binding Forever}" />
-                </StackPanel>
-                <Button Content="▶  Start squad" Command="{Binding StartSquadCommand}" Style="{DynamicResource AccentButtonStyle}"
-                        FontSize="16" Padding="12,10" HorizontalAlignment="Stretch"
-                        ToolTip="Starts Battle.net, then places each WoW window as it opens. You press Play yourself." />
-                <Grid Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="8" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Button Content="Arrange now" Command="{Binding ArrangeCommand}" HorizontalAlignment="Stretch" ToolTip="Place the open WoW windows in the order below" />
-                    <Button Grid.Column="2" Content="Stop watching" Command="{Binding StopCommand}" HorizontalAlignment="Stretch" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True">
+                                <Button Style="{StaticResource CaptionButton}" Click="OnMinimize" ToolTip="Minimise to the tray">
+                                    <Path Data="M0,0 H10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" />
+                                </Button>
+                                <Button Style="{StaticResource CaptionButton}" Click="OnMaximize" ToolTip="Maximise / restore">
+                                    <Rectangle Width="10" Height="10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" />
+                                </Button>
+                                <Button Style="{StaticResource CloseCaptionButton}" Click="OnClose" ToolTip="Quit">
+                                    <Path Data="M0,0 L10,10 M10,0 L0,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" />
+                                </Button>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Left">
+                                <RadioButton Style="{StaticResource NavTab}" Content="SETUP" GroupName="nav"
+                                             IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Setup}"
+                                             ToolTip="How many clients and which layout (Ctrl+1)" />
+                                <RadioButton Style="{StaticResource NavTab}" Content="SQUAD" GroupName="nav"
+                                             IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Squad}"
+                                             ToolTip="Start Battle.net and place the game windows (Ctrl+2)" />
+                                <RadioButton Style="{StaticResource NavTab}" Content="GUIDE" GroupName="nav"
+                                             IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Guide}"
+                                             ToolTip="Quick guide: WoW settings and tips (Ctrl+3)" />
+                                <RadioButton Style="{StaticResource NavTab}" Content="SETTINGS" GroupName="nav"
+                                             IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=Settings}"
+                                             ToolTip="Game, windows, Battle.net, updates (Ctrl+4)" />
+                                <RadioButton Style="{StaticResource NavTab}" Content="ABOUT" GroupName="nav"
+                                             IsChecked="{Binding SelectedTab, Converter={x:Static app:EqualsConverter.Instance}, ConverterParameter=About}"
+                                             ToolTip="Version, licence, privacy (Ctrl+5)" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ===== Pages ===== -->
+                <Grid Grid.Row="1" x:Name="Pages" Margin="20,16,20,10">
+                    <v:SetupView x:Name="SetupPage" Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Setup}" />
+                    <v:SquadView x:Name="SquadPage" Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Squad}" />
+                    <v:GuideView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Guide}" />
+                    <v:SettingsView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=Settings}" />
+                    <v:AboutView Visibility="{Binding SelectedTab, Converter={x:Static app:TabVisibility.Instance}, ConverterParameter=About}" />
                 </Grid>
 
-                <DockPanel Margin="0,16,0,6">
-                    <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshWindowsCommand}" Padding="10,3" />
-                    <Button DockPanel.Dock="Right" Content="Identify" Command="{Binding IdentifyCommand}" Padding="10,3" Margin="0,0,6,0"
-                            ToolTip="Show each window's slot number on top of it for a few seconds" />
-                    <TextBlock Text="Open WoW windows" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                </DockPanel>
-                <ItemsControl ItemsSource="{Binding Windows}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border CornerRadius="6" Background="#12FFFFFF" Padding="8,6" Margin="0,0,0,4">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <Button Content="▲" Padding="6,0" Margin="0,0,4,0" ToolTip="Earlier slot"
-                                                Command="{Binding DataContext.MoveWindowUpCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
-                                        <Button Content="▼" Padding="6,0" ToolTip="Later slot"
-                                                Command="{Binding DataContext.MoveWindowDownCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding Slot}" FontSize="18" FontWeight="SemiBold" Width="26" VerticalAlignment="Center" />
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Process}" />
-                                        <TextBlock Text="{Binding Detail}" FontSize="11" Opacity="0.65" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <CheckBox Content="Title WoW windows with the slot names" IsChecked="{Binding RenameWindows}" Margin="0,6,0,0" />
-                <WrapPanel Margin="0,8,0,0">
-                    <Button Style="{StaticResource Small}" Content="Give title bars back" Command="{Binding RestoreFramesCommand}" />
-                    <Button Style="{StaticResource Small}" Content="Diagnose" Command="{Binding DiagnoseCommand}"
-                            ToolTip="Write a report (monitors, windows, admin rights, WoW display settings) and try one placement per window" />
-                    <Button Style="{StaticResource Small}" Content="Logs" Command="{Binding OpenLogsCommand}" />
-                    <Button Style="{StaticResource Small}" Content="Desktop shortcut" Click="OnCreateShortcut"
-                            ToolTip="A shortcut that opens this app in the tray and starts the selected layout" />
-                </WrapPanel>
-                <TextBlock Text="Activity" FontSize="13" FontWeight="SemiBold" Margin="0,10,0,6" />
-            </StackPanel>
-            <ListBox x:Name="StatusList" ItemsSource="{Binding Status.Lines}" FontFamily="Cascadia Mono, Consolas" FontSize="11.5"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                        <Setter Property="Padding" Value="6,1" />
-                        <Setter Property="MinHeight" Value="0" />
-                        <Setter Property="Margin" Value="0" />
-                    </Style>
-                </ListBox.ItemContainerStyle>
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock TextWrapping="Wrap" Foreground="{Binding Brush}">
-                            <Run Text="{Binding TimeText, Mode=OneWay}" Foreground="Gray" /> <Run Text="{Binding Message, Mode=OneWay}" />
-                        </TextBlock>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </DockPanel>
-    </Grid>
+                <!-- ===== Status bar ===== -->
+                <Border Grid.Row="2" Background="#CC07090E" BorderBrush="{StaticResource LineSoftBrush}" BorderThickness="0,1,0,0">
+                    <DockPanel Margin="16,0">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding MonitorSummary}" Foreground="{StaticResource MutedBrush}" FontSize="11.5" VerticalAlignment="Center" />
+                        <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding LastStatus.Brush, FallbackValue=Gray}" />
+                        <TextBlock Text="{Binding LastStatus.Message, FallbackValue=Ready}" Foreground="{StaticResource TextBrush}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

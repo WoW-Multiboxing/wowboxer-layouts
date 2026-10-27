@@ -20,3 +20,70 @@ public sealed class InvertBool : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is bool b ? !b : value;
 }
+
+public sealed class HalfConverter : IValueConverter
+{
+    public static readonly HalfConverter Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? Math.Max(0, d / 2 - 2) : 0d;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
+/// <summary>Visible when the value is true (or, with parameter "not", when false).</summary>
+public sealed class BoolVisibility : IValueConverter
+{
+    public static readonly BoolVisibility Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var visible = value is true || (value is int i && i > 0) || (value is string s && s.Length > 0);
+        if (parameter as string == "not") visible = !visible;
+        return visible ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
+/// <summary>True when the value equals the parameter (radio buttons bound to an enum or a number).</summary>
+public sealed class EqualsConverter : IValueConverter
+{
+    public static readonly EqualsConverter Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value?.ToString() == parameter?.ToString();
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is not true || parameter is null) return Binding.DoNothing;
+        if (targetType.IsEnum) return Enum.Parse(targetType, parameter.ToString()!);
+        if (targetType == typeof(int)) return int.Parse(parameter.ToString()!, CultureInfo.InvariantCulture);
+        return parameter;
+    }
+}
+
+/// <summary>Visible when the selected tab equals the parameter.</summary>
+public sealed class TabVisibility : IValueConverter
+{
+    public static readonly TabVisibility Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value?.ToString() == parameter?.ToString() ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
+/// <summary>Brush for a squad member's state chip.</summary>
+public sealed class PartyStateBrush : IValueConverter
+{
+    public static readonly PartyStateBrush Instance = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value switch
+    {
+        ViewModels.PartyState.Placed => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8C, 0xCB, 0x7A)),
+        ViewModels.PartyState.Problem => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE3, 0x7A, 0x7E)),
+        _ => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE6, 0xB4, 0x55)),
+    };
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
+}

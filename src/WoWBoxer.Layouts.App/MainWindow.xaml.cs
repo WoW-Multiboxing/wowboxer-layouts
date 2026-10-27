@@ -1,10 +1,9 @@
-﻿using System.Collections.Specialized;
-using System.IO;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using WoWBoxer.Layouts.App.ViewModels;
@@ -21,16 +20,12 @@ public partial class MainWindow : Window, IUserDialogs
     {
         InitializeComponent();
         ViewModel = new MainViewModel(settings, this);
+        ViewModel.FirstRunRequested += () => FirstRunWindow.Show(this);
         DataContext = ViewModel;
-        Canvas.SlotEdited += (_, e) => ViewModel.OnSlotEdited(e.Index, e.Slot);
-        // Scroll after the list has processed the change (scrolling inside the event is re-entrant and throws).
-        ((INotifyCollectionChanged)ViewModel.Status.Lines).CollectionChanged += (_, _) =>
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
-            {
-                if (StatusList.Items.Count > 0) StatusList.ScrollIntoView(StatusList.Items[^1]);
-            });
+
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         Closed += (_, _) => SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        StateChanged += (_, _) => FitMaximised();
 
         // Enter in a text box commits it (bindings update on lost focus).
         AddHandler(KeyDownEvent, new KeyEventHandler((_, e) =>
@@ -39,8 +34,35 @@ public partial class MainWindow : Window, IUserDialogs
                 box.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         }), handledEventsToo: true);
 
+        // Each page fades and slides in when its tab is chosen.
+        foreach (FrameworkElement page in Pages.Children)
+            page.IsVisibleChanged += (s, e) =>
+            {
+                if (e.NewValue is true && ViewModel.Animations) AnimateIn((FrameworkElement)s);
+            };
+
         ViewModel.Status.Info("Ready. This app only moves and resizes windows – it never sends keys or clicks to the game.");
     }
+
+    private static void AnimateIn(FrameworkElement page)
+    {
+        var shift = new TranslateTransform(0, 14);
+        page.RenderTransform = shift;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        page.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+        shift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(260)) { EasingFunction = ease });
+    }
+
+    /// <summary>A custom-chrome window overhangs the screen when maximised; pad it back inside.</summary>
+    private void FitMaximised()
+    {
+        var t = SystemParameters.WindowResizeBorderThickness;
+        Frame.Margin = WindowState == WindowState.Maximized ? new Thickness(t.Left + 2, t.Top + 2, t.Right + 2, t.Bottom + 2) : new Thickness(0);
+    }
+
+    private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void OnMaximize(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void OnClose(object sender, RoutedEventArgs e) => Close();
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(ViewModel.RefreshMonitors);
@@ -49,8 +71,7 @@ public partial class MainWindow : Window, IUserDialogs
 
     public string? Prompt(string title, string message, string initial) => PromptWindow.Show(this, title, message, initial);
 
-    public bool Confirm(string title, string message) =>
-        MessageBox.Show(this, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+    public bool Confirm(string title, string message) => PromptWindow.Confirm(this, title, message);
 
     public string? OpenFile(string filter)
     {
@@ -78,32 +99,6 @@ public partial class MainWindow : Window, IUserDialogs
         };
         timer.Start();
     }
-
-    // ---------- desktop shortcut ----------
-
-    private void OnCreateShortcut(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel.SelectedProfile is not { } profile || Environment.ProcessPath is not { } exe) return;
-        var name = $"{profile.Name} - WoWBoxer";
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), ProfileStore.FileNameFor(name).Replace(".json", ".lnk"));
-        try
-        {
-            var shellType = Type.GetTypeFromProgID("WScript.Shell") ?? throw new InvalidOperationException("Windows Script Host is not available.");
-            dynamic shell = Activator.CreateInstance(shellType)!;
-            dynamic link = shell.CreateShortcut(path);
-            link.TargetPath = exe;
-            link.Arguments = $"--tray --start \"{profile.Name}\"";
-            link.WorkingDirectory = Path.GetDirectoryName(exe);
-            link.IconLocation = exe + ",0";
-            link.Description = $"Start Battle.net and arrange the WoW windows ({profile.Name})";
-            link.Save();
-            ViewModel.Status.Ok($"Desktop shortcut created: {Path.GetFileName(path)}. It starts \"{profile.Name}\" from the tray.");
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException or IOException or UnauthorizedAccessException)
-        {
-            ViewModel.Status.Warn($"Could not create the shortcut: {ex.Message}");
-        }
-    }
 }
 
 /// <summary>A transparent, click-through label over a WoW window (Identify). Never activated, sends nothing to the game.</summary>
@@ -111,7 +106,7 @@ internal static class IdentifyOverlay
 {
     public static Window Show(PixelRect rect, string number, string caption)
     {
-        var accent = new SolidColorBrush(Color.FromRgb(0x4D, 0xA3, 0xFF));
+        var gold = (Brush)Application.Current.FindResource("GoldHiBrush");
         var window = new Window
         {
             WindowStyle = WindowStyle.None,
@@ -123,31 +118,33 @@ internal static class IdentifyOverlay
             ResizeMode = ResizeMode.NoResize,
             Content = new Border
             {
-                BorderBrush = accent,
-                BorderThickness = new Thickness(4),
+                BorderBrush = gold,
+                BorderThickness = new Thickness(3),
                 Background = new SolidColorBrush(Color.FromArgb(0x30, 0x00, 0x00, 0x00)),
                 Child = new Border
                 {
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x10, 0x14, 0x1C)),
-                    CornerRadius = new CornerRadius(16),
-                    Padding = new Thickness(36, 12, 36, 18),
+                    Background = new SolidColorBrush(Color.FromArgb(0xE8, 0x0B, 0x0E, 0x14)),
+                    BorderBrush = (Brush)Application.Current.FindResource("GoldBrush"),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(40, 10, 40, 18),
                     Child = new StackPanel
                     {
                         Children =
                         {
-                            new TextBlock { Text = number, FontSize = 110, FontWeight = FontWeights.Bold, Foreground = accent, HorizontalAlignment = HorizontalAlignment.Center },
-                            new TextBlock { Text = caption, FontSize = 22, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center },
+                            new TextBlock { Text = number, FontSize = 110, Foreground = gold, HorizontalAlignment = HorizontalAlignment.Center,
+                                FontFamily = (FontFamily)Application.Current.FindResource("DisplayFont") },
+                            new TextBlock { Text = caption, FontSize = 22, Foreground = (Brush)Application.Current.FindResource("ParchmentBrush"), HorizontalAlignment = HorizontalAlignment.Center,
+                                FontFamily = (FontFamily)Application.Current.FindResource("DisplaySemiFont") },
                         },
                     },
                 },
             },
         };
-        // Physical-pixel placement after the handle exists (WPF itself works in DIPs).
-        window.SourceInitialized += (_, _) => WindowPlacer.ShowAsOverlay(new WindowInteropHelper(window).Handle, rect);
         window.Show();
-        WindowPlacer.ShowAsOverlay(new WindowInteropHelper(window).Handle, rect);
+        WindowPlacer.ShowAsOverlay(new WindowInteropHelper(window).Handle, rect);   // physical pixels, click-through, never activated
         return window;
     }
 }

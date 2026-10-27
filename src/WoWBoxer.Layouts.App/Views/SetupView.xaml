@@ -1,0 +1,293 @@
+<UserControl x:Class="WoWBoxer.Layouts.App.Views.SetupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:WoWBoxer.Layouts.App.Controls"
+             xmlns:app="clr-namespace:WoWBoxer.Layouts.App">
+    <UserControl.Resources>
+        <!-- Squad size: a row of big gold-trimmed numbers (ListBox so the selection is two-way) -->
+        <Style x:Key="SizeItem" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource GoldFocus}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid Margin="0,0,6,0" Width="44" Height="46">
+                            <Border x:Name="Body" CornerRadius="5" BorderThickness="1.5" BorderBrush="#3A4560" Background="#121722">
+                                <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="14" Color="#E8C66A" Opacity="0" /></Border.Effect>
+                            </Border>
+                            <TextBlock x:Name="Num" Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource DisplayFont}" FontSize="19" Foreground="{StaticResource TextBrush}" Effect="{StaticResource HardTextShadow}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldLoBrush}" />
+                                <Setter TargetName="Num" Property="Foreground" Value="{StaticResource GoldHiBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
+                                <Setter TargetName="Body" Property="Background">
+                                    <Setter.Value><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#3A2E14" Offset="0" /><GradientStop Color="#1C170C" Offset="1" /></LinearGradientBrush></Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Num" Property="Foreground" Value="{StaticResource UiGoldBrush}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0.6" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Layout card: live mini preview + title; gold glow when active, lifts on hover -->
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource GoldFocus}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root" Margin="0,0,10,0" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform><TranslateTransform x:Name="Lift" /></Grid.RenderTransform>
+                            <Border x:Name="Body" CornerRadius="8" BorderThickness="1.5" BorderBrush="#2E3850" Padding="10,9,10,10">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.5,1"><GradientStop Color="#1E2536" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="18" Color="#E8C66A" Opacity="0" /></Border.Effect>
+                                <ContentPresenter />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldLoBrush}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="-3" Duration="0:0:0.15" /></Storyboard></BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0.55" Duration="0:0:0.25" /></Storyboard></BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.45" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="FontSize" Value="11.5" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="340" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="14" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== Steps 1 + 2 ===== -->
+        <Grid Grid.Row="0" Grid.Column="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ContentControl Style="{StaticResource OrnatePanel}" Padding="20,16,14,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource StepLabel}" Text="1  ·  HOW MANY CLIENTS?" />
+                    <ListBox Margin="0,12,0,0" ItemsSource="{Binding ClientCounts}" SelectedItem="{Binding ClientCount}" ItemContainerStyle="{StaticResource SizeItem}"
+                             ToolTip="How many WoW clients you play at once. The layout below adapts instantly (Ctrl+ and Ctrl− work too).">
+                        <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                    </ListBox>
+                    <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" Text="One main client you play, the rest follow." />
+                </StackPanel>
+            </ContentControl>
+
+            <ContentControl Grid.Column="2" Style="{StaticResource OrnatePanel}" Padding="20,16,10,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource StepLabel}" Text="2  ·  CHOOSE A LAYOUT" />
+                    <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding Cards}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource CardButton}" Command="{Binding Apply}" IsEnabled="{Binding IsAvailable}"
+                                        ToolTip="{Binding Blurb}">
+                                    <StackPanel>
+                                        <Border Height="62" CornerRadius="4" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
+                                            <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" IsHitTestVisible="False"
+                                                            Monitors="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                        </Border>
+                                        <DockPanel Margin="0,8,0,0">
+                                            <Path DockPanel.Dock="Right" Data="M1,5 L4.5,8.5 L11,1.5" Stroke="{StaticResource UiGoldBrush}" StrokeThickness="2" VerticalAlignment="Center"
+                                                  Visibility="{Binding IsSelected, Converter={x:Static app:BoolVisibility.Instance}}" />
+                                            <TextBlock Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="12.5" Foreground="{StaticResource ParchmentBrush}" TextTrimming="CharacterEllipsis" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Unavailable}" FontSize="11" Foreground="{StaticResource WarnBrush}" Margin="0,2,0,0"
+                                                   Visibility="{Binding Unavailable, Converter={x:Static app:BoolVisibility.Instance}}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ContentControl>
+        </Grid>
+
+        <!-- ===== Step 3: the canvas ===== -->
+        <ContentControl Grid.Row="2" Grid.Column="0" Style="{StaticResource OrnatePanel}" Padding="20,16,20,14">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <CheckBox x:Name="AllMonitors" Style="{StaticResource Switch}" Margin="0,0,18,0" VerticalAlignment="Center"
+                                  ToolTip="Show every monitor, so you can drag a window onto another screen">
+                            <TextBlock Text="All monitors" Foreground="{StaticResource TextBrush}" />
+                        </CheckBox>
+                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding LiveApply}" Margin="0,0,18,0" VerticalAlignment="Center"
+                                  ToolTip="On: your open WoW windows move as soon as you change the layout. Off: use Arrange now on the Squad tab.">
+                            <TextBlock Text="Move WoW windows live" Foreground="{StaticResource TextBrush}" />
+                        </CheckBox>
+                        <Button Content="Undo" Command="{Binding UndoCommand}" Margin="0,0,8,0" ToolTip="Undo the last change (Ctrl+Z)" />
+                        <Button Content="Reset to preset" Command="{Binding ResetCommand}" ToolTip="Put every window back where the chosen layout puts it" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource StepLabel}" Text="3  ·  FINE-TUNE" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding LayoutTitle}" Style="{StaticResource H2}" Margin="16,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <c:LayoutCanvas x:Name="Canvas" Grid.Row="1" Margin="0,8,0,4" Profile="{Binding Current}" Monitors="{Binding Monitors}"
+                                SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}"
+                                ShowAllMonitors="{Binding IsChecked, ElementName=AllMonitors}" />
+
+                <TextBlock Grid.Row="2" Style="{StaticResource Muted}" FontSize="11.5"
+                           Text="Drag a window to move it · drag a gold handle to resize · edges snap (hold Alt to place freely) · arrow keys nudge (Shift = 10 px, Ctrl = resize) · Tab selects the next window" />
+            </Grid>
+        </ContentControl>
+
+        <!-- ===== Right column ===== -->
+        <ScrollViewer Grid.Row="0" Grid.RowSpan="3" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="18,16">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource StepLabel}" Text="SAVED LAYOUT" />
+                        <ComboBox Margin="0,10,0,0" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" ToolTip="Your saved layouts. Every change is saved automatically.">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" />
+                                        <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <UniformGrid Columns="3" Margin="0,10,0,0">
+                            <Button Content="Save as…" Command="{Binding SaveAsCommand}" Margin="0,0,6,0" Padding="6,7" ToolTip="Keep this as a new layout" />
+                            <Button Content="Rename" Command="{Binding RenameCommand}" Margin="0,0,6,0" Padding="6,7" />
+                            <Button Content="More ▾" Padding="6,7" Click="OnMore" ToolTip="Share, import, capture, delete">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy layout code (WBX1:)" Command="{Binding CopyCodeCommand}" />
+                                        <MenuItem Header="Paste a layout code…" Command="{Binding ImportCodeCommand}" />
+                                        <MenuItem Header="Open a layout file…" Command="{Binding ImportFileCommand}" />
+                                        <MenuItem Header="Save as a file…" Command="{Binding ExportFileCommand}" />
+                                        <MenuItem Header="Capture my current WoW windows" Command="{Binding CaptureCommand}" />
+                                        <MenuItem Header="Delete this layout" Command="{Binding DeleteCommand}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </UniformGrid>
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="18,16" Margin="0,14,0,0">
+                    <StackPanel>
+                        <DockPanel>
+                            <Ellipse DockPanel.Dock="Left" Width="12" Height="12" Fill="{Binding SlotBrush}" Margin="0,0,9,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource H2}" FontSize="15" Text="{Binding SlotHeader}" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0" Text="Click a window on the map to edit it."
+                                   Visibility="{Binding HasSlot, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
+                        <StackPanel IsEnabled="{Binding HasSlot}" Margin="0,10,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="10" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Character" />
+                                    <TextBox Text="{Binding SlotName, UpdateSourceTrigger=LostFocus}" ToolTip="The character in this window. With &quot;Title WoW windows&quot; on, the game window is called &quot;WoW - name&quot;." />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Class colour" />
+                                    <ComboBox ItemsSource="{Binding Classes}" SelectedItem="{Binding SlotClass}" ToolTip="Used as this window's colour in the app">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{Binding Brush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+                            <UniformGrid Columns="4" Margin="0,10,0,0">
+                                <StackPanel Margin="0,0,6,0"><TextBlock Style="{StaticResource FieldLabel}" Text="X" /><TextBox Text="{Binding SlotX, UpdateSourceTrigger=LostFocus}" ToolTip="Left edge in screen pixels" /></StackPanel>
+                                <StackPanel Margin="0,0,6,0"><TextBlock Style="{StaticResource FieldLabel}" Text="Y" /><TextBox Text="{Binding SlotY, UpdateSourceTrigger=LostFocus}" ToolTip="Top edge in screen pixels" /></StackPanel>
+                                <StackPanel Margin="0,0,6,0"><TextBlock Style="{StaticResource FieldLabel}" Text="Width" /><TextBox Text="{Binding SlotW, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                                <StackPanel><TextBlock Style="{StaticResource FieldLabel}" Text="Height" /><TextBox Text="{Binding SlotH, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                            </UniformGrid>
+                            <CheckBox Content="Always on top (floating overlay)" IsChecked="{Binding SlotOnTop}" Margin="0,12,0,0"
+                                      ToolTip="Keeps this window above the others – used for followers floating over the main client" />
+                            <CheckBox Content="Keep the exact size" IsChecked="{Binding SlotKeepSize}" Margin="0,8,0,0"
+                                      ToolTip="Never shorten this window to the aspect rule below" />
+                            <TextBlock Style="{StaticResource Muted}" Margin="0,10,0,0" FontSize="11.5" Text="{Binding SlotInfo}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="18,16" Margin="0,14,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource StepLabel}" Text="WINDOW RULES" />
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,10,0,4" Text="Narrowest window shape" />
+                        <ComboBox ItemsSource="{Binding AspectChoices}" SelectedItem="{Binding SelectedAspect}"
+                                  ToolTip="Windows narrower than this are shortened (never stretched). 4:3 shows Classic's whole action bar." />
+                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding CoverTaskbar}" Margin="0,14,0,0"
+                                  ToolTip="Use the whole monitor, including the strip where the taskbar sits">
+                            <TextBlock Text="Cover the taskbar area" />
+                        </CheckBox>
+                        <TextBlock Style="{StaticResource Muted}" Margin="0,4,0,0" FontSize="11.5" Text="{Binding TaskbarHint}" />
+                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Borderless}" Margin="0,12,0,0"
+                                  ToolTip="Off is safest: in our tests WoW sometimes drew its UI at the wrong size after the frame was removed">
+                            <TextBlock Text="Remove title bars" />
+                        </CheckBox>
+                    </StackPanel>
+                </ContentControl>
+
+                <Button Style="{StaticResource EnterWorldButton}" Margin="0,16,0,4" HorizontalAlignment="Stretch" FontSize="16" Padding="16,12"
+                        Command="{Binding SetTabCommand}" CommandParameter="Squad" ToolTip="Go to the Squad tab to start Battle.net and place your windows">
+                    <TextBlock Text="NEXT: YOUR SQUAD  ▶" />
+                </Button>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

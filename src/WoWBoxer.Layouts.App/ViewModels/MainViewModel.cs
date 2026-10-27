@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Reflection;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using WoWBoxer.Layouts.App.Infrastructure;
 using WoWBoxer.Layouts.Core;
 using WoWBoxer.Layouts.Win32;
@@ -18,115 +21,123 @@ public interface IUserDialogs
     void ShowIdentify(IReadOnlyList<(PixelRect Rect, string Number, string Caption)> labels);
 }
 
-public sealed class ProfileItem(StoredProfile stored) : ObservableObject
-{
-    public string Path { get; set; } = stored.Path;
-    public LayoutProfile Profile { get; set; } = stored.Profile;
-    public string Name => Profile.Name;
-    public string Summary => $"{Profile.Clients} clients";
-    public void Refresh()
-    {
-        OnPropertyChanged(nameof(Name));
-        OnPropertyChanged(nameof(Summary));
-    }
-}
-
-public sealed class GameWindowItem(WindowInfo window) : ObservableObject
-{
-    private int _slot;
-    public WindowInfo Window { get; } = window;
-    public int Slot { get => _slot; set => Set(ref _slot, value); }
-    public string Process => $"{Window.ProcessName}.exe";
-    public string Detail => $"pid {Window.Pid} · {WindowFinder.VisibleRectOf(Window.Handle)}";
-}
-
-public sealed record AspectChoice(double Value, string Label)
-{
-    public override string ToString() => Label;
-}
-
+/// <summary>
+/// The whole app's state. Flow: how many clients → pick a layout card → fine-tune on the canvas → start the squad.
+/// The current layout is always a saved profile (auto-saved); every edit can be undone and, with "live" on,
+/// moves the running WoW windows right away.
+/// </summary>
 public sealed class MainViewModel : ObservableObject
 {
+    public const string WebsiteGuideUrl = "https://wowboxer.example/guide";   // placeholder until the website is live
+    public const string RepoUrl = "https://github.com/WoW-Multiboxing/wowboxer-layouts";
+
     private readonly ProfileStore _store = new(AppSettings.ProfilesFolder);
     private readonly AppSettings _settings;
     private readonly IUserDialogs _dialogs;
     private readonly Stack<LayoutProfile> _undo = new();
+    private readonly SemaphoreSlim _liveLock = new(1, 1);
     private ProfileItem? _selectedProfile;
     private LayoutProfile? _current;
     private int _selectedSlotIndex = -1;
     private IReadOnlyList<MonitorInfo> _monitors = [];
-    private PresetKind _presetKind = PresetKind.Side;
-    private int _presetClients = 3;
-    private CancellationTokenSource? _watch;
+    private CancellationTokenSource? _watch, _live;
     private bool _busy;
+    private AppTab _tab;
+    private StatusLine? _lastStatus;
+    private bool _loaded;   // opening the app never moves windows; only edits do
 
     public MainViewModel(AppSettings settings, IUserDialogs dialogs)
     {
         _settings = settings;
         _dialogs = dialogs;
+        _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
 
-        NewProfileCommand = new RelayCommand(NewProfile);
-        DuplicateCommand = new RelayCommand(Duplicate, () => _selectedProfile is not null);
-        RenameCommand = new RelayCommand(Rename, () => _selectedProfile is not null);
-        DeleteCommand = new RelayCommand(Delete, () => _selectedProfile is not null);
-        ApplyPresetCommand = new RelayCommand(ApplyPreset, () => _current is not null);
+        SetTabCommand = new RelayCommand(p => SelectedTab = Enum.Parse<AppTab>(p!.ToString()!));
+        MoreClientsCommand = new RelayCommand(() => ClientCount++, () => ClientCount < Presets.MaxClients);
+        FewerClientsCommand = new RelayCommand(() => ClientCount--, () => ClientCount > Presets.MinClients);
+        ResetCommand = new RelayCommand(ResetToPreset, () => Current is not null);
         UndoCommand = new RelayCommand(Undo, () => _undo.Count > 0);
-        CopyCodeCommand = new RelayCommand(CopyCode, () => _current is not null);
+        SaveAsCommand = new RelayCommand(SaveAs, () => Current is not null);
+        RenameCommand = new RelayCommand(Rename, () => _selectedProfile is not null);
+        DeleteCommand = new RelayCommand(Delete, () => _selectedProfile is not null && Profiles.Count > 1);
+        CopyCodeCommand = new RelayCommand(CopyCode, () => Current is not null);
         ImportCodeCommand = new RelayCommand(ImportCode);
         ImportFileCommand = new RelayCommand(ImportFile);
-        ExportFileCommand = new RelayCommand(ExportFile, () => _current is not null);
+        ExportFileCommand = new RelayCommand(ExportFile, () => Current is not null);
         CaptureCommand = new RelayCommand(Capture);
         RefreshWindowsCommand = new RelayCommand(RefreshWindows);
         IdentifyCommand = new RelayCommand(Identify);
         MoveWindowUpCommand = new RelayCommand(p => MoveWindow(p as GameWindowItem, -1));
         MoveWindowDownCommand = new RelayCommand(p => MoveWindow(p as GameWindowItem, 1));
-        ArrangeCommand = new RelayCommand(() => _ = ArrangeAsync(), () => !_busy && _current is not null);
-        StartSquadCommand = new RelayCommand(() => _ = StartSquadAsync(), () => !_busy && _current is not null);
+        ArrangeCommand = new RelayCommand(() => _ = ArrangeAsync(), () => !_busy && Current is not null);
+        StartSquadCommand = new RelayCommand(() => _ = StartSquadAsync(), () => !_busy && Current is not null);
         StopCommand = new RelayCommand(() => _watch?.Cancel(), () => IsWatching);
         RestoreFramesCommand = new RelayCommand(RestoreFrames);
-        OpenLogsCommand = new RelayCommand(() => OpenFolder(StatusLog.LogFolder));
+        OpenLogsCommand = new RelayCommand(() => Open(StatusLog.LogFolder));
+        OpenLayoutsFolderCommand = new RelayCommand(() => Open(AppSettings.ProfilesFolder));
         DiagnoseCommand = new RelayCommand(() => _ = DiagnoseAsync(), () => !_busy);
+        OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
+        BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
+        ShowFirstRunCommand = new RelayCommand(() => FirstRunRequested?.Invoke());
+
+        Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
+        Cards =
+        [
+            Card(PresetKind.Side, "Main + side", "Your main client big on the left, the followers stacked on the right."),
+            Card(PresetKind.Overlay, "Overlays", "Main client fills the screen; followers float in a row along the bottom."),
+            Card(PresetKind.Grid, "Grid", "Every client the same size, in an even grid."),
+            Card(PresetKind.Dual, "2 monitors", "Main client on one monitor, the followers on the other."),
+            Card(PresetKind.Free, "Free for all", "A loose start – drag every window wherever you like."),
+        ];
 
         RefreshMonitors();
         LoadProfiles();
         RefreshWindows();
+        _loaded = true;
     }
 
-    // ---------- state ----------
+    private LayoutCard Card(PresetKind kind, string title, string blurb) =>
+        new(kind, title, blurb, new RelayCommand(() => ApplyKind(kind)));
+
+    // =====================================================================================
+    // State
+    // =====================================================================================
 
     public StatusLog Status { get; } = new();
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
-    public IReadOnlyList<PresetKind> PresetKinds { get; } = Enum.GetValues<PresetKind>();
+    public ObservableCollection<PartyMember> Party { get; } = [];
+    public IReadOnlyList<LayoutCard> Cards { get; }
     public IReadOnlyList<int> ClientCounts { get; } = Enumerable.Range(Presets.MinClients, Presets.MaxClients - Presets.MinClients + 1).ToList();
+    public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
     public IReadOnlyList<AspectChoice> AspectChoices { get; } =
     [
-        new(1.25, "5:4 – smallest WoW shows without black bars"),
-        new(4.0 / 3, "4:3 – full Classic action bar visible"),
-        new(0, "Off – use the slot as drawn"),
+        new(4.0 / 3, "4:3 – full Classic action bar"),
+        new(1.25, "5:4 – a little narrower allowed"),
+        new(0, "Off – use the window as drawn"),
     ];
+
+    public event Action? FirstRunRequested;
+
+    public string Version => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+
+    public AppTab SelectedTab
+    {
+        get => _tab;
+        set
+        {
+            if (!Set(ref _tab, value)) return;
+            _settings.LastTab = value.ToString();
+            _settings.Save();
+            if (value == AppTab.Squad) RefreshWindows();
+        }
+    }
+
+    public StatusLine? LastStatus { get => _lastStatus; private set => Set(ref _lastStatus, value); }
 
     public IReadOnlyList<MonitorInfo> Monitors { get => _monitors; private set => Set(ref _monitors, value); }
 
-    public string MonitorSummary => string.Join("   ", Monitors.Select(m => $"{m.Index}: {m.Bounds.Width}×{m.Bounds.Height} @ {m.ScalePercent} %"));
-
-    public ProfileItem? SelectedProfile
-    {
-        get => _selectedProfile;
-        set
-        {
-            if (!Set(ref _selectedProfile, value)) return;
-            _undo.Clear();
-            Current = value?.Profile;
-            SelectedSlotIndex = Current is { Slots.Count: > 0 } ? 0 : -1;
-            if (value is not null)
-            {
-                _settings.LastProfile = value.Name;
-                _settings.Save();
-                PresetClients = value.Profile.Clients is >= Presets.MinClients and <= Presets.MaxClients ? value.Profile.Clients : PresetClients;
-            }
-        }
-    }
+    public string MonitorSummary => string.Join("    ", Monitors.Select(m => $"Monitor {m.Index}: {m.Bounds.Width}×{m.Bounds.Height} · {m.ScalePercent} %"));
 
     public LayoutProfile? Current
     {
@@ -134,15 +145,30 @@ public sealed class MainViewModel : ObservableObject
         private set
         {
             if (!Set(ref _current, value)) return;
-            OnPropertyChanged(nameof(Borderless));
-            OnPropertyChanged(nameof(UseTaskbarArea));
-            OnPropertyChanged(nameof(SelectedAspect));
-            OnPropertyChanged(nameof(ProfileTitle));
+            foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle) })
+                OnPropertyChanged(name);
+            RefreshCards();
+            RefreshParty();
             RaiseSlotProperties();
         }
     }
 
-    public string ProfileTitle => Current is null ? "No layout" : $"{Current.Name} · {Current.Clients} clients";
+    public string LayoutTitle => Current is null ? "No layout" : Current.Name;
+
+    public ProfileItem? SelectedProfile
+    {
+        get => _selectedProfile;
+        set
+        {
+            if (value is null || !Set(ref _selectedProfile, value)) return;
+            _undo.Clear();
+            Current = value.Profile;
+            SelectedSlotIndex = 0;
+            _settings.LastProfile = value.Name;
+            _settings.Save();
+            ScheduleLive();
+        }
+    }
 
     public int SelectedSlotIndex
     {
@@ -153,33 +179,6 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public PresetKind PresetKind { get => _presetKind; set => Set(ref _presetKind, value); }
-    public int PresetClients { get => _presetClients; set => Set(ref _presetClients, value); }
-
-    public bool Forever
-    {
-        get => _settings.Forever;
-        set
-        {
-            _settings.Forever = value;
-            _settings.Save();
-            OnPropertyChanged();
-        }
-    }
-
-    public bool RenameWindows
-    {
-        get => _settings.RenameWindows;
-        set
-        {
-            _settings.RenameWindows = value;
-            _settings.Save();
-            OnPropertyChanged();
-        }
-    }
-
-    public bool IsWatching => _watch is not null;
-
     public bool Busy
     {
         get => _busy;
@@ -189,7 +188,78 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    // ---------- layout options ----------
+    public bool IsWatching => _watch is not null;
+
+    // =====================================================================================
+    // Step 1 + 2: clients and layout cards
+    // =====================================================================================
+
+    /// <summary>How many clients. Changing it re-applies the current layout type for the new number.</summary>
+    public int ClientCount
+    {
+        get => Current?.Clients ?? 3;
+        set
+        {
+            value = Math.Clamp(value, Presets.MinClients, Presets.MaxClients);
+            if (Current is null || value == Current.Clients) return;
+            ApplyKind(Current.Preset ?? PresetKind.Side, value);
+        }
+    }
+
+    private void RefreshCards()
+    {
+        var n = Current?.Clients ?? 3;
+        foreach (var card in Cards)
+        {
+            card.IsSelected = Current?.Preset == card.Kind;
+            if (TryPreset(card.Kind, n, out var preview, quiet: true))
+            {
+                card.Preview = preview;
+                card.Unavailable = null;
+            }
+            else
+            {
+                card.Preview = null;
+                card.Unavailable = card.Kind == PresetKind.Dual ? "Needs a second monitor" : "Not available";
+            }
+        }
+    }
+
+    /// <summary>Applies a layout type (one click on a card), keeping names and classes. Undo brings the old one back.</summary>
+    private void ApplyKind(PresetKind kind, int? clients = null)
+    {
+        if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false)) return;
+        var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class } : s).ToList();
+        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots });
+        SelectedSlotIndex = 0;
+    }
+
+    private void ResetToPreset()
+    {
+        if (Current is null) return;
+        ApplyKind(Current.Preset ?? PresetKind.Side);
+        Status.Info($"Reset to {Presets.DisplayName(Current.Preset ?? PresetKind.Side)}. Ctrl+Z brings your changes back.");
+    }
+
+    private bool TryPreset(PresetKind kind, int clients, out LayoutProfile profile, bool quiet)
+    {
+        try
+        {
+            var options = Current?.Options ?? new LayoutOptions { MinAspect = 4.0 / 3 };
+            profile = Presets.Create(kind, clients, Monitors, options: options with { Fit = FitMode.ShrinkAnchor });
+            return true;
+        }
+        catch (ArgumentException e)
+        {
+            if (!quiet) Status.Warn(e.Message.Split(" (Parameter")[0]);
+            profile = null!;
+            return false;
+        }
+    }
+
+    // =====================================================================================
+    // Window rules
+    // =====================================================================================
 
     public bool Borderless
     {
@@ -197,11 +267,22 @@ public sealed class MainViewModel : ObservableObject
         set => EditOptions(o => o with { Borderless = value });
     }
 
-    public bool UseTaskbarArea
+    /// <summary>Use the whole monitor, including the taskbar's area.</summary>
+    public bool CoverTaskbar
     {
         get => Current?.Options.UseTaskbarArea ?? false;
-        set => EditOptions(o => o with { UseTaskbarArea = value });
+        set
+        {
+            EditOptions(o => o with { UseTaskbarArea = value });
+            OnPropertyChanged(nameof(TaskbarHint));
+        }
     }
+
+    public string TaskbarHint => Taskbar.AutoHides()
+        ? "Your taskbar hides itself, so covering its area gives the windows the full screen."
+        : CoverTaskbar
+            ? "Your taskbar is always shown and stays on top: it will cover the bottom of the windows. Turn on \"Automatically hide the taskbar\" in Windows settings, or switch this off."
+            : "The strip at the bottom of each monitor is your taskbar. Windows stay above it.";
 
     public AspectChoice? SelectedAspect
     {
@@ -212,7 +293,9 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    // ---------- selected slot ----------
+    // =====================================================================================
+    // Selected window (inspector)
+    // =====================================================================================
 
     private LayoutSlot? Slot => Current is not null && SelectedSlotIndex >= 0 && SelectedSlotIndex < Current.Slots.Count ? Current.Slots[SelectedSlotIndex] : null;
 
@@ -221,12 +304,19 @@ public sealed class MainViewModel : ObservableObject
         : default;
 
     public bool HasSlot => Slot is not null;
-    public string SlotHeader => Slot is { } s ? $"Slot {s.N}{(s.Role == SlotRole.Main ? " · main" : "")}" : "No slot selected";
+    public string SlotHeader => Slot is { } s ? $"Window {s.N}{(s.Role == SlotRole.Main ? " · main" : "")}" : "Click a window";
+    public Brush SlotBrush => Slot is { } s ? new SolidColorBrush(WowClasses.ColorFor(s.Class, SelectedSlotIndex)) : Brushes.Gray;
 
     public string SlotName
     {
         get => Slot?.Name ?? "";
         set => EditSlot(s => s with { Name = string.IsNullOrWhiteSpace(value) ? null : value.Trim() });
+    }
+
+    public WowClass SlotClass
+    {
+        get => WowClasses.Find(Slot?.Class) ?? WowClasses.Automatic;
+        set => EditSlot(s => s with { Class = value is null || value == WowClasses.Automatic ? null : value.Id });
     }
 
     public int SlotX { get => SlotRect.X; set => EditSlotRect(SlotRect with { X = value }); }
@@ -252,29 +342,36 @@ public sealed class MainViewModel : ObservableObject
         {
             if (Slot is not { } s || Current is null) return "";
             var raw = SlotRect;
-            var fitted = LayoutEngine.Fit(raw, s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect);
-            var aspect = fitted.Height == 0 ? 0 : (double)fitted.Width / fitted.Height;
-            var text = $"Monitor {s.Monitor} · window {fitted.Width}×{fitted.Height} · aspect {aspect:0.00}";
-            if (fitted != raw) text += $"\nShrunk from {raw.Width}×{raw.Height} to keep {Current.Options.MinAspect:0.00} (anchored {s.Anchor.ToString().ToLowerInvariant()}).";
-            if (aspect < 4.0 / 3 - 0.001) text += "\nNarrower than 4:3 – the ends of the Classic action bar are clipped (all buttons stay visible down to about 1.2).";
+            var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
+            var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
+            var fitted = LayoutEngine.Fit(raw, s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect, frame);
+            var (gw, gh) = LayoutEngine.GameArea(fitted, frame);
+            var aspect = gh == 0 ? 0 : (double)gw / gh;
+            var text = $"Monitor {monitor.Index} · window {fitted.Width} × {fitted.Height} · game draws {gw} × {gh} ({aspect:0.00})";
+            if (fitted != raw) text += $"\nShortened from {raw.Width} × {raw.Height} to keep the aspect rule.";
+            text += aspect >= 4.0 / 3 - 0.001 ? "\nWide enough for the full Classic action bar." : "\nNarrower than 4:3: the ends of the Classic action bar are clipped.";
             return text;
         }
     }
 
     private void RaiseSlotProperties()
     {
-        foreach (var name in new[] { nameof(HasSlot), nameof(SlotHeader), nameof(SlotName), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
+        foreach (var name in new[] { nameof(HasSlot), nameof(SlotHeader), nameof(SlotBrush), nameof(SlotName), nameof(SlotClass), nameof(SlotX), nameof(SlotY), nameof(SlotW), nameof(SlotH), nameof(SlotOnTop), nameof(SlotKeepSize), nameof(SlotInfo) })
             OnPropertyChanged(name);
     }
 
-    // ---------- commands ----------
+    // =====================================================================================
+    // Commands
+    // =====================================================================================
 
-    public ICommand NewProfileCommand { get; }
-    public ICommand DuplicateCommand { get; }
+    public ICommand SetTabCommand { get; }
+    public ICommand MoreClientsCommand { get; }
+    public ICommand FewerClientsCommand { get; }
+    public ICommand ResetCommand { get; }
+    public ICommand UndoCommand { get; }
+    public ICommand SaveAsCommand { get; }
     public ICommand RenameCommand { get; }
     public ICommand DeleteCommand { get; }
-    public ICommand ApplyPresetCommand { get; }
-    public ICommand UndoCommand { get; }
     public ICommand CopyCodeCommand { get; }
     public ICommand ImportCodeCommand { get; }
     public ICommand ImportFileCommand { get; }
@@ -289,14 +386,23 @@ public sealed class MainViewModel : ObservableObject
     public ICommand StopCommand { get; }
     public ICommand RestoreFramesCommand { get; }
     public ICommand OpenLogsCommand { get; }
+    public ICommand OpenLayoutsFolderCommand { get; }
     public ICommand DiagnoseCommand { get; }
+    public ICommand OpenUrlCommand { get; }
+    public ICommand BrowseBattleNetCommand { get; }
+    public ICommand ShowFirstRunCommand { get; }
 
-    // ---------- profiles ----------
+    // =====================================================================================
+    // Saved layouts
+    // =====================================================================================
 
     public void RefreshMonitors()
     {
-        Monitors = MonitorReader.GetMonitors();
+        var monitors = MonitorReader.GetMonitors();
+        if (monitors.SequenceEqual(Monitors)) return;
+        Monitors = monitors;
         OnPropertyChanged(nameof(MonitorSummary));
+        RefreshCards();
         RaiseSlotProperties();
     }
 
@@ -307,8 +413,8 @@ public sealed class MainViewModel : ObservableObject
         foreach (var e in errors) Status.Warn($"Skipped a broken layout file: {e}");
         if (stored.Count == 0 && Monitors.Count > 0)
         {
-            // First start: one ready-to-use layout for 3 clients.
-            var profile = Presets.Create(PresetKind.Side, 3, Monitors) with { Name = "Trio" };
+            // First start: a ready-to-use layout for 3 clients.
+            var profile = Presets.Create(PresetKind.Side, 3, Monitors, options: new LayoutOptions { MinAspect = 4.0 / 3 }) with { Name = "My squad" };
             stored.Add(new StoredProfile(_store.Save(profile), profile));
         }
         Profiles.Clear();
@@ -316,7 +422,7 @@ public sealed class MainViewModel : ObservableObject
         SelectedProfile = Profiles.FirstOrDefault(p => p.Name == _settings.LastProfile) ?? Profiles.FirstOrDefault();
     }
 
-    /// <summary>Selects a profile by name (used by "--start NAME" from a desktop shortcut).</summary>
+    /// <summary>Selects a layout by name (used by "--start NAME" from a desktop shortcut).</summary>
     public bool SelectProfile(string name)
     {
         var item = Profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -333,17 +439,13 @@ public sealed class MainViewModel : ObservableObject
         SelectedProfile = item;
     }
 
-    private void NewProfile()
-    {
-        if (!TryPreset(PresetKind, PresetClients, out var profile)) return;
-        AddAndSelect(profile);
-        Status.Ok($"New layout \"{SelectedProfile!.Name}\" from preset {Presets.DisplayName(PresetKind)}.");
-    }
-
-    private void Duplicate()
+    private void SaveAs()
     {
         if (Current is null) return;
-        AddAndSelect(Current with { Name = Current.Name + " copy" });
+        var name = _dialogs.Prompt("Save as a new layout", "Name for the new layout:", Current.Name + " copy");
+        if (string.IsNullOrWhiteSpace(name)) return;
+        AddAndSelect(Current with { Name = name.Trim() });
+        Status.Ok($"Saved \"{SelectedProfile!.Name}\".");
     }
 
     private void Rename()
@@ -356,15 +458,16 @@ public sealed class MainViewModel : ObservableObject
 
     private void Delete()
     {
-        if (_selectedProfile is null) return;
-        if (!_dialogs.Confirm("Delete layout", $"Delete \"{_selectedProfile.Name}\"?")) return;
+        if (_selectedProfile is null || Profiles.Count <= 1) return;
+        if (!_dialogs.Confirm("Delete layout", $"Delete \"{_selectedProfile.Name}\"? This cannot be undone.")) return;
         _store.Delete(_selectedProfile.Path);
         var index = Profiles.IndexOf(_selectedProfile);
         Profiles.Remove(_selectedProfile);
-        SelectedProfile = Profiles.Count == 0 ? null : Profiles[Math.Min(index, Profiles.Count - 1)];
+        _selectedProfile = null;
+        SelectedProfile = Profiles[Math.Min(index, Profiles.Count - 1)];
     }
 
-    /// <summary>Every edit goes through here: undo, auto-save, refresh.</summary>
+    /// <summary>Every edit goes through here: undo, auto-save, refresh, live apply.</summary>
     private void Update(LayoutProfile profile, bool pushUndo = true)
     {
         if (_selectedProfile is null || Current is null || profile == Current) return;
@@ -382,6 +485,7 @@ public sealed class MainViewModel : ObservableObject
         Current = profile;
         _settings.LastProfile = profile.Name;
         _settings.Save();
+        ScheduleLive();
     }
 
     public void OnSlotEdited(int index, LayoutSlot slot)
@@ -411,35 +515,8 @@ public sealed class MainViewModel : ObservableObject
     private void Undo()
     {
         if (_undo.Count == 0) return;
-        var previous = _undo.Pop();
-        Update(previous, pushUndo: false);
+        Update(_undo.Pop(), pushUndo: false);
         RaiseSlotProperties();
-    }
-
-    private bool TryPreset(PresetKind kind, int clients, out LayoutProfile profile)
-    {
-        try
-        {
-            var options = Current?.Options ?? new LayoutOptions();
-            profile = Presets.Create(kind, clients, Monitors, options: options with { Fit = FitMode.ShrinkAnchor });
-            return true;
-        }
-        catch (ArgumentException e)
-        {
-            Status.Warn(e.Message.Split(" (Parameter")[0]);
-            profile = null!;
-            return false;
-        }
-    }
-
-    private void ApplyPreset()
-    {
-        if (Current is null || !TryPreset(PresetKind, PresetClients, out var preset)) return;
-        // Keep the layout's name and the slot names the user typed.
-        var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name } : s).ToList();
-        Update(Current with { Clients = preset.Clients, Slots = slots });
-        SelectedSlotIndex = 0;
-        Status.Info($"Applied preset {Presets.DisplayName(PresetKind)} for {PresetClients} clients. Ctrl+Z undoes it.");
     }
 
     private void CopyCode()
@@ -451,7 +528,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void ImportCode()
     {
-        var code = _dialogs.Prompt("Import layout code", "Paste a WBX1: code:", "");
+        var code = _dialogs.Prompt("Paste a layout code", "Paste a WBX1: code from a friend or the website:", "");
         if (string.IsNullOrWhiteSpace(code)) return;
         try
         {
@@ -488,31 +565,129 @@ public sealed class MainViewModel : ObservableObject
         Status.Ok($"Saved {Path.GetFileName(path)}.");
     }
 
-    /// <summary>Makes a new layout from where the WoW windows are now (arranged by hand, Snap, …).</summary>
+    /// <summary>Makes a new layout from where the WoW windows are now (arranged by hand, Windows Snap …).</summary>
     private void Capture()
     {
         var open = WindowFinder.FindGameWindows();
         if (open.Count == 0)
         {
-            Status.Warn("No World of Warcraft windows found to capture.");
+            Status.Warn("No World of Warcraft windows found to capture. Arrange your game windows first.");
             return;
         }
         var borderless = open.All(w => (w.Style & 0x00C00000) == 0);
-        var profile = ProfileCapture.FromWindows(open.Select(w => WindowFinder.VisibleRectOf(w.Handle)).ToList(), Monitors, borderless, "Captured");
+        var profile = ProfileCapture.FromWindows(open.Select(w => WindowFinder.VisibleRectOf(w.Handle)).ToList(), Monitors, borderless, "Captured layout");
         AddAndSelect(profile);
         Status.Ok($"Captured {open.Count} windows as \"{SelectedProfile!.Name}\".");
     }
 
-    // ---------- squad ----------
+    // =====================================================================================
+    // Settings
+    // =====================================================================================
+
+    public bool Forever
+    {
+        get => _settings.Forever;
+        set => SetSetting(() => _settings.Forever = value);
+    }
+
+    public bool RenameWindows
+    {
+        get => _settings.RenameWindows;
+        set => SetSetting(() => _settings.RenameWindows = value);
+    }
+
+    public bool LiveApply
+    {
+        get => _settings.LiveApply;
+        set => SetSetting(() => _settings.LiveApply = value);
+    }
+
+    public bool Animations
+    {
+        get => _settings.Animations;
+        set => SetSetting(() => _settings.Animations = value);
+    }
+
+    public bool CheckForUpdates
+    {
+        get => _settings.CheckForUpdates;
+        set => SetSetting(() => _settings.CheckForUpdates = value);
+    }
+
+    public string BattleNetExe
+    {
+        get => _settings.BattleNetExe ?? BattleNet.FindExe() ?? "";
+        set => SetSetting(() => _settings.BattleNetExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+    }
+
+    private void SetSetting(Action change, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+    {
+        change();
+        _settings.Save();
+        OnPropertyChanged(name);
+    }
+
+    private void BrowseBattleNet()
+    {
+        var path = _dialogs.OpenFile("Battle.net|Battle.net.exe|Programs (*.exe)|*.exe");
+        if (path is not null) BattleNetExe = path;
+    }
+
+    // =====================================================================================
+    // Squad
+    // =====================================================================================
+
+    public string SquadHint => Windows.Count == 0
+        ? "No WoW windows are open yet. Press Start squad, then press Play in Battle.net once per account – each window jumps into its place."
+        : $"{Windows.Count} WoW window(s) open. Arrange now puts them in this order; use ▲▼ or Identify to check who is who.";
+
+    private void RefreshParty()
+    {
+        if (Current is null) return;
+        var states = Party.ToDictionary(p => p.Number, p => p.State);
+        Party.Clear();
+        for (var i = 0; i < Current.Slots.Count; i++)
+        {
+            var s = Current.Slots[i];
+            Party.Add(new PartyMember
+            {
+                Number = s.N,
+                Label = s.Name ?? WowClasses.Find(s.Class)?.Name ?? (s.Role == SlotRole.Main ? "Main" : $"Follower {s.N - 1}"),
+                ClassBrush = new SolidColorBrush(WowClasses.ColorFor(s.Class, i)),
+                Account = i < _settings.Accounts.Count ? _settings.Accounts[i] : "",
+                State = states.GetValueOrDefault(s.N),
+                AccountChanged = SaveAccount,
+            });
+        }
+    }
+
+    private void SaveAccount(int number, string account)
+    {
+        while (_settings.Accounts.Count < number) _settings.Accounts.Add("");
+        _settings.Accounts[number - 1] = account.Trim();
+        _settings.Save();
+    }
+
+    private void SetPartyState(int slotIndex, PartyState state)
+    {
+        if (slotIndex >= 0 && slotIndex < Party.Count) Party[slotIndex].State = state;
+    }
 
     public void RefreshWindows()
     {
         var found = WindowFinder.FindGameWindows();
-        // keep the user's order for windows we already know, new ones go to the end (launch order)
+        // keep the user's order for windows we already know; new ones go to the end (launch order)
         var known = Windows.Select(w => w.Window.Handle).ToList();
         var ordered = found.OrderBy(w => known.IndexOf(w.Handle) is var i && i >= 0 ? i : int.MaxValue).ToList();
         Windows.Clear();
         for (var i = 0; i < ordered.Count; i++) Windows.Add(new GameWindowItem(ordered[i]) { Slot = i + 1 });
+        OnPropertyChanged(nameof(SquadHint));
+        if (Current is null || Monitors.Count == 0) return;
+        var placed = LayoutEngine.Resolve(Current, Monitors);
+        for (var i = 0; i < Party.Count; i++)
+            Party[i].State = i < Windows.Count && i < placed.Count && WindowPlacer.IsAt(Windows[i].Window.Handle, placed[i].Rect)
+                ? PartyState.Placed
+                : PartyState.Waiting;
     }
 
     private void MoveWindow(GameWindowItem? item, int delta)
@@ -523,6 +698,7 @@ public sealed class MainViewModel : ObservableObject
         if (i < 0 || j < 0 || j >= Windows.Count) return;
         Windows.Move(i, j);
         for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
+        ScheduleLive();
     }
 
     private void Identify()
@@ -549,11 +725,16 @@ public sealed class MainViewModel : ObservableObject
         return new SquadPlan(Current, Monitors, RenameWindows && Current.Slots.Any(s => s.Name is { Length: > 0 }));
     }
 
+    private List<WindowInfo> OrderedWindows()
+    {
+        if (Windows.Count == 0 || Windows.Any(w => !WindowFinder.Exists(w.Window.Handle))) RefreshWindows();
+        return Windows.Select(w => w.Window).ToList();
+    }
+
     private async Task ArrangeAsync()
     {
         if (Plan() is not { } plan) return;
-        if (Windows.Count == 0 || Windows.Any(w => !WindowFinder.Exists(w.Window.Handle))) RefreshWindows();
-        var windows = Windows.Select(w => w.Window).ToList();
+        var windows = OrderedWindows();
         Busy = true;
         try
         {
@@ -567,12 +748,58 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>"Live": after an edit, move the open WoW windows to the new layout (debounced, quiet).</summary>
+    private void ScheduleLive()
+    {
+        if (!_loaded || !LiveApply || IsWatching || Busy) return;
+        _live?.Cancel();
+        _live = new CancellationTokenSource();
+        _ = LiveAsync(_live.Token);
+    }
+
+    private async Task LiveAsync(CancellationToken cancel)
+    {
+        try
+        {
+            await Task.Delay(350, cancel);
+            if (WindowFinder.FindGameWindows().Count == 0 || Plan() is not { } plan) return;
+            var windows = OrderedWindows();
+            await _liveLock.WaitAsync(cancel);
+            try
+            {
+                var quiet = new QuietSink(Status);
+                var ok = await Task.Run(() => Arranger.ArrangeAsync(plan, windows, quiet, cancel), cancel);
+                if (ok) Status.Ok($"Moved {Math.Min(windows.Count, plan.Slots.Count)} WoW window(s) to \"{plan.Profile.Name}\".");
+                RefreshWindows();
+            }
+            finally
+            {
+                _liveLock.Release();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // a newer edit replaced this one
+        }
+    }
+
+    /// <summary>Only warnings and errors get through (live moves would otherwise flood the activity list).</summary>
+    private sealed class QuietSink(IStatusSink inner) : IStatusSink
+    {
+        public void Report(StatusLevel level, string message)
+        {
+            if (level is StatusLevel.Warn or StatusLevel.Error or StatusLevel.Detail) inner.Report(level, message);
+        }
+    }
+
     public async Task StartSquadAsync()
     {
         if (Plan() is not { } plan || IsWatching) return;
+        _live?.Cancel();
         Busy = true;
         _watch = new CancellationTokenSource();
         OnPropertyChanged(nameof(IsWatching));
+        foreach (var p in Party) p.State = PartyState.Waiting;
         try
         {
             Status.Title($"Start squad: \"{plan.Profile.Name}\"");
@@ -581,14 +808,21 @@ public sealed class MainViewModel : ObservableObject
             Status.Title("Then pick the account and press Play – in this order:");
             for (var i = 0; i < plan.Slots.Count; i++)
             {
-                var account = i < _settings.Accounts.Count ? $"   ({_settings.Accounts[i]})" : "";
-                Status.Title($"   {i + 1}. {plan.Slots[i].Slot.Label}{account}");
+                var account = i < _settings.Accounts.Count && _settings.Accounts[i].Length > 0 ? $"   ({_settings.Accounts[i]})" : "";
+                Status.Title($"   {i + 1}. {Party.ElementAtOrDefault(i)?.Label ?? plan.Slots[i].Slot.Label}{account}");
             }
             Status.Info("Each game window snaps into place as soon as it appears.");
             var watcher = new SquadWatcher(plan, Status);
+            var dispatcher = Application.Current.Dispatcher;
+            watcher.AssignmentChanged += (_, slot) => dispatcher.BeginInvoke(() =>
+            {
+                if (slot >= 0) SetPartyState(slot, PartyState.Placed);
+                else RefreshWindows();
+            });
             var token = _watch.Token;
-            await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token));
+            var ok = await Task.Run(() => watcher.RunAsync(TimeSpan.FromMinutes(15), token));
             RefreshWindows();
+            if (!ok) foreach (var p in Party.Where(p => p.State != PartyState.Placed)) p.State = PartyState.Problem;
         }
         finally
         {
@@ -618,12 +852,11 @@ public sealed class MainViewModel : ObservableObject
         {
             Status.Title("Diagnose: writing a report and trying one placement per window …");
             var windows = Windows.Select(w => w.Window).ToList();
-            var version = typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "?";
-            await Task.Run(() => Diagnostics.RunAsync(plan, windows, report, $"WoWBoxer Window Layouts {version}", "per-monitor aware"));
+            await Task.Run(() => Diagnostics.RunAsync(plan, windows, report, $"WoWBoxer Window Layouts {Version}", "per-monitor aware"));
             Directory.CreateDirectory(StatusLog.LogFolder);
             File.WriteAllText(path, report.Text.Replace(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "%USERPROFILE%", StringComparison.OrdinalIgnoreCase));
             Status.Ok($"Diagnose report saved: {path}");
-            OpenFolder(StatusLog.LogFolder);
+            Open(StatusLog.LogFolder);
         }
         finally
         {
@@ -635,16 +868,30 @@ public sealed class MainViewModel : ObservableObject
     private sealed class ReportSink : IStatusSink
     {
         private readonly System.Text.StringBuilder _text = new();
-        public string Text { get { lock (_text) return _text.ToString(); } }
+
+        public string Text
+        {
+            get
+            {
+                lock (_text) return _text.ToString();
+            }
+        }
+
         public void Report(StatusLevel level, string message)
         {
             lock (_text) _text.AppendLine((level == StatusLevel.Title ? Environment.NewLine : "") + message);
         }
     }
 
-    private static void OpenFolder(string folder)
+    private static void Open(string folder)
     {
         Directory.CreateDirectory(folder);
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(folder) { UseShellExecute = true })?.Dispose();
+    }
+
+    private static void OpenUrl(string? url)
+    {
+        if (url is null || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http")) return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true })?.Dispose();
     }
 }

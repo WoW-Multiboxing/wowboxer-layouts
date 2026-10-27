@@ -16,6 +16,10 @@ public sealed class AppSettings
     public bool RenameWindows { get; set; } = true;
     /// <summary>Look for a new version on GitHub at start (installed copies only).</summary>
     public bool CheckForUpdates { get; set; } = true;
+    /// <summary>Move running WoW windows right away when the layout changes.</summary>
+    public bool LiveApply { get; set; } = true;
+    public bool Animations { get; set; } = true;
+    public string LastTab { get; set; } = "Setup";
     public string? BattleNetExe { get; set; }
     public List<string> Accounts { get; set; } = [];
 
