@@ -102,24 +102,6 @@ internal static class Commands
         return 0;
     }
 
-    /// <summary>Display settings from each client install's Config.wtf (read-only).</summary>
-    public static void DescribeConfigs(IEnumerable<string> exePaths, IStatusSink log)
-    {
-        foreach (var exe in exePaths.Where(p => p.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var path = WowConfig.ConfigPathFor(exe);
-            if (!File.Exists(path))
-            {
-                log.Warn($"  {path}: not found");
-                continue;
-            }
-            var values = WowConfig.Parse(File.ReadAllText(path));
-            log.Info($"  {path}  (shared by every client started from this folder)");
-            foreach (var (name, meaning) in WowConfig.DisplayCvars)
-                log.Info($"    {name,-24} {(values.TryGetValue(name, out var v) ? $"\"{v}\"" : "(not set)"),-14} {meaning}");
-        }
-    }
-
     public static int Layout(CliOptions o, Log log)
     {
         var squad = Squad.Create(o, defaultClients: 3);
@@ -176,60 +158,9 @@ internal static class Commands
     /// <summary>Write a report of what Windows sees, then try one synchronous placement per game window.</summary>
     public static async Task<int> DiagnoseAsync(CliOptions o, Log log, string dpiAwareness)
     {
-        log.Info($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}   wbx {Version}   {RuntimeInformation.FrameworkDescription}   {RuntimeInformation.OSDescription}");
-        log.Info($"wbx runs as administrator: {ProcessInfo.CurrentElevation() == Elevation.Elevated}   DPI: {dpiAwareness}");
-        log.Info($"wbx path: {Environment.ProcessPath}");
-
         var open = WindowFinder.FindGameWindows();
-        var squad = Squad.Create(o, defaultClients: open.Count > 0 ? open.Count : 3);
-        squad.Describe(log);
-
-        log.Line();
-        log.Title("Processes (Battle.net / WoW / Agent):");
-        foreach (var p in Process.GetProcesses().OrderBy(p => p.ProcessName))
-        {
-            using (p)
-            {
-                var name = p.ProcessName;
-                if (!name.StartsWith("Battle.net", StringComparison.OrdinalIgnoreCase) && !name.StartsWith("Wow", StringComparison.OrdinalIgnoreCase)
-                    && !name.StartsWith("Agent", StringComparison.OrdinalIgnoreCase)) continue;
-                var pid = (uint)p.Id;
-                log.Info($"  {name}  pid {pid}  elevated {ProcessInfo.ElevationOf(pid)}  {ProcessInfo.ImagePath(pid)}");
-            }
-        }
-
-        log.Line();
-        log.Title("Windows of those processes (class / title / size / style):");
-        foreach (var h in WindowFinder.TopWindows())
-        {
-            var w = WindowFinder.Describe(h);
-            var path = ProcessInfo.ImagePath(w.Pid);
-            if (!WindowFinder.IsWowProcessName(w.ProcessName) && !w.ProcessName.StartsWith("Battle.net", StringComparison.OrdinalIgnoreCase)
-                && !w.ClassName.StartsWith("GxWindow", StringComparison.Ordinal) && !WindowFinder.IsWowPath(path)) continue;
-            log.Info($"  {w.ProcessName}  [{path}]  class \"{w.ClassName}\"  title \"{w.Title}\"  {w.Rect}  style 0x{w.Style:X8}");
-        }
-
-        log.Line();
-        log.Title("WoW display settings (Config.wtf, read-only):");
-        DescribeConfigs(open.Select(w => ProcessInfo.ImagePath(w.Pid)), log);
-        foreach (var w in open)
-        {
-            var (cw, ch) = WindowFinder.ClientSizeOf(w.Handle);
-            log.Info($"  window pid {w.Pid}: game renders {cw}x{ch}, {((w.Style & 0x00C00000) == 0 ? "borderless" : "title bar")}");
-        }
-
-        log.Line();
-        log.Title($"Game windows wbx recognises (oldest first): {open.Count}");
-        var n = Math.Min(open.Count, squad.Slots.Count);
-        for (var i = 0; i < n; i++)
-        {
-            var h = open[i].Handle;
-            var target = squad.Slots[i].Rect;
-            if (squad.Profile.Options.Borderless) WindowPlacer.MakeBorderless(h);
-            var error = WindowPlacer.TryMove(h, target);
-            await Task.Delay(700);
-            log.Info($"  {squad.Slots[i].Slot.Label}: before {open[i].Rect}  wanted {target}  after {WindowFinder.RectOf(h)}  move result {error}  (0 = ok, 5 = access denied)");
-        }
+        var plan = Squad.Create(o, defaultClients: open.Count > 0 ? open.Count : 3);
+        await Diagnostics.RunAsync(plan, open, log, $"wbx {Version}", dpiAwareness);
         log.Line();
         log.Ok($"Saved to {log.FilePath}");
         return 0;

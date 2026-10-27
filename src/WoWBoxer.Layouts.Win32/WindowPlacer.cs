@@ -80,6 +80,18 @@ public static class WindowPlacer
         return SetWindowPos(h, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_NOOWNERZORDER | NoActivateAsync);
     }
 
+    /// <summary>
+    /// Turns one of our own windows into a click-through, never-activated, always-on-top label (Identify)
+    /// and puts it over <paramref name="rect"/>.
+    /// </summary>
+    public static void ShowAsOverlay(nint ownWindow, PixelRect rect)
+    {
+        const int GWL_EXSTYLE = -20;
+        const int WS_EX_TRANSPARENT = 0x20, WS_EX_TOOLWINDOW = 0x80, WS_EX_LAYERED = 0x80000, WS_EX_NOACTIVATE = 0x08000000;
+        SetWindowLong(ownWindow, GWL_EXSTYLE, GetWindowLong(ownWindow, GWL_EXSTYLE) | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE);
+        SetWindowPos(ownWindow, HWND_TOPMOST, rect.X, rect.Y, rect.Width, rect.Height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    }
+
     /// <summary>True if the window's visible edges are at <paramref name="rect"/> (the invisible resize border does not count).</summary>
     public static bool IsAt(nint h, PixelRect rect) => WindowFinder.VisibleRectOf(h) == rect;
 

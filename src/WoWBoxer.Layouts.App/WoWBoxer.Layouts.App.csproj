@@ -1,14 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- WPF app (monitor canvas, editor, profiles, tray). Only a stub until milestone M2. -->
+  <!-- The WoWBoxer Window Layouts desktop app: monitor canvas, layout editor, profiles, squad flow, tray. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>WoWBoxer.Layouts.App</RootNamespace>
     <AssemblyName>WoWBoxer.Layouts</AssemblyName>
     <UseWPF>true</UseWPF>
+    <!-- Only for the tray icon (NotifyIcon). -->
+    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- WPF0001: ThemeMode (Fluent / Windows 11 look) is marked experimental in .NET 10. -->
+    <!-- WFO0003: WinForms wants DPI mode in code; this is a WPF app and the manifest is the right place. -->
+    <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinForms is only used for the tray icon; keep WPF's types unambiguous. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WoWBoxer.Layouts.Core\WoWBoxer.Layouts.Core.csproj" />

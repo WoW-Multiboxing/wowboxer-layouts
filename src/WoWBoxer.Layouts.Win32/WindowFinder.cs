@@ -17,22 +17,9 @@ public static unsafe class WindowFinder
 {
     private const int MinWidth = 300, MinHeight = 200;
 
-    public static bool IsWowProcessName(string? name)
-    {
-        if (string.IsNullOrEmpty(name)) return false;
-        name = name.ToLowerInvariant();
-        return name.StartsWith("wow", StringComparison.Ordinal) && !name.Contains("voice") && !name.Contains("error") && !name.Contains("crash");
-    }
+    public static bool IsWowProcessName(string? name) => GameDetection.IsWowProcessName(name);
 
-    public static bool IsWowPath(string? path)
-    {
-        if (string.IsNullOrEmpty(path)) return false;
-        path = path.ToLowerInvariant();
-        if (!path.Contains(@"\world of warcraft\")) return false;
-        var file = path[(path.LastIndexOf('\\') + 1)..];
-        string[] notGame = ["launcher", "battle.net", "agent", "error", "crash", "voice"];
-        return !notGame.Any(file.Contains);
-    }
+    public static bool IsWowPath(string? path) => GameDetection.IsWowPath(path);
 
     /// <summary>Visible top-level windows without an owner (real app windows, not tooltips or dialogs).</summary>
     public static List<nint> TopWindows()
@@ -78,9 +65,11 @@ public static unsafe class WindowFinder
         }
 
         var found = new List<(WindowInfo Window, DateTime Start)>();
+        var self = (uint)Environment.ProcessId;
         foreach (var h in TopWindows())
         {
             var pid = PidOf(h);
+            if (pid == self) continue;   // never our own windows (app, Identify overlays)
             var gx = ClassOf(h).StartsWith("GxWindowClass", StringComparison.Ordinal);
             if (!gx && !wowPids.Contains(pid) && !IsWowPath(ProcessInfo.ImagePath(pid))) continue;
             var rect = RectOf(h);
