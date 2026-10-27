@@ -1,6 +1,6 @@
 # WoWBoxer Window Layouts – plan for the Windows desktop app
 
-> 2026-10-27. Status: **plan, not started.** Builds on `01_Research/platform/03-window-program.md` (stack, signing, pitfalls) and on what the PowerShell launcher taught us (`03_Output/Multibox-Launcher/`).
+> 2026-10-27. Status: **M0 done, M1 code done – waiting for the field check of `wbx arrange`/`diagnose` with 3 Classic Era clients.** Builds on `01_Research/platform/03-window-program.md` (stack, signing, pitfalls) and on what the PowerShell launcher taught us (`03_Output/Multibox-Launcher/`).
 > Written in English because it goes to Claude Code and into a public (MIT) repo.
 
 ## 1. Goal
@@ -15,7 +15,7 @@ A small, free, open-source Windows app that **starts Battle.net and places 2–N
 ## 3. Decisions (from research)
 | Topic | Decision | Why |
 |---|---|---|
-| Stack | **C# / .NET 10 LTS + WPF**, P/Invoke via CsWin32 | Reuses the launcher's C# (`FmWin`). WPF Canvas suits a drag/resize editor. Per-Monitor-V2 DPI. .NET 8/9 reach end of support 10 Nov 2026. |
+| Stack | **C# / .NET 10 LTS + WPF**, P/Invoke via source-generated `LibraryImport` | Reuses the launcher's C# (`FmWin`). WPF Canvas suits a drag/resize editor. Per-Monitor-V2 DPI. .NET 8/9 reach end of support 10 Nov 2026. (M1: `LibraryImport` instead of CsWin32 – ~30 calls, a near 1:1 port of `FmWin`, no extra package. Revisit if the API surface grows.) |
 | Installer and updates | **Velopack** + GitHub Releases | One installer with auto-update and delta packages |
 | Code signing | **SignPath Foundation** (free for OSI open source) | Azure Artifact Signing is not open to Danish individuals. Unsigned files trigger a strong SmartScreen warning. |
 | Licence | MIT | Agreed 2026-10-27 |
