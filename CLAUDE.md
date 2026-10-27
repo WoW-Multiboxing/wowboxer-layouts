@@ -9,6 +9,20 @@ windows in a chosen layout. Part of the WoWBoxer project (manual multiboxing: on
 3. `reference/ForeverLauncher.ps1` – the working PowerShell prototype. Port its `FmWin` C# class and its rules.
 4. `CHANGELOG.md` – what has been done so far.
 
+## Product goal
+A real, modern desktop app that is clearly better than WowOpenBox: Windows 11 look (dark theme, Mica), a visual
+monitor canvas with drag-and-drop layouts, presets, one-click "Start squad", Identify & assign, tray, first-run
+screen, installer + auto-update. The CLI (`wbx`) is only the engine and test harness.
+
+## Working rule: autonomy
+- Never involve the owner in anything you can fix, test or check yourself. Verify visually yourself:
+  `wbx snap` saves a PNG of each WoW window (read-only); look at them to judge action bars/minimap.
+  Screenshot the app to review its UI.
+- Only stop for things that truly need his hands/eyes in the game (pressing Play, logging in, in-game options)
+  or his decisions. Batch those into ONE short numbered checklist, then keep working. Ask for permissions directly.
+- Continue through the milestones without waiting. After each milestone: `[WS-C]` entry in LOG.md, row C in
+  00_Workstreams.md (project folder, Danish).
+
 ## Hard rules (never break)
 - The app only moves, resizes and restyles windows. **No keystrokes, no mouse events, no input hooks,
   no round-robin, no focus-switch hotkeys, no memory reading, no injection, no login automation.**

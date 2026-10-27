@@ -76,6 +76,50 @@ internal static class Commands
         return 0;
     }
 
+    /// <summary>Saves a PNG of what each WoW window draws (read-only), oldest first: slot1.png, slot2.png ...</summary>
+    public static int Snap(CliOptions o, Log log)
+    {
+        var open = WindowFinder.FindGameWindows();
+        if (open.Count == 0)
+        {
+            log.Warn("No World of Warcraft windows found.");
+            return 1;
+        }
+        var folder = o.OutFolder ?? Path.Combine(Log.Folder, "snaps", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+        Directory.CreateDirectory(folder);
+        for (var i = 0; i < open.Count; i++)
+        {
+            var shot = WindowCapture.Capture(open[i].Handle);
+            if (shot is null)
+            {
+                log.Warn($"Window {i + 1}: could not capture.");
+                continue;
+            }
+            var path = Path.Combine(folder, $"slot{i + 1}.png");
+            WindowCapture.SavePng(shot, path);
+            log.Ok($"Window {i + 1}: {shot.Width}x{shot.Height} ({shot.Method}) -> {path}");
+        }
+        return 0;
+    }
+
+    /// <summary>Display settings from each client install's Config.wtf (read-only).</summary>
+    public static void DescribeConfigs(IEnumerable<string> exePaths, IStatusSink log)
+    {
+        foreach (var exe in exePaths.Where(p => p.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var path = WowConfig.ConfigPathFor(exe);
+            if (!File.Exists(path))
+            {
+                log.Warn($"  {path}: not found");
+                continue;
+            }
+            var values = WowConfig.Parse(File.ReadAllText(path));
+            log.Info($"  {path}  (shared by every client started from this folder)");
+            foreach (var (name, meaning) in WowConfig.DisplayCvars)
+                log.Info($"    {name,-24} {(values.TryGetValue(name, out var v) ? $"\"{v}\"" : "(not set)"),-14} {meaning}");
+        }
+    }
+
     public static int Layout(CliOptions o, Log log)
     {
         var squad = Squad.Create(o, defaultClients: 3);
@@ -163,6 +207,15 @@ internal static class Commands
             if (!WindowFinder.IsWowProcessName(w.ProcessName) && !w.ProcessName.StartsWith("Battle.net", StringComparison.OrdinalIgnoreCase)
                 && !w.ClassName.StartsWith("GxWindow", StringComparison.Ordinal) && !WindowFinder.IsWowPath(path)) continue;
             log.Info($"  {w.ProcessName}  [{path}]  class \"{w.ClassName}\"  title \"{w.Title}\"  {w.Rect}  style 0x{w.Style:X8}");
+        }
+
+        log.Line();
+        log.Title("WoW display settings (Config.wtf, read-only):");
+        DescribeConfigs(open.Select(w => ProcessInfo.ImagePath(w.Pid)), log);
+        foreach (var w in open)
+        {
+            var (cw, ch) = WindowFinder.ClientSizeOf(w.Handle);
+            log.Info($"  window pid {w.Pid}: game renders {cw}x{ch}, {((w.Style & 0x00C00000) == 0 ? "borderless" : "title bar")}");
         }
 
         log.Line();

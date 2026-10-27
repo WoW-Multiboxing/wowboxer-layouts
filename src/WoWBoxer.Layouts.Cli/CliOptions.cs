@@ -26,6 +26,7 @@ internal sealed class CliOptions
     public double WatchMinutes { get; private set; } = 10;
     public bool Json { get; private set; }
     public string? SavePath { get; private set; }
+    public string? OutFolder { get; private set; }
 
     public const string Usage = """
         wbx - WoWBoxer Window Layouts (command line)
@@ -39,6 +40,7 @@ internal sealed class CliOptions
           wbx layout     print the layout as JSON and as a WBX1: share code
           wbx restore    give the WoW windows their title bars and borders back (moves nothing)
           wbx capture    save where the WoW windows are now as a layout: wbx capture --save my.json
+          wbx snap       save a picture of what each WoW window shows (read-only): wbx snap [--out FOLDER]
 
         Layout:
           --preset side|overlay|grid|dual   built-in layout (default: side = main left, followers right)
@@ -108,6 +110,7 @@ internal sealed class CliOptions
                 case "--watch-minutes": o.WatchMinutes = ParseDouble(arg, Next(arg)); break;
                 case "--json": o.Json = true; break;
                 case "--save": o.SavePath = Next(arg); break;
+                case "--out": o.OutFolder = Next(arg); break;
                 case "-h" or "--help" or "/?": o.Command = "help"; break;
                 default: throw new UsageException($"Unknown option \"{arg}\".");
             }

@@ -6,6 +6,10 @@
 ## 1. Goal
 A small, free, open-source Windows app that **starts Battle.net and places 2–N WoW windows** in a layout you choose. You can pick a recommended preset or drag your own layout, on one or more monitors. It **never sends input to the game**.
 
+**Product goal:** a real, modern desktop app that is clearly better than WowOpenBox – Windows 11 look (dark theme,
+Mica), visual monitor canvas with drag-and-drop layouts, presets, one-click "Start squad", Identify & assign, tray,
+first-run screen, installer + auto-update. The CLI (`wbx`) is only the engine and test harness.
+
 ## 2. Hard rules (compliance)
 - Only move, resize and restyle windows. No keystrokes, no mouse events, no input hooks, no round-robin, no focus-switch hotkeys in v1.
 - No reading of game memory, no injection, no login automation. The player presses Play themselves, once per account.

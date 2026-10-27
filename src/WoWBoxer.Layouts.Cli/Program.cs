@@ -59,6 +59,7 @@ try
         "info" => Commands.Info(options, log),
         "restore" => Commands.Restore(log),
         "capture" => Commands.Capture(options, log),
+        "snap" => Commands.Snap(options, log),
         "layout" => Commands.Layout(options, log),
         _ => throw new UsageException($"Unknown command \"{options.Command}\"."),
     };
