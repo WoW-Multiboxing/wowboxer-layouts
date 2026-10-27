@@ -828,6 +828,9 @@ public sealed class MainViewModel : ObservableObject
             for (var k = 0; k < Windows.Count; k++) Windows[k].Slot = k + 1;
         }
         Update(Current with { Slots = slots });
+        // The window order changed even when names did not (unnamed rows): always refresh and move the windows.
+        RefreshParty();
+        ScheduleLive();
         Status.Info($"Moved {person.Name ?? $"row {from + 1}"} to slot {to + 1}.");
     }
 
@@ -1040,6 +1043,10 @@ public sealed class MainViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             // a newer edit replaced this one
+        }
+        catch (Exception e)
+        {
+            Status.Report(StatusLevel.Error, $"Moving the windows failed: {e.Message}");
         }
     }
 

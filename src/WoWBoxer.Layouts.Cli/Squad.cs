@@ -36,7 +36,7 @@ internal static class Squad
             Options = profile.Options with
             {
                 Borderless = o.Borderless ?? profile.Options.Borderless,
-                ResizeNudge = profile.Options.ResizeNudge && o.ResizeNudge,
+                ResizeNudge = o.ResizeNudge,
             },
             Slots = profile.Slots.Select((s, i) => i < o.Names.Count ? s with { Name = o.Names[i] } : s).ToList(),
         };

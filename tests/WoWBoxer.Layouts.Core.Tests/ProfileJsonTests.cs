@@ -65,7 +65,7 @@ public class ProfileJsonTests
         Assert.Equal(2, profile.Slots.Count);
         Assert.Equal(ZOrder.Top, profile.Slots[1].Z);
         Assert.Equal(8.3, profile.Slots[1].X);
-        Assert.True(profile.Options.ResizeNudge, "missing options keep their defaults");
+        Assert.False(profile.Options.ResizeNudge, "missing options keep their defaults (nudge off)");
     }
 
     [Theory]

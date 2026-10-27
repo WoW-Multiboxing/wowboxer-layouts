@@ -11,6 +11,7 @@ internal static class PromptWindow
     public static string? Show(Window owner, string title, string message, string initial)
     {
         var box = new TextBox { Text = initial, MinWidth = 420, Margin = new Thickness(0, 10, 0, 18) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(box, "PromptText");
         var result = Dialog(owner, title, message, box, "OK", "Cancel");
         return result ? box.Text : null;
     }

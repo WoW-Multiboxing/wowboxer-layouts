@@ -45,8 +45,14 @@ public sealed class SquadPlan
 
     public bool IsPlaced(nint h, int slot) => WindowPlacer.IsAt(h, Slots[slot].Rect);
 
-    public Task NudgeAsync(nint h, int slot) =>
-        Profile.Options.ResizeNudge ? WindowPlacer.NudgeAsync(h, Slots[slot].Rect) : Task.CompletedTask;
+    /// <summary>The optional 2 px nudge; afterwards the window is put back to its exact size if the restore got lost.</summary>
+    public async Task NudgeAsync(nint h, int slot)
+    {
+        if (!Profile.Options.ResizeNudge) return;
+        await WindowPlacer.NudgeAsync(h, Slots[slot].Rect);
+        await Task.Delay(400);
+        if (!IsPlaced(h, slot)) Place(h, slot);
+    }
 
     /// <summary>Retitles a placed window once ("WoW - Paladin") when renaming is on and the slot has a name.</summary>
     public void Retitle(nint h, int slot, HashSet<(nint, int)> done)

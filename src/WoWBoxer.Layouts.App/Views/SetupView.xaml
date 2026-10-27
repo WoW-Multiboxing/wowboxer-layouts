@@ -131,7 +131,7 @@
                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Button Style="{StaticResource CardButton}" Command="{Binding Apply}" IsEnabled="{Binding IsAvailable}"
+                                <Button Style="{StaticResource CardButton}" Command="{Binding Apply}" IsEnabled="{Binding IsAvailable}" AutomationProperties.Name="{Binding Title}"
                                         ToolTip="{Binding Blurb}">
                                     <StackPanel>
                                         <Grid>
@@ -260,13 +260,13 @@
                                    Visibility="{Binding HasSlot, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
                         <StackPanel IsEnabled="{Binding HasSlot}" Margin="0,10,0,0">
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="10" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="10" /><ColumnDefinition Width="158" /></Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Style="{StaticResource FieldLabel}" Text="Character" />
                                     <TextBox Text="{Binding SlotName, UpdateSourceTrigger=LostFocus}" ToolTip="The character in this window. With &quot;Title WoW windows&quot; on, the game window is called &quot;WoW - name&quot;." />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Class colour" />
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Class" />
                                     <ComboBox ItemsSource="{Binding Classes}" SelectedItem="{Binding SlotClass}" ToolTip="Used as this window's colour in the app">
                                         <ComboBox.ItemTemplate>
                                             <DataTemplate>

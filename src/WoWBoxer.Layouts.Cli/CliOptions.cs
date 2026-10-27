@@ -16,7 +16,7 @@ internal sealed class CliOptions
     public double MinAspect { get; private set; } = 1.25;
     /// <summary>Null = keep what the profile says (presets: title bars on).</summary>
     public bool? Borderless { get; private set; }
-    public bool ResizeNudge { get; private set; } = true;
+    public bool ResizeNudge { get; private set; }
     public bool UseTaskbarArea { get; private set; }
     public IReadOnlyList<string> Names { get; private set; } = [];
     public IReadOnlyList<string> Accounts { get; private set; } = [];
@@ -52,7 +52,7 @@ internal sealed class CliOptions
           --taskbar                         use the whole screen, including the taskbar area
           --borderless                      remove title bars (off by default: WoW may draw its UI at the wrong size)
           --no-borderless                   keep title bars, also when the layout file says borderless
-          --no-nudge                        skip the 2 px resize nudge after placing
+          --nudge                           shrink each window 2 px and back after placing (off by default)
 
         Names and start:
           --names A,B,C                     slot names; windows are retitled "WoW - A" etc.
@@ -94,6 +94,7 @@ internal sealed class CliOptions
                 case "--borderless": o.Borderless = true; break;
                 case "--no-borderless" or "--title-bars": o.Borderless = false; break;
                 case "--no-nudge": o.ResizeNudge = false; break;
+                case "--nudge": o.ResizeNudge = true; break;
                 case "--names": o.Names = SplitList(Next(arg)); break;
                 case "--accounts": o.Accounts = SplitList(Next(arg)); break;
                 case "--game":

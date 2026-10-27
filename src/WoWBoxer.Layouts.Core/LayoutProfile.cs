@@ -72,6 +72,9 @@ public sealed record LayoutOptions
     public double MinAspect { get; init; } = Geometry.DefaultMinAspect;
     public FitMode Fit { get; init; } = FitMode.ShrinkAnchor;
     public bool UseTaskbarArea { get; init; }
-    /// <summary>Shrink each window 2 px and back after placing, so WoW redraws at the new size.</summary>
-    public bool ResizeNudge { get; init; } = true;
+    /// <summary>
+    /// Shrink each window 2 px and back after placing. Off by default: it did not help WoW's UI (field test
+    /// 2026-10-27), and the second, asynchronous resize could get lost and leave a window 2 px too small.
+    /// </summary>
+    public bool ResizeNudge { get; init; }
 }

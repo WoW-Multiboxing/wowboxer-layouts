@@ -26,10 +26,15 @@ public partial class App : Application
         _mutex = new Mutex(true, InstanceName, out var first);
         if (!first)
         {
-            // Already running: bring that window up instead.
+            // Already running: hand our arguments (e.g. a shortcut's "--start NAME") to it and bring it up.
             try
             {
+                System.IO.Directory.CreateDirectory(AppSettings.Folder);
+                System.IO.File.WriteAllLines(PendingArgsFile, e.Args);
                 EventWaitHandle.OpenExisting(InstanceName + ".Show").Set();
+            }
+            catch (System.IO.IOException)
+            {
             }
             catch (WaitHandleCannotBeOpenedException)
             {
@@ -40,13 +45,11 @@ public partial class App : Application
         _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, InstanceName + ".Show");
         new Thread(() =>
         {
-            while (_showSignal.WaitOne()) Dispatcher.BeginInvoke(ShowMain);
+            while (_showSignal.WaitOne()) Dispatcher.BeginInvoke(OnSecondInstance);
         }) { IsBackground = true, Name = "single-instance" }.Start();
 
         var settings = AppSettings.Load();
-        var startInTray = e.Args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
-        var startIndex = Array.FindIndex(e.Args, a => a.Equals("--start", StringComparison.OrdinalIgnoreCase));
-        var startProfile = startIndex >= 0 && startIndex + 1 < e.Args.Length ? e.Args[startIndex + 1] : null;
+        var (startInTray, startProfile) = ParseArgs(e.Args);
 
         if (!settings.FirstRunDone)
         {
@@ -73,18 +76,50 @@ public partial class App : Application
         if (!startInTray) _main.Show();
         if (settings.CheckForUpdates) _ = Updater.CheckAsync(_main.ViewModel.Status);
 
-        if (startProfile is not null)
+        if (startProfile is not null) StartProfile(startProfile);
+    }
+
+    private static string PendingArgsFile => System.IO.Path.Combine(AppSettings.Folder, "pending-args.txt");
+
+    private static (bool Tray, string? Start) ParseArgs(string[] args)
+    {
+        var tray = args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
+        var i = Array.FindIndex(args, a => a.Equals("--start", StringComparison.OrdinalIgnoreCase));
+        return (tray, i >= 0 && i + 1 < args.Length ? args[i + 1] : null);
+    }
+
+    /// <summary>Another start of the app (shortcut, Start menu): follow its arguments, or just show the window.</summary>
+    private void OnSecondInstance()
+    {
+        string[] args = [];
+        try
         {
-            if (_main.ViewModel.SelectProfile(startProfile))
+            if (System.IO.File.Exists(PendingArgsFile))
             {
-                _tray!.ShowBalloonTip(4000, "WoWBoxer", $"Starting \"{startProfile}\". Press Play in Battle.net for each account.", Forms.ToolTipIcon.Info);
-                _ = _main.ViewModel.StartSquadAsync();
+                args = System.IO.File.ReadAllLines(PendingArgsFile);
+                System.IO.File.Delete(PendingArgsFile);
             }
-            else
-            {
-                ShowMain();
-                _main.ViewModel.Status.Warn($"No layout called \"{startProfile}\".");
-            }
+        }
+        catch (System.IO.IOException)
+        {
+        }
+        var (tray, start) = ParseArgs(args);
+        if (!tray) ShowMain();
+        if (start is not null) StartProfile(start);
+    }
+
+    private void StartProfile(string name)
+    {
+        if (_main is null) return;
+        if (_main.ViewModel.SelectProfile(name))
+        {
+            _tray?.ShowBalloonTip(4000, "WoWBoxer", $"Starting \"{name}\". Log in to each client – the windows are placed as they appear.", Forms.ToolTipIcon.Info);
+            _ = _main.ViewModel.StartSquadAsync();
+        }
+        else
+        {
+            ShowMain();
+            _main.ViewModel.Status.Warn($"No layout called \"{name}\".");
         }
     }
 

@@ -42,7 +42,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border x:Name="Row" CornerRadius="6" Margin="0,0,0,8" Padding="8,10,12,10" BorderThickness="1" BorderBrush="#2E3850"
-                                            AllowDrop="True" DragOver="OnRowDragOver" DragLeave="OnRowDragLeave" Drop="OnRowDrop" Tag="{Binding}">
+                                            AllowDrop="True" PreviewDragOver="OnRowDragOver" PreviewDragEnter="OnRowDragOver" DragLeave="OnRowDragLeave" PreviewDrop="OnRowDrop" Tag="{Binding}">
                                         <Border.Background>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#1C2333" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush>
                                         </Border.Background>
