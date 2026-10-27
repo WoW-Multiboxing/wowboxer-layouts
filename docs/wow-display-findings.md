@@ -37,6 +37,18 @@ Measured on the owner's PC, 2026-10-27: Classic Era 2026 (`WowClassic.exe`, clas
 - The 2 px resize nudge does not fix anything [verified by the owner]. It stays on (harmless) until we can remove it
   after more field data.
 
+## Where UI scale lives (checked 2026-10-27, read-only)
+- Shared `WTF\Config.wtf`: no `uiScale`/`useUiScale` line. Every `WTF\Account\<ACC>\config-cache.wtf`: none either.
+  → UI Scale has never been changed on this PC, so its storage place is unproven [AFKLAR: change it once in game on
+  one follower and look which file changes].
+- Each account has `edit-mode-cache-account.txt` (Classic Era 2026 has Edit Mode); all hold only defaults. Format
+  undocumented → the app never writes it. Edit Mode's action-bar scale is an in-game, per-account alternative.
+- Derived rule (not yet verified in game): the 1024-unit bar fits when UI Scale ≤ 0.75 × game aspect
+  (1.21 → 0.90, 1.31 → 0.95).
+- Command lines of all clients are identical (`-launcherlogin -uid wow_classic_era -initialgamemode=cera`), so a window
+  cannot be mapped to its account from outside. Starting `WowClassic.exe` directly opens WoW's login screen
+  (`docs/launch-research.md`).
+
 ## Still to test
 - Display Mode "Windowed (Fullscreen)" (`gxMaximize 1`), as WowOpenBox recommends: can it be resized from
   outside, and does it behave better? Needs one in-game setting change by the owner.

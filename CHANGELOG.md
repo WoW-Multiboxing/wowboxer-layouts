@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### v0.2.1 – "make it work" (unattended bug-hunt run)
+- **Classes never guessed:** slots show "Unknown class" (neutral colour) until set. Name, class and WoW account are set
+  per row on the Squad tab; the account list and a "last played here" hint (with Use) come read-only from the WTF
+  folders. Plan for automatic classes via the WoWBoxer addon: `docs/classes-and-accounts.md`.
+- **Drag and drop that stays in sync:** drag a Squad row by ⋮⋮ to move a character (name, class, account and its
+  window) to another slot; drop a window onto another on the canvas to swap places. Rows, canvas and – with live on –
+  the real windows always follow; Undo works for both.
+- **Launch:** Start squad can open N WoW login screens (only the missing ones) instead of Battle.net; "Close clients I
+  started" closes only those. Research in `docs/launch-research.md` (Battle.net auto-login is never used: it could
+  disconnect a running client).
+- **Action bar:** "Full action bar" layout switch, per-window "Fit action bar", in-game UI-scale hint (marked untested).
+  UI-scale storage checked read-only (`docs/wow-display-findings.md`).
+- **Fixes:** resize nudge left a window 2 px small (now off by default, re-places after); open windows already in a slot
+  are matched to it ("Not in place" status); Start squad keeps the rows' order; second start with `--start NAME`
+  reaches the running app; drag onto a text box did nothing; unnamed rows did not move real windows.
+- **Testing:** `docs/test-plan.md` (full matrix with results), `tools/ui-sweep.ps1` (64 UI Automation checks, all
+  passing), `tools/guarded-drag.ps1`; `docs/known-issues.md`, `docs/backlog.md`. 800 unit tests.
+
 ### v0.2 – "feels like a game client"
 - **New look** after the website and the app mockup v0.2: custom "War Table" theme (navy panels with gold corner
   brackets, Cinzel headings, red/gold "Enter World" buttons, WoW-tooltip boxes, gold switches), custom title bar with
