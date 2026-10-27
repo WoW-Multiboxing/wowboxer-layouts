@@ -29,6 +29,7 @@ Owner: "it works well, but too much is going on". Before/after: `docs/screenshot
   ▾. The ▾ details hold class, WoW account (+ last-played hint), Always on top, Identify, X/Y/W/H, Keep size and the
   action-bar line.
 - **1 client = normal play:** the client numbers now go 1–8. Picking 1 makes one window fill the main monitor (no multiboxing) without closing the app; other open clients are left where they are. Back to 3 (or Undo) and the squad returns.
+- Typing a name in a squad row no longer shows the faded placeholder ("Main", "Follower 1") under the text until it is saved.
 - Changing a name, class or "on top" no longer re-arranges every window (only a change of the windows' places does).
 - Fixes found while testing: an open row closed by itself after a moment (a focus style trigger undid the selection –
   now a focus handler keeps it); a window closed while being placed was reported as "WoW runs as administrator";
