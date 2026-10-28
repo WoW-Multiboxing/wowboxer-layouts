@@ -79,6 +79,10 @@ jobs:
           dotnet publish src/WoWBoxer.Layouts.App -c Release -r win-x64 --self-contained false -o publish/app -p:Version=${{ steps.v.outputs.version }}
           dotnet publish src/WoWBoxer.Layouts.Cli -c Release -r win-x64 --self-contained false -o publish/app -p:Version=${{ steps.v.outputs.version }}
 
+      - name: Start-up check (the published app opens its main window)
+        shell: pwsh
+        run: ./tools/smoke-start.ps1 -Exe publish/app/WoWBoxer.Layouts.exe
+
       # ---- Code signing (SignPath Foundation) -------------------------------------------------------------------
       # Off until the SignPath Foundation project is approved. To switch on (docs/code-signing-policy.md):
       #   repo variable SIGNPATH_ENABLED=true, SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG; secret SIGNPATH_API_TOKEN.

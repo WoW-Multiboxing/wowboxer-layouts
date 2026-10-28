@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.3 – Fix: the app did not start (2026-10-28)
+- **v0.3.2 closed right away on start.** The Settings screen used the grey-zone box style that only the Setup screen
+  defined, so the main window could not be built. The style now lives in the shared theme. Installed v0.3.2 cannot
+  update itself (it never gets far enough to check), so install this version with WoWBoxer-Setup.exe.
+- CI and the release now start the built app and fail if it does not open its main window (`tools/smoke-start.ps1`),
+  so a start-up crash like this cannot be released again.
+
 ## v0.3.2 – Start/Stop and hover to activate (2026-10-28)
 Released at the owner's request before the live test on real WoW windows (needs the PC idle). Hover to activate
 is off by default; its Windows values are unit-tested only so far.
