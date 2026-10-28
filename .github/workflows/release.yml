@@ -1,17 +1,24 @@
 name: release
 
-# Push a tag like v0.2.0 to build the installer and publish a GitHub Release (Velopack, with delta updates).
+# Push a tag to build the installer and publish a GitHub Release (Velopack, with delta updates):
+#   vX.Y.Z           stable  -> normal release, becomes /releases/latest, channel "win" (Velopack's default)
+#   vX.Y.Z-beta.N    beta    -> GitHub prerelease, Velopack channel "beta" (only beta installs update to it)
+# Release notes are the "## vX.Y.Z" section of CHANGELOG.md. See docs/releasing.md.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version without "v" (e.g. 0.2.0)'
+        description: 'Version without "v" (e.g. 0.3.0 or 0.4.0-beta.1). The tag vVERSION must already exist.'
         required: true
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -19,6 +26,7 @@ jobs:
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v5
 
@@ -26,12 +34,42 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Version
+      - name: Version and channel
         id: v
         shell: pwsh
         run: |
           $v = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}'.TrimStart('v') }
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') { throw "Not a version: $v" }
+          $pre = $v.Contains('-')
+          # Velopack's default Windows channel is "win"; beta builds get their own channel and file names.
+          $channel = if ($pre) { 'beta' } else { 'win' }
+          $setupName = if ($pre) { 'WoWBoxer-Beta-Setup.exe' } else { 'WoWBoxer-Setup.exe' }
+          $portableName = if ($pre) { 'WoWBoxer-Beta-Portable.zip' } else { 'WoWBoxer-Portable.zip' }
           "version=$v" >> $env:GITHUB_OUTPUT
+          "tag=v$v" >> $env:GITHUB_OUTPUT
+          "pre=$($pre.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          "channel=$channel" >> $env:GITHUB_OUTPUT
+          "setup=$setupName" >> $env:GITHUB_OUTPUT
+          "portable=$portableName" >> $env:GITHUB_OUTPUT
+
+      - name: Release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $v = '${{ steps.v.outputs.version }}'
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $start = -1
+          for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match ('^## v?' + [regex]::Escape($v) + '(\s|$)')) { $start = $i; break } }
+          if ($start -lt 0) { throw "CHANGELOG.md has no '## v$v' section. Add one before tagging." }
+          $end = $lines.Count
+          for ($i = $start + 1; $i -lt $lines.Count; $i++) { if ($lines[$i] -match '^## ') { $end = $i; break } }
+          $body = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
+          $repo = '${{ github.server_url }}/${{ github.repository }}'
+          $body += "`n`n---`n**Install:** download **${{ steps.v.outputs.setup }}** below and run it (no admin rights needed; it installs the .NET 10 Desktop Runtime if missing and keeps itself up to date). " +
+                   "Portable: **${{ steps.v.outputs.portable }}**. Checksums: **SHA256SUMS.txt**.`n`n" +
+                   "The app only moves and resizes windows. It never sends keys or clicks to the game. Full history: [CHANGELOG.md]($repo/blob/v$v/CHANGELOG.md)."
+          New-Item -ItemType Directory -Force out | Out-Null
+          Set-Content out/release-notes.md $body -Encoding utf8
+          Get-Content out/release-notes.md
 
       - name: Test
         run: dotnet test WoWBoxer.Layouts.slnx -c Release
@@ -41,20 +79,126 @@ jobs:
           dotnet publish src/WoWBoxer.Layouts.App -c Release -r win-x64 --self-contained false -o publish/app -p:Version=${{ steps.v.outputs.version }}
           dotnet publish src/WoWBoxer.Layouts.Cli -c Release -r win-x64 --self-contained false -o publish/app -p:Version=${{ steps.v.outputs.version }}
 
-      # Code signing: when the SignPath Foundation project is approved, sign publish/app/*.exe here
-      # (signpath/github-action-submit-signing-request) before packing. Until then the files are unsigned.
+      # ---- Code signing (SignPath Foundation) -------------------------------------------------------------------
+      # Off until the SignPath Foundation project is approved. To switch on (docs/code-signing-policy.md):
+      #   repo variable SIGNPATH_ENABLED=true, SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG; secret SIGNPATH_API_TOKEN.
+      # 1) our own binaries are signed before packing, so the installed app is signed;
+      # 2) Setup.exe and the portable zip are signed after packing (second request, below).
+      - name: Upload unsigned binaries for signing
+        id: unsigned
+        if: vars.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-app
+          path: |
+            publish/app/WoWBoxer.Layouts*.exe
+            publish/app/WoWBoxer.Layouts*.dll
+            publish/app/wbx.exe
+            publish/app/wbx.dll
+
+      - name: Sign binaries (SignPath)
+        if: vars.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: app-binaries
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: publish/app
 
       - name: Pack installer (Velopack)
         shell: pwsh
         run: |
           dotnet tool install -g vpk --version 1.2.161
-          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o Releases
+          # Previous release of the same channel, so Velopack can build a delta package.
+          $pre = if ('${{ steps.v.outputs.pre }}' -eq 'true') { '--pre' } else { $null }
+          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} --channel ${{ steps.v.outputs.channel }} $pre -o Releases
           vpk pack --packId WoWBoxer.Layouts --packVersion ${{ steps.v.outputs.version }} --packDir publish/app `
             --mainExe WoWBoxer.Layouts.exe --packTitle "WoWBoxer Window Layouts" --packAuthors "WoWBoxer" `
             --icon src/WoWBoxer.Layouts.App/Assets/app.ico --splashImage src/WoWBoxer.Layouts.App/Assets/splash.png `
-            --runtime win-x64 --framework net10.0-x64-desktop -o Releases
+            --runtime win-x64 --framework net10.0-x64-desktop --channel ${{ steps.v.outputs.channel }} `
+            --releaseNotes out/release-notes.md -o Releases
+          Get-ChildItem Releases
 
-      - name: Publish GitHub Release
-        run: >
-          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
-          -o Releases --publish --tag v${{ steps.v.outputs.version }} --releaseName "WoWBoxer Window Layouts ${{ steps.v.outputs.version }}"
+      - name: Upload unsigned installer for signing
+        id: unsigned-setup
+        if: vars.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-setup
+          path: Releases/*-Setup.exe
+
+      - name: Sign installer (SignPath)
+        if: vars.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: Releases
+      # -----------------------------------------------------------------------------------------------------------
+
+      - name: Stable file names and checksums
+        shell: pwsh
+        run: |
+          $ch = '${{ steps.v.outputs.channel }}'
+          Copy-Item "Releases/WoWBoxer.Layouts-$ch-Setup.exe" "Releases/${{ steps.v.outputs.setup }}"
+          Copy-Item "Releases/WoWBoxer.Layouts-$ch-Portable.zip" "Releases/${{ steps.v.outputs.portable }}"
+          $files = Get-ChildItem Releases -File | Where-Object { $_.Name -match '\.(exe|zip|nupkg)$' } | Sort-Object Name
+          ($files | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }) -join "`n" |
+            Set-Content Releases/SHA256SUMS.txt -Encoding ascii -NoNewline
+          Get-Content Releases/SHA256SUMS.txt
+
+      # Uploaded as a draft first, so /releases/latest never points at a release that is missing a file.
+      - name: Upload to a draft GitHub Release
+        shell: pwsh
+        run: |
+          $pre = if ('${{ steps.v.outputs.pre }}' -eq 'true') { '--pre' } else { $null }
+          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} `
+            -o Releases --channel ${{ steps.v.outputs.channel }} --tag ${{ steps.v.outputs.tag }} $pre `
+            --releaseName "WoWBoxer Window Layouts ${{ steps.v.outputs.version }}"
+          gh release upload ${{ steps.v.outputs.tag }} "Releases/${{ steps.v.outputs.setup }}" "Releases/${{ steps.v.outputs.portable }}" Releases/SHA256SUMS.txt --clobber
+          gh release edit ${{ steps.v.outputs.tag }} --notes-file out/release-notes.md
+
+      - name: Publish the release
+        shell: pwsh
+        run: |
+          $a = @('release', 'edit', '${{ steps.v.outputs.tag }}', '--draft=false')
+          if ('${{ steps.v.outputs.pre }}' -eq 'true') { $a += '--prerelease' } else { $a += '--latest' }
+          gh @a
+          gh release view ${{ steps.v.outputs.tag }} --json url,isPrerelease,assets --jq '{url, isPrerelease, assets: [.assets[].name]}'
+
+      # Tells the website (WoW-Multiboxing/wowboxer-site) to refresh its download boxes at once instead of waiting
+      # for its 3-hourly check. Needs the secret SITE_DISPATCH_TOKEN (fine-grained PAT, wowboxer-site only,
+      # Contents: read and write). Skipped when the secret is missing.
+      - name: Notify website
+        shell: pwsh
+        env:
+          SITE_DISPATCH_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+        run: |
+          if (-not $env:SITE_DISPATCH_TOKEN) { Write-Host "SITE_DISPATCH_TOKEN not set - website not notified (it refreshes on its own every 3 hours)."; exit 0 }
+          $body = @{
+            event_type     = 'release-published'
+            client_payload = @{
+              repo       = '${{ github.repository }}'
+              tag        = '${{ steps.v.outputs.tag }}'
+              version    = '${{ steps.v.outputs.version }}'
+              prerelease = ('${{ steps.v.outputs.pre }}' -eq 'true')
+              url        = '${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.v.outputs.tag }}'
+            }
+          } | ConvertTo-Json -Depth 4
+          $headers = @{ Authorization = "Bearer $env:SITE_DISPATCH_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+          try {
+            Invoke-RestMethod -Method Post -Uri 'https://api.github.com/repos/WoW-Multiboxing/wowboxer-site/dispatches' -Headers $headers -Body $body -ContentType 'application/json'
+            Write-Host "Website notified (repository_dispatch release-published)."
+          } catch {
+            # The release is already out; a failed notification must not mark it as failed.
+            Write-Warning "Website notification failed: $($_.Exception.Message)"
+          }

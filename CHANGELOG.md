@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 – first public release (2026-10-28)
+The first public release. Same app as v0.2.4 (plug and play), now installable from GitHub Releases with auto-update.
+- **Install:** `WoWBoxer-Setup.exe` (stable link: `/releases/latest/download/WoWBoxer-Setup.exe`). Installs per user
+  without admin rights and fetches the .NET 10 Desktop Runtime from Microsoft if it is missing. Also
+  `WoWBoxer-Portable.zip` and `SHA256SUMS.txt`.
+- **Updates:** installed copies update themselves from GitHub Releases (applied when you quit). A beta channel for
+  prereleases exists; stable installs never see betas.
+- **Open source:** README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, issue/PR templates, updated privacy notes,
+  code signing policy (SignPath Foundation application prepared; this release is unsigned).
+- **Release pipeline:** notes from this file, stable file names, checksums, draft-then-publish, website notification.
+- Highlights since the first builds (details below): layouts for 1–8 clients on one or more monitors, a to-scale
+  monitor map, automatic placement of every new WoW window, Auto-fit action bar for Classic Era, always-on-top per
+  window, layout sharing (`WBX1:` codes), tray, desktop shortcuts, Diagnose, and the `wbx` command line.
+
+## Earlier builds (private)
 
 ### v0.2.4 – plug and play (2026-10-27)
 Owner: "it works well, but too much is going on". Before/after: `docs/screenshots/setup-before-v0.2.4.png`,

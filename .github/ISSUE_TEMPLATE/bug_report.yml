@@ -1,0 +1,46 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security problems go to [SECURITY.md](https://github.com/WoW-Multiboxing/wowboxer-layouts/blob/main/SECURITY.md), not here.
+        Please do not post account names, character names you want private, or paths with your user name.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Pick 3 clients, Main + side\n2. Click Open 3 WoW clients\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown next to the logo, or in About.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game and client count
+      placeholder: "Classic Era, 3 clients"
+  - type: input
+    id: monitors
+    attributes:
+      label: Monitors (resolution and Windows scaling)
+      placeholder: "2560x1440 at 100% + 1920x1080 at 125%"
+  - type: textarea
+    id: diagnose
+    attributes:
+      label: Diagnose report
+      description: Settings → Tools → Diagnose (or `wbx diagnose`). It hides your Windows user name. Look it over, then paste it or attach the file.
+      render: text

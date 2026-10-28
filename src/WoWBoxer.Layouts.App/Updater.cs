@@ -1,4 +1,5 @@
 using Velopack;
+using Velopack.Locators;
 using Velopack.Sources;
 using WoWBoxer.Layouts.Win32;
 
@@ -16,7 +17,12 @@ internal static class Updater
     {
         try
         {
-            var manager = new UpdateManager(new GithubSource(RepoUrl, null, false));
+            // Channels: stable builds use Velopack's default channel ("win") and only see full releases; a build
+            // packed with --channel beta is published as a GitHub prerelease, so it must look at prereleases too.
+            // Each install keeps following the channel it was installed from.
+            var channel = VelopackLocator.IsCurrentSet ? VelopackLocator.Current.Channel : null;
+            var beta = !string.IsNullOrEmpty(channel) && channel != "win";
+            var manager = new UpdateManager(new GithubSource(RepoUrl, null, beta));
             if (!manager.IsInstalled) return;
             var update = await manager.CheckForUpdatesAsync();
             if (update is null) return;

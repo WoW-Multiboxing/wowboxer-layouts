@@ -47,7 +47,9 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 - Diagnose report and log file from day one.
 
 ## Working rules
-- Repo is **private now, public (MIT) at MVP**. Don't commit personal data (account names, paths with user names).
+- Repo is **public (MIT) since v0.3.0**. Never commit personal data (real names, emails, account or character names,
+  paths with user names, Diagnose reports). Commit as `WoW-Multiboxing <348792173+WoW-Multiboxing@users.noreply.github.com>`.
+- Releases: `docs/releasing.md` (tag `vX.Y.Z` → CI builds, Velopack, GitHub Release; `-beta.N` tags = beta channel).
 - Owner's reference setup: one monitor, work area 2560×1392, 3 clients (main 1690×1392 left, two 870×696 stacked right).
 - Build and run on Windows (Claude Code on the owner's PC). CI on GitHub Actions (`windows-latest`) must stay green.
 - Keep `CHANGELOG.md` updated, small commits, clear messages. Code, UI and docs in English.
