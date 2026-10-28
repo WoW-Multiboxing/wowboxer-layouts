@@ -79,7 +79,7 @@
 
                             <!-- squad status: green = all connected, pulsing gold = awaiting clients, amber = a window left its slot, grey = paused -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0"
-                                        ToolTip="The app always watches for WoW windows and puts each one in its slot. Pause it in the tray menu.">
+                                        ToolTip="Started: the app puts each WoW window of the squad in its slot. Stopped: it leaves every window alone. Start and Stop are at the bottom right and in the tray menu.">
                                 <Ellipse x:Name="StatusDot" Width="8" Height="8" Margin="0,0,8,0">
                                     <Ellipse.Style>
                                         <Style TargetType="Ellipse">

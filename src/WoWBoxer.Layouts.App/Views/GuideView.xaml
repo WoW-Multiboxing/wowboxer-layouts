@@ -109,6 +109,17 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
+                        <!-- Switch between windows: the hover-to-activate switch itself, one click -->
+                        <Border Margin="0,18,0,0" HorizontalAlignment="Left" CornerRadius="6" BorderThickness="1" BorderBrush="#5A3A12" Padding="20,12"
+                                Visibility="{Binding HasHover, Converter={x:Static app:BoolVisibility.Instance}}">
+                            <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#6E4A1A" Offset="0" /><GradientStop Color="#4A2E0E" Offset="1" /></LinearGradientBrush></Border.Background>
+                            <StackPanel DataContext="{Binding Hover}">
+                                <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Enabled}" Foreground="#F3EAD2" AutomationProperties.Name="Hover to activate windows">
+                                    <TextBlock Text="Hover to activate windows" FontFamily="{StaticResource DisplayFont}" FontSize="14" />
+                                </CheckBox>
+                                <TextBlock Margin="0,6,0,0" FontSize="12" Foreground="#E0D2AE" Text="{Binding DelayText, StringFormat=Delay {0}. Delay and bring-to-front: Settings › Switching windows.}" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

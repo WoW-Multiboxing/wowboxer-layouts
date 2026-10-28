@@ -12,6 +12,7 @@ first-run screen, installer + auto-update. The CLI (`wbx`) is only the engine an
 
 ## 2. Hard rules (compliance)
 - Only move, resize and restyle windows. No keystrokes, no mouse events, no input hooks, no round-robin, no focus-switch hotkeys in v1.
+  Exception (owner, 2026-10-28): a switch for Windows' own hover-to-activate setting – a Windows setting, not input; opt-in, grey-zone notice, original values restored.
 - No reading of game memory, no injection, no login automation. The player presses Play themselves, once per account.
 - The app shows a short "what it does / never does" screen on first run and links to the WoWBoxer rules page.
 - Optional later features in the grey zone (e.g. a "swap main window" hotkey) are off by default and clearly labelled.

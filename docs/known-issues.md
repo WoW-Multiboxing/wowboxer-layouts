@@ -3,9 +3,11 @@
 Newest first. "Workaround" is what to do today; "Plan" is the fix.
 
 ## Open
-- **The app now moves windows on its own** (always watching). A window you drag away by hand stays where you put it
-  (only the first 30 s of a new window are guarded); Re-arrange puts it back. To leave all windows alone: tray › Pause
-  watching. Opening the app also places windows that are open but not in a slot.
+- **While started, the app moves windows on its own.** A window you drag away by hand stays where you put it (only the
+  first 30 s of a new window are guarded); Re-arrange puts it back. Since the Start/Stop button the app **opens stopped**
+  (found by the owner: opening it during a Retail session moved the Retail windows into the layout). Press Start placing
+  windows, or turn on Settings › Start placing windows when the app opens. Any WoW install counts, so Stop it before
+  playing a WoW version you do not want placed.
 - **Mixed installs:** the squad follows the install with the most open windows. Two installs with the same count keep
   the squad on the one it already follows. "Include" (until restart) lets the other install's windows join as extra
   windows or into free slots.
@@ -29,14 +31,19 @@ Newest first. "Workaround" is what to do today; "Plan" is the fix.
 - **Forever opens in "Windowed (Fullscreen)"** (`GxMaximize 1`, borderless 2560×1440). In that mode the client
   maximises itself again after a move, so it cannot be placed (seen 2026-10-27). *Workaround:* in game set Display
   Mode = Windowed once. *Plan:* offer to write `GxMaximize "0"` while the Forever clients are closed (backlog).
-- **Always on top with "hover activates windows" (Windows setting, off on the owner's PC):** hovering raises a window
-  only within its band, so floating followers stay above a non-topmost main. If the *main* is also "on top", hovering
-  it can raise it over overlapping followers – keep the main off "on top" in overlay layouts (the Overlays preset does).
+- **Always on top with hover to activate** (the app's switch for the Windows setting): with *Bring window to front*
+  on, hovering raises a window only within its band, so floating followers that are "on top" stay above a non-topmost
+  main. If the *main* is also "on top", hovering it can raise it over overlapping followers – keep the main off "on
+  top" in overlay layouts (the Overlays preset does). With *Bring window to front* off, nothing is raised at all.
+- **Hover to activate is a grey zone.** It is a Windows feature and sends nothing to the game, but a Blizzard support
+  agent said it might count as streamlining. The app shows that next to the switch, never turns it on by itself, and
+  keeps the user's own values (Settings › Restore, on quit if chosen, always on uninstall). A portable copy has no
+  uninstall step: use Restore before deleting it.
 - **"Launch all" cannot pick accounts.** Starting clients with Battle.net's auto-login would log in the account
   selected in Battle.net (and could disconnect a running client). The app only opens login screens; the user logs in.
 - **Tray menu, file dialogs, monitor plug/unplug and one-monitor PCs are not covered by the automatic tests** (need
   real shell input or hardware changes). Tested by hand in earlier runs where noted in `docs/test-plan.md`.
-- **Website guide link is a placeholder** (`MainViewModel.WebsiteGuideUrl`) until the website exists.
+- **Website links use the Vercel address** (`MainViewModel.WebsiteUrl`) until the site has its own domain.
 - **Release builds are unsigned** until SignPath approves; Windows SmartScreen will warn on the installer.
 - **Idle clients get disconnected by the game** after about 30 minutes without input (seen during the unattended test
   run). Not caused by the app; the app sends no input and must not.

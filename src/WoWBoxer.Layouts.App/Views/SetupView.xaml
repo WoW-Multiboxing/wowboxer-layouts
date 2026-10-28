@@ -371,6 +371,39 @@
                                Visibility="{Binding ExtraText, Converter={x:Static app:BoolVisibility.Instance}}" />
                 </StackPanel>
 
+                <!-- Switching windows: Windows' own hover-to-activate, built in. A Windows setting, never input; grey zone, so the notice stays visible. -->
+                <Border DockPanel.Dock="Bottom" Margin="0,10,0,0" Padding="0,10,0,0" BorderBrush="{StaticResource LineSoftBrush}" BorderThickness="0,1,0,0" DataContext="{Binding Hover}">
+                    <StackPanel>
+                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Enabled}" AutomationProperties.AutomationId="HoverToggle" AutomationProperties.Name="Hover to activate windows"
+                                  ToolTip="Windows' &quot;Activate a window by hovering over it with the mouse&quot;: the window under the mouse becomes active. Changes only this Windows setting – your own values are kept and can be put back in Settings.">
+                            <TextBlock Text="Hover to activate windows" FontSize="13" />
+                        </CheckBox>
+                        <StackPanel Visibility="{Binding Enabled, Converter={x:Static app:BoolVisibility.Instance}}">
+                            <DockPanel Margin="0,6,0,0">
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource FieldLabel}" Text="Delay" Width="42" Margin="0" VerticalAlignment="Center" />
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding DelayText}" Width="112" Margin="8,0,0,0" FontSize="11.5" Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center" />
+                                <Slider Minimum="0" Maximum="500" Ticks="30" SmallChange="5" LargeChange="50" Value="{Binding DelayPreview}"
+                                        app:SliderCommit.Command="{Binding CommitDelayCommand}" AutomationProperties.AutomationId="HoverDelay" AutomationProperties.Name="Hover delay in milliseconds"
+                                        ToolTip="How long the mouse must rest on a window before it becomes active. About 30 ms (the mark) stops windows from activating as the mouse just passes over them. Applies when you let go." />
+                            </DockPanel>
+                            <CheckBox IsChecked="{Binding BringToFront}" Margin="0,6,0,0" AutomationProperties.AutomationId="HoverFront"
+                                      ToolTip="Off: the active window stays where it is, so floating overlays stay visible. Works best with &quot;Always on top&quot; (the pin) on the followers.">
+                                <TextBlock Text="Bring window to front when activated" FontSize="12" />
+                            </CheckBox>
+                        </StackPanel>
+                        <!-- grey-zone notice, WoW tooltip style -->
+                        <Border Style="{StaticResource TipBox}" Margin="0,8,0,0">
+                            <TextBlock TextWrapping="Wrap" FontSize="11.5" LineHeight="16" Foreground="#E4E4E4">
+                                <Run Text="Grey zone" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" /><Run Text="  Windows feature, not part of WoW. Blizzard staff have said hover-to-activate &#x201C;might&#x201D; be considered streamlining. Alt-tab or clicking is the safe choice." />
+                                <LineBreak />
+                                <Hyperlink Command="{Binding OpenGuideCommand}" Foreground="{StaticResource GoldHiBrush}" ToolTip="Guide › Switch between windows">Guide</Hyperlink>
+                                <Run Text=" · " Foreground="{StaticResource MutedBrush}" />
+                                <Hyperlink Command="{Binding OpenRulesCommand}" Foreground="{StaticResource GoldHiBrush}" ToolTip="The rules page: hover-to-activate (a Windows setting)">Rules on the website</Hyperlink>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <!-- one compact row per window; drag ⋮⋮ to reorder; ▾ opens the window's details -->
                 <ListBox x:Name="PartyList" ItemsSource="{Binding Party}" SelectedIndex="{Binding SelectedSlotIndex}" ItemContainerStyle="{StaticResource SquadItem}" PreviewGotKeyboardFocus="OnRowFocus"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False" AutomationProperties.Name="Squad rows">
@@ -466,6 +499,9 @@
             <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#1A2030" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush></Border.Background>
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Content="■  Stop" Command="{Binding StopCommand}" VerticalAlignment="Center" Margin="0,0,16,0" Padding="14,6" AutomationProperties.AutomationId="StopButton"
+                            Visibility="{Binding Placing, Converter={x:Static app:BoolVisibility.Instance}}"
+                            ToolTip="Stop placing windows: every window stays where it is until you press Start again (also in the tray menu)" />
                     <Button Style="{StaticResource LinkButton}" Content="Open Battle.net instead" Command="{Binding OpenBattleNetCommand}" VerticalAlignment="Center" Margin="0,0,16,0" FontSize="12.5"
                             ToolTip="Starts Battle.net (if needed); you press Play once per account. Each window snaps into its slot as it opens." />
                     <Button Style="{StaticResource EnterWorldButton}" Command="{Binding PrimaryCommand}" FontSize="16" Padding="22,8" MinWidth="250"

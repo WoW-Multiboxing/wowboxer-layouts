@@ -29,8 +29,9 @@ at start for installed copies, sends no data about the user and can be switched 
 See [privacy.md](privacy.md).
 
 ## What the program does
-It only moves, resizes and restyles windows. It never sends keystrokes or mouse events to games, never reads game
-memory and never injects code. Source: <https://github.com/WoW-Multiboxing/wowboxer-layouts> (MIT).
+It only moves, resizes and restyles windows, and – only when the user switches it on – changes Windows' own
+hover-to-activate setting (with the user's original values kept). It never sends keystrokes or mouse events to games,
+never reads game memory and never injects code. Source: <https://github.com/WoW-Multiboxing/wowboxer-layouts> (MIT).
 
 ---
 

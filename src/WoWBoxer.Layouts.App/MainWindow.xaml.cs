@@ -50,7 +50,7 @@ public partial class MainWindow : Window, IUserDialogs
                 if (StatusList.Items.Count > 0) StatusList.ScrollIntoView(StatusList.Items[^1]);
             });
 
-        // Always watching: new windows go to their slot, rows, statuses, "on top" and Auto-fit follow what happens while
+        // While started: new windows go to their slot, rows, statuses, "on top" and Auto-fit follow what happens while
         // the app runs, also in the tray. Skipped while a squad row is dragged.
         var live = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         live.Tick += (_, _) =>

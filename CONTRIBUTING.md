@@ -8,6 +8,8 @@ The app **only moves, resizes and restyles windows.**
   focus-switch hotkeys.
 - No reading of game memory, no injection, no login automation, no stored passwords.
 - Never steal focus: windows are placed with `SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS`.
+- The one Windows setting the app may change is hover to activate (`SystemParametersInfo`), only on the user's click,
+  with the user's original values kept and restorable.
 - No telemetry. The update check stays the only network call. Logs stay local and hide the user folder.
 
 ## Reporting a bug

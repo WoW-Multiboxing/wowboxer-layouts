@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using WoWBoxer.Layouts.Core;
 
 namespace WoWBoxer.Layouts.App;
 
@@ -17,6 +18,8 @@ public sealed class AppSettings
     public bool RenameWindows { get; set; } = true;
     /// <summary>Look for a new version on GitHub at start (installed copies only).</summary>
     public bool CheckForUpdates { get; set; } = true;
+    /// <summary>Start placing windows when the app opens. Off: it opens stopped and leaves every window alone until Start.</summary>
+    public bool StartPlacingOnOpen { get; set; }
     public bool Animations { get; set; } = true;
     public string LastTab { get; set; } = "Setup";
     public string? BattleNetExe { get; set; }
@@ -26,6 +29,10 @@ public sealed class AppSettings
     public bool AutoFitActionBar { get; set; } = true;
     /// <summary>WoW account folder per slot (index = slot - 1). Local only, never part of a shared layout.</summary>
     public List<string> Accounts { get; set; } = [];
+    /// <summary>The user's own hover-to-activate values from before the app first changed them; null = the app never changed them.</summary>
+    public HoverSettings? HoverOriginal { get; set; }
+    /// <summary>Put the original hover-to-activate values back when the app quits.</summary>
+    public bool RestoreHoverOnExit { get; set; }
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 

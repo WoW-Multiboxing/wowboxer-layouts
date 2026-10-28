@@ -30,6 +30,10 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 - The app only moves, resizes and restyles windows. **No keystrokes, no mouse events, no input hooks,
   no round-robin, no focus-switch hotkeys, no memory reading, no injection, no login automation.**
 - Never steal focus: `SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS`.
+- One exception, by the owner's decision (2026-10-28): a built-in switch for Windows' own hover-to-activate setting
+  (`SystemParametersInfo` ACTIVEWINDOWTRACKING/-TIMEOUT/-ZORDER). A Windows setting, never input. Off by default,
+  only on the user's click, grey-zone notice shown, original values kept and restored (Settings, on quit if chosen,
+  uninstall hook).
 - No telemetry. Logs stay local.
 
 ## Lessons from the prototype (keep them)

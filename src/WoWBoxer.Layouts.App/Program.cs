@@ -8,7 +8,10 @@ public static class Program
     public static void Main()
     {
         // Must run first: handles Velopack's install, update and uninstall hooks, then returns.
-        VelopackApp.Build().Run();
+        // Uninstall: put the user's own hover-to-activate values back if the app changed them.
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => ViewModels.HoverViewModel.RestoreOnUninstall())
+            .Run();
         var app = new App();
         app.InitializeComponent();
         app.Run();

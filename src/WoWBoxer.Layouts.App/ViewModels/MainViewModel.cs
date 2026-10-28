@@ -26,14 +26,15 @@ public interface IUserDialogs
 }
 
 /// <summary>
-/// The whole app's state. Plug and play: the app always watches for WoW windows and puts each new one in the next free
-/// slot (Pause in the tray). Flow: how many clients → pick a layout card → fine-tune on the canvas; the one primary
+/// The whole app's state. Start/Stop: while started, the app watches for WoW windows and puts each new one in the next
+/// free slot. It opens stopped (nothing is touched) unless a shortcut, "--resume" or the Settings switch starts it. Flow: how many clients → pick a layout card → fine-tune on the canvas; the one primary
 /// button opens the missing clients or re-arranges. The current layout is always a saved profile (auto-saved); every
 /// edit can be undone and moves the open WoW windows right away.
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
-    public const string WebsiteGuideUrl = "https://wowboxer.example/guide";   // placeholder until the website is live
+    public const string WebsiteUrl = "https://wowboxer-site.vercel.app";   // until the site has its own domain
+    public const string WebsiteGuideUrl = WebsiteUrl + "/guides/getting-started/";
     public const string RepoUrl = "https://github.com/WoW-Multiboxing/wowboxer-layouts";
 
     private readonly ProfileStore _store = new(AppSettings.ProfilesFolder);
@@ -58,13 +59,15 @@ public sealed class MainViewModel : ObservableObject
     private bool _paused, _stepping;
     private DateTime _openingUntil;                // after "Open N WoW clients": the button says "Awaiting clients" until then
 
-    /// <param name="paused">Start with watching paused (tests; the tray's Pause does the same).</param>
+    /// <param name="paused">Open stopped: no window is placed until Start.</param>
     public MainViewModel(AppSettings settings, IUserDialogs dialogs, bool paused = false)
     {
         _paused = paused;
         _settings = settings;
         _dialogs = dialogs;
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
+        Hover = new HoverViewModel(settings, Status, OpenSwitchingGuide, OpenUrl);
+        Guide = new GuideViewModel(Hover);
 
         SetTabCommand = new RelayCommand(p => SelectedTab = Enum.Parse<AppTab>(p!.ToString()!));
         MoreClientsCommand = new RelayCommand(() => ClientCount++, () => ClientCount < Presets.MaxClients);
@@ -82,11 +85,13 @@ public sealed class MainViewModel : ObservableObject
         RefreshWindowsCommand = new RelayCommand(RefreshWindows);
         IdentifyCommand = new RelayCommand(Identify);
         ArrangeCommand = new RelayCommand(() => _ = ArrangeAsync(), () => !_busy && Current is not null && Windows.Count > 0);
-        PrimaryCommand = new RelayCommand(Primary, () => !_busy && Current is not null && !Opening);
+        PrimaryCommand = new RelayCommand(Primary, () => !_busy && Current is not null && (_paused || !Opening));
         OpenClientsCommand = new RelayCommand(OpenClients, () => !_busy && Current is not null && Missing > 0);
         OpenBattleNetCommand = new RelayCommand(OpenBattleNet);
         IncludeCommand = new RelayCommand(Include);
         PauseCommand = new RelayCommand(() => Paused = !Paused);
+        StartCommand = new RelayCommand(() => Paused = false, () => _paused);
+        StopCommand = new RelayCommand(() => Paused = true, () => !_paused);
         RestoreFramesCommand = new RelayCommand(RestoreFrames);
         OpenLogsCommand = new RelayCommand(() => Open(StatusLog.LogFolder));
         OpenLayoutsFolderCommand = new RelayCommand(() => Open(AppSettings.ProfilesFolder));
@@ -159,7 +164,8 @@ public sealed class MainViewModel : ObservableObject
     // =====================================================================================
 
     public StatusLog Status { get; } = new();
-    public GuideViewModel Guide { get; } = new();
+    public GuideViewModel Guide { get; }
+    public HoverViewModel Hover { get; }
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
@@ -278,7 +284,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>Watching paused (tray): no window is moved or re-stacked until it is resumed.</summary>
+    /// <summary>Stopped (Start/Stop button, tray): no window is moved or re-stacked until Start.</summary>
     public bool Paused
     {
         get => _paused;
@@ -288,13 +294,13 @@ public sealed class MainViewModel : ObservableObject
             if (value)
             {
                 _live?.Cancel();
-                Status.Info("Paused: WoW windows are not moved or kept on top until you resume (tray menu).");
+                Status.Info("Stopped: WoW windows are left alone until you press Start.");
             }
             else
             {
                 _keeper.Settle();   // windows that opened or moved meanwhile go to their slots now
                 ApplyOnTop();
-                Status.Info("Watching again: every WoW window goes to its slot.");
+                Status.Info("Started: every WoW window of the squad goes to its slot.");
             }
             RaiseSquadStatus();
         }
@@ -669,6 +675,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>"Include": other installs' windows join the squad (until the app restarts).</summary>
     public ICommand IncludeCommand { get; }
     public ICommand PauseCommand { get; }
+    public ICommand StartCommand { get; }
+    public ICommand StopCommand { get; }
     public ICommand RestoreFramesCommand { get; }
     public ICommand OpenLogsCommand { get; }
     public ICommand OpenLayoutsFolderCommand { get; }
@@ -920,6 +928,13 @@ public sealed class MainViewModel : ObservableObject
         set => SetSetting(() => _settings.Animations = value);
     }
 
+    /// <summary>Start placing windows as soon as the app opens (off: it opens stopped).</summary>
+    public bool StartPlacingOnOpen
+    {
+        get => _settings.StartPlacingOnOpen;
+        set => SetSetting(() => _settings.StartPlacingOnOpen = value);
+    }
+
     public bool CheckForUpdates
     {
         get => _settings.CheckForUpdates;
@@ -1091,6 +1106,7 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     public void Tick()
     {
+        Hover.Refresh();   // the Windows setting may change outside the app
         if (!Busy) RefreshWindows();
         if (!_paused)
         {
@@ -1134,7 +1150,7 @@ public sealed class MainViewModel : ObservableObject
     private int SlotCount => Current?.Slots.Count ?? 0;
 
     /// <summary>Title bar: "Awaiting clients · 1 of 3 connected" → "All 3 connected".</summary>
-    public string HeaderStatus => _paused ? "Paused – WoW windows are left alone"
+    public string HeaderStatus => _paused ? "Stopped – WoW windows are left alone"
         : Missing > 0 ? $"Awaiting clients · {ConnectedCount} of {SlotCount} connected"
         : ConnectedCount == SlotCount ? (SlotCount == 1 ? "Connected" : $"All {SlotCount} connected")
         : $"{ConnectedCount} of {SlotCount} in place · Re-arrange puts them back";
@@ -1142,17 +1158,22 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>For the title bar's dot: Paused, Ready (all connected), Awaiting, Moved.</summary>
     public string SquadState => _paused ? "Paused" : Missing > 0 ? "Awaiting" : ConnectedCount == SlotCount ? "Ready" : "Moved";
 
-    public string PrimaryText => Opening ? $"AWAITING CLIENTS {ConnectedCount}/{SlotCount}"
+    /// <summary>Started: windows are placed (the Stop button shows).</summary>
+    public bool Placing => !_paused;
+
+    public string PrimaryText => _paused ? "START PLACING WINDOWS"
+        : Opening ? $"AWAITING CLIENTS {ConnectedCount}/{SlotCount}"
         : Missing > 0 ? $"OPEN {Missing} WOW CLIENT{(Missing == 1 ? "" : "S")}"
         : "RE-ARRANGE";
 
-    public string PrimaryTip => Opening ? "Log in to each login screen yourself – each window snaps into its slot as it opens."
+    public string PrimaryTip => _paused ? "Starts placing: each WoW window of the squad goes to its slot, as on the map. Until then the app leaves every window alone."
+        : Opening ? "Log in to each login screen yourself – each window snaps into its slot as it opens."
         : Missing > 0 ? $"Opens {Missing} {SquadGameName} login screen(s), one per empty slot. You log in to each yourself – nothing is typed for you. (Ctrl+Enter)"
         : "Snaps every WoW window back into its slot (Ctrl+Enter or F5).";
 
     private void RaiseSquadStatus()
     {
-        foreach (var name in new[] { nameof(HeaderStatus), nameof(SquadState), nameof(PrimaryText), nameof(PrimaryTip), nameof(ConnectedCount), nameof(Missing), nameof(SlotStates) })
+        foreach (var name in new[] { nameof(HeaderStatus), nameof(SquadState), nameof(Placing), nameof(PrimaryText), nameof(PrimaryTip), nameof(ConnectedCount), nameof(Missing), nameof(SlotStates) })
             OnPropertyChanged(name);
         CommandManager.InvalidateRequerySuggested();
     }
@@ -1162,7 +1183,8 @@ public sealed class MainViewModel : ObservableObject
 
     private void Primary()
     {
-        if (Missing > 0) OpenClients();
+        if (_paused) Paused = false;
+        else if (Missing > 0) OpenClients();
         else _ = ArrangeAsync();
     }
 
@@ -1179,6 +1201,7 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
         if (RunningClientsNow() == 0) AutoFitUiScale("before opening the clients");
+        Paused = false;   // opening clients means: place them
         var missing = Missing;
         Status.Title($"Opening {missing} {SquadGameName} login screen(s) for \"{Current.Name}\"");
         if (_launcher.Start(exe, missing, Status) == 0) return;
@@ -1501,6 +1524,7 @@ public sealed class MainViewModel : ObservableObject
     public void StartLayout(string name)
     {
         if (!SelectProfile(name)) return;
+        Paused = false;   // a layout shortcut means: start
         RefreshWindows();
         if (Missing > 0) OpenClients();
         else _ = ArrangeAsync();
@@ -1554,6 +1578,13 @@ public sealed class MainViewModel : ObservableObject
         {
             lock (_text) _text.AppendLine((level == StatusLevel.Title ? Environment.NewLine : "") + message);
         }
+    }
+
+    /// <summary>The Guide chapter about switching windows (from the hover notice).</summary>
+    private void OpenSwitchingGuide()
+    {
+        Guide.Current = Guide.Chapters.First(c => c.Number == GuideViewModel.SwitchingChapter);
+        SelectedTab = AppTab.Guide;
     }
 
     private static void Open(string folder)

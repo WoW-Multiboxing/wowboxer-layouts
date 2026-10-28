@@ -2,7 +2,8 @@ using System.Runtime.InteropServices;
 
 namespace WoWBoxer.Layouts.Win32;
 
-/// <summary>The Win32 calls we need. Only window position, size, style and title – never input.</summary>
+/// <summary>The Win32 calls we need. Only window position, size, style and title, and the hover-to-activate system
+/// setting – never input.</summary>
 internal static unsafe partial class NativeMethods
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -75,6 +76,16 @@ internal static unsafe partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool IsWindow(nint hWnd);
+
+    // Hover to activate (Windows' "Activate a window by hovering over it with the mouse"): a per-user system setting.
+    public const uint SPI_GETACTIVEWINDOWTRACKING = 0x1000, SPI_SETACTIVEWINDOWTRACKING = 0x1001,
+        SPI_GETACTIVEWNDTRKZORDER = 0x100C, SPI_SETACTIVEWNDTRKZORDER = 0x100D,
+        SPI_GETACTIVEWNDTRKTIMEOUT = 0x2002, SPI_SETACTIVEWNDTRKTIMEOUT = 0x2003;
+    public const uint SPIF_UPDATEINIFILE = 0x01, SPIF_SENDCHANGE = 0x02;
+
+    [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SystemParametersInfo(uint action, uint uiParam, void* pvParam, uint winIni);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

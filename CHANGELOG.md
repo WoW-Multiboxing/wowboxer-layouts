@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+- **Start / Stop placing windows.** The app opens **stopped** and leaves every window alone until you press **Start
+  placing windows** (the main button while stopped). While started, a **■ Stop** button sits next to it; the tray menu
+  has the same Start/Stop. Found by the owner: opening the app during a Retail session moved the Retail windows into
+  the layout. Desktop layout shortcuts (`--start`) and `--resume` start at once; Settings › Windows › "Start placing
+  windows when the app opens" (off by default) brings back the old behaviour. Opening clients from the app also starts.
+- **Hover to activate, built in:** a switch for Windows' own "Activate a window by hovering over it with the mouse"
+  (Ease of Access) in Your squad on the Setup tab, in Settings › Switching windows, in the tray menu and in the
+  Guide's "Switch between windows" chapter (it replaces the button that opened the Windows setting). With it: a
+  **Delay** slider (0–500 ms, 30 ms marked as recommended, written when you let go) and **Bring window to front when
+  activated** (off keeps floating overlays visible; best with "Always on top"). Per user, no admin
+  (`SystemParametersInfo` with `SPIF_UPDATEINIFILE | SPIF_SENDCHANGE`, so it is saved and applies at once). Changes
+  made outside the app show up within a second. Off by default; the app never changes it on its own.
+- **Your own values are kept:** the first change saves your Windows values (on/off, delay, bring to front).
+  Settings › "Restore my original Windows settings" puts them back; "Restore them when WoWBoxer quits" (off by
+  default) does it on quit; uninstalling always does it (Velopack uninstall hook).
+- **Grey-zone notice** next to the switch (WoW tooltip style): a Windows feature, not part of WoW; Blizzard staff have
+  said it "might" be considered streamlining; Alt-tab or clicking is the safe choice. Links to the Guide chapter and
+  the website's rules page.
+- Website links point to the live site (`wowboxer-site.vercel.app`) instead of a placeholder.
+- New app-wide slider style (gold track, marked values).
+
 ## v0.3.1 – update test (2026-10-28)
 A small release to check that installed copies of v0.3.0 update themselves.
 - Docs: the release file list in `docs/releasing.md` matches what a release really contains.

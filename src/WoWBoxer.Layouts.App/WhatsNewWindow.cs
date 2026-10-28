@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes, shortest first. Keep it to what a player notices.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Hover to activate, built in",
+            "Turn on Windows' \"activate the window under the mouse\" in Your squad, Settings or the tray – with a delay slider (30 ms recommended) and \"Bring window to front\". A grey zone: read the notice next to the switch. Your own Windows values are kept and come back with one click, or when you uninstall."),
+        ("Start and Stop",
+            "The app now opens stopped and leaves every window alone until you press Start placing windows. Stop (next to the main button, or the tray) leaves them alone again. A desktop layout shortcut starts at once; Settings can start it whenever the app opens."),
         ("Plug and play",
             "The app always watches: every WoW window that opens goes straight into the next free slot. Each slot shows Awaiting… until its window is there, then Connected. Nothing to start, no live switch – Pause is in the tray menu."),
         ("One button",

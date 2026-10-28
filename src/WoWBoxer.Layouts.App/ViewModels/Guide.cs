@@ -1,11 +1,11 @@
-using System.Diagnostics;
 using System.Windows.Input;
 using WoWBoxer.Layouts.App.Infrastructure;
 
 namespace WoWBoxer.Layouts.App.ViewModels;
 
 /// <summary>One chapter of the quick guide (quest-log style: objectives, a "good to know" note, an optional helper).</summary>
-public sealed class GuideChapter(int number, string title, string intro, string[] objectives, string note, string? action = null, ICommand? actionCommand = null) : ObservableObject
+public sealed class GuideChapter(int number, string title, string intro, string[] objectives, string note, string? action = null, ICommand? actionCommand = null,
+    HoverViewModel? hover = null) : ObservableObject
 {
     private bool _isCurrent;
 
@@ -17,6 +17,9 @@ public sealed class GuideChapter(int number, string title, string intro, string[
     public string? Action { get; } = action;
     public ICommand? ActionCommand { get; } = actionCommand;
     public bool HasAction => Action is not null;
+    /// <summary>The chapter's own hover-to-activate switch (Switch between windows only).</summary>
+    public HoverViewModel? Hover { get; } = hover;
+    public bool HasHover => Hover is not null;
     public string Mark => IsCurrent ? "!" : "?";
 
     public bool IsCurrent
@@ -33,7 +36,9 @@ public sealed class GuideViewModel : ObservableObject
 {
     private GuideChapter _current;
 
-    public GuideViewModel()
+    public const int SwitchingChapter = 4;
+
+    public GuideViewModel(HoverViewModel hover)
     {
         Chapters =
         [
@@ -54,24 +59,25 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 "Everything is saved automatically, and the app opens with your last setup next time. Layouts work with every WoW install."),
             new(3, "Open your clients",
-                "There is nothing to start: the app always watches, and every WoW window that opens goes straight into the next free slot.",
+                "Press Start placing windows: from then on every WoW window that opens goes straight into the next free slot. Until you press it, the app leaves every window alone.",
                 [
+                    "Start placing windows (bottom right): the app places the squad's windows. Stop leaves them where they are – for example while you play something else.",
                     "Press \"Open N WoW clients\": one login screen per empty slot. You log in to each yourself.",
                     "Prefer Battle.net? Click \"Open Battle.net instead\" and press Play once per account.",
                     "Each slot shows Awaiting… until its window is there, then Connected. Wrong order? Drag the rows under \"Your squad\" by ⋮⋮, or open ▾ and press Identify.",
                     "All connected? The button becomes Re-arrange: it snaps every window back into its slot.",
                 ],
-                "WoWBoxer never logs in for you and never types anything. Windows of another WoW install (say Forever next to Classic Era) are left alone – \"Include\" adds them. To leave all windows alone for a while, use Pause watching in the tray menu."),
-            new(4, "Switch between windows",
+                "WoWBoxer never logs in for you and never types anything. Windows of another WoW install (say Forever next to Classic Era) are left alone – \"Include\" adds them. Stop (or the tray menu) leaves all windows alone; the app also opens stopped."),
+            new(SwitchingChapter, "Switch between windows",
                 "Two ways to move between clients. Pick what feels right – both keep one key press = one action on one character.",
                 [
                     "Alt+Tab or clicking a window works without any extra setting.",
-                    "Hover to activate: Windows can activate the window your mouse points at (Ease of Access → \"Make the mouse easier to use\").",
-                    "With overlays, set the floating followers to \"Always on top\" so the main window cannot cover them – and leave the main window itself off \"on top\".",
+                    "Hover to activate: the switch below turns on Windows' own \"Activate a window by hovering over it with the mouse\" – the window under your mouse becomes active. A delay of about 30 ms stops windows from activating while the mouse just passes over them.",
+                    "With overlays, leave \"Bring window to front\" off and set the floating followers to \"Always on top\" (the pin in Your squad), so the main window can never cover them.",
+                    "WoWBoxer keeps your own Windows values: Settings › Switching windows puts them back with one click, and uninstalling does it too.",
                 ],
-                "Blizzard has not clearly said whether hover-to-activate counts as \"streamlining\". Alt+Tab and clicking are the safe defaults.",
-                "Open the Windows hover setting",
-                new RelayCommand(OpenHoverSetting)),
+                "Hover to activate is a Windows feature, not part of WoW, and it sends nothing to the game. But a Blizzard support agent said it \"might\" count as streamlining. Alt+Tab and clicking are the safe choice.",
+                hover: hover),
             new(5, "If something looks wrong",
                 "Most problems have a simple cause. The app tells you what it sees.",
                 [
@@ -112,8 +118,4 @@ public sealed class GuideViewModel : ObservableObject
             OnPropertyChanged(nameof(ChapterText));
         }
     }
-
-    /// <summary>Opens the Windows page that holds "Activate a window by hovering over it with the mouse".</summary>
-    private static void OpenHoverSetting() =>
-        Process.Start(new ProcessStartInfo("control.exe", "/name Microsoft.EaseOfAccessCenter /page pageEasierToUseMouse") { UseShellExecute = true })?.Dispose();
 }

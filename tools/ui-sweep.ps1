@@ -66,7 +66,7 @@ function Answer($button) { $d = Dialog; (Pattern (Find $button $d) ([System.Wind
 
 $script:startStamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
 Pick 'SETUP'
-if ((FindId 'HeaderStatus').Current.Name -notlike 'Paused*') { throw 'Start the app with --pause first: the sweep changes layouts, and a watching app would move your WoW windows.' }
+if ((FindId 'HeaderStatus').Current.Name -notlike 'Stopped*') { throw 'Start the app with --pause first: the sweep changes layouts, and a watching app would move your WoW windows.' }
 $original = (Settings).lastProfile
 
 # ---- layouts × client counts ----

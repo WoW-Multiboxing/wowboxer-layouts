@@ -8,7 +8,7 @@ them there.
 
 ## What it does, and what it never does
 
-**It only moves, resizes and restyles windows.**
+**It only moves, resizes and restyles windows** – and, only if you switch it on, Windows' own hover-to-activate setting.
 
 | It does | It never does |
 |---|---|
@@ -17,6 +17,7 @@ them there.
 | Keep a window "always on top" if you ask | Read or write game memory, inject code or hook input |
 | Open the login screens of the clients you are missing (you press Play) | Log in for you or store passwords |
 | Optionally set WoW's UI Scale in `Config.wtf` so the action bar fits (with a backup) | Send telemetry. The update check is its only network call |
+| Turn Windows' "activate a window by hovering over it" on or off for you, with a delay – a grey zone, so off by default, with a notice and your own values kept | Change any Windows setting without your click |
 
 **Compliance.** Blizzard allows multiboxing as long as every action in the game comes from one key press or click
 of yours on one character. Since 2022 it no longer allows software that broadcasts input to several clients. This
@@ -52,7 +53,8 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
 - **Guide** – WoW display settings, switching windows, troubleshooting.
 - **Settings** – window rules, action bar (UI Scale), titles, tools (Identify, Diagnose, title bars back), shortcut,
   updates.
-- Tray icon with *Pause watching*, and a desktop shortcut that starts a layout in one click.
+- **Start / Stop placing windows** (main screen and tray). The app opens stopped, so it never touches the windows of
+  another game until you press Start. A desktop shortcut starts a layout in one click.
 
 Tips:
 - Set WoW's Display Mode to **Windowed**. Title bars stay on by default (removing them made WoW draw its UI at the

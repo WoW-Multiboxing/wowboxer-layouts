@@ -58,7 +58,8 @@
                         <TextBlock Style="{StaticResource Explain}" Text="The game windows become &quot;WoW - name&quot; on the taskbar, for windows with a character name." />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding Animations}"><TextBlock Text="Animations" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="Windows glide into place on the map, and waiting slots pulse. Turn off for a calmer screen." />
-                        <TextBlock Style="{StaticResource Explain}" Margin="0,12,60,0" Text="The app always watches for WoW windows and puts each one in its slot. To leave the windows alone for a while, use Pause watching in the tray menu." />
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding StartPlacingOnOpen}" AutomationProperties.AutomationId="StartPlacingOnOpen"><TextBlock Text="Start placing windows when the app opens" /></CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="Off (default): the app opens stopped and leaves every window alone – safe when you play another game or WoW version – until you press Start placing windows. Desktop layout shortcuts always start." />
                     </StackPanel>
                 </ContentControl>
 
@@ -106,6 +107,37 @@
                             <Button Content="Open layouts folder" Command="{Binding OpenLayoutsFolderCommand}" Margin="0,0,8,8" />
                             <Button Content="Show welcome screen" Command="{Binding ShowFirstRunCommand}" Margin="0,0,8,8" />
                         </WrapPanel>
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0">
+                    <StackPanel DataContext="{Binding Hover}">
+                        <TextBlock Style="{StaticResource H2}" Text="Switching windows" />
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding Enabled}" AutomationProperties.AutomationId="HoverToggleSettings" AutomationProperties.Name="Hover to activate windows"><TextBlock Text="Hover to activate windows" /></CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="Turns on Windows' own &quot;Activate a window by hovering over it with the mouse&quot; (Ease of Access). The window under the mouse becomes active, so your next key press goes there. A Windows setting for your user – WoWBoxer still never sends anything to the game." />
+                        <TextBlock Style="{StaticResource Muted}" FontSize="11.5" Margin="0,12,0,0" Text="Delay" />
+                        <DockPanel Margin="0,2,60,0">
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding DelayText}" Width="120" Margin="10,0,0,0" Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center" />
+                            <Slider Minimum="0" Maximum="500" Ticks="30" SmallChange="5" LargeChange="50" Value="{Binding DelayPreview}"
+                                    app:SliderCommit.Command="{Binding CommitDelayCommand}" AutomationProperties.AutomationId="HoverDelaySettings" AutomationProperties.Name="Hover delay in milliseconds" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Explain}" Text="0–500 ms. About 30 ms (the mark) stops windows from activating while the mouse just passes over them. Applies when you let go." />
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding BringToFront}"><TextBlock Text="Bring window to front when activated" /></CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="Off keeps floating overlays visible: the active window stays where it is in the stack. Works best with &quot;Always on top&quot; (the pin in Your squad) on the floating followers." />
+                        <Border Style="{StaticResource TipBox}" Margin="0,14,60,0">
+                            <TextBlock TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="#E4E4E4">
+                                <Run Text="Grey zone" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" /><Run Text="  Windows feature, not part of WoW. Blizzard staff have said hover-to-activate &#x201C;might&#x201D; be considered streamlining. Alt-tab or clicking is the safe choice." />
+                                <LineBreak />
+                                <Hyperlink Command="{Binding OpenGuideCommand}" Foreground="{StaticResource GoldHiBrush}">Guide</Hyperlink>
+                                <Run Text=" · " Foreground="{StaticResource MutedBrush}" />
+                                <Hyperlink Command="{Binding OpenRulesCommand}" Foreground="{StaticResource GoldHiBrush}">Rules on the website</Hyperlink>
+                            </TextBlock>
+                        </Border>
+                        <TextBlock Style="{StaticResource Explain}" Margin="0,14,60,0" Text="{Binding OriginalText}" AutomationProperties.AutomationId="HoverOriginal" />
+                        <Button Content="Restore my original Windows settings" Command="{Binding RestoreCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" AutomationProperties.AutomationId="HoverRestore"
+                                ToolTip="Puts hover to activate, its delay and &quot;bring to front&quot; back the way they were before WoWBoxer first changed them" />
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding RestoreOnExit}" AutomationProperties.AutomationId="HoverRestoreOnExit"><TextBlock Text="Restore them when WoWBoxer quits" /></CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="Uninstalling WoWBoxer always restores them." />
                     </StackPanel>
                 </ContentControl>
 

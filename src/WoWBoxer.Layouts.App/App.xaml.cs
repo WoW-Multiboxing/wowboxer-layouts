@@ -6,7 +6,7 @@ namespace WoWBoxer.Layouts.App;
 
 /// <summary>
 /// Start-up: one instance only, optional "--tray" (start hidden in the tray), "--start NAME" (that layout, and open the
-/// missing clients – used by desktop shortcuts), "--pause" / "--resume" (watching, like the tray's Pause; also sent to a
+/// missing clients – used by desktop shortcuts), "--pause" / "--resume" (Stop / Start placing windows; also sent to a
 /// running copy, e.g. from a script), first-run screen, tray icon.
 /// </summary>
 public partial class App : Application
@@ -16,7 +16,7 @@ public partial class App : Application
     private EventWaitHandle? _showSignal;
     private Forms.NotifyIcon? _tray;
     private MainWindow? _main;
-    private Forms.ToolStripMenuItem? _pauseItem;
+    private Forms.ToolStripMenuItem? _pauseItem, _hoverItem;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -52,7 +52,9 @@ public partial class App : Application
 
         var settings = AppSettings.Load();
         var (startInTray, startProfile) = ParseArgs(e.Args);
-        var paused = PauseArg(e.Args) == true;
+        // Opens stopped: nothing is moved until Start (another game may be open). A layout shortcut, "--resume" or the
+        // Settings switch start it right away.
+        var paused = PauseArg(e.Args) ?? !(settings.StartPlacingOnOpen || startProfile is not null);
 
         if (!settings.FirstRunDone)
         {
@@ -153,10 +155,22 @@ public partial class App : Application
         menu.Items.Add("Re-arrange", null, (_, _) => Run(_main!.ViewModel.ArrangeCommand));
         menu.Items.Add("Identify windows", null, (_, _) => Run(_main!.ViewModel.IdentifyCommand));
         menu.Items.Add(new Forms.ToolStripSeparator());
-        // The only way to stop the app from placing windows: it always watches otherwise.
-        _pauseItem = new Forms.ToolStripMenuItem("Pause watching", null, (_, _) => Run(_main!.ViewModel.PauseCommand));
+        // Start / Stop placing windows, the same as the button on the main screen.
+        _pauseItem = new Forms.ToolStripMenuItem("Start placing windows", null, (_, _) => Run(_main!.ViewModel.PauseCommand));
         menu.Items.Add(_pauseItem);
-        menu.Opening += (_, _) => _pauseItem.Text = _main!.ViewModel.Paused ? "Resume watching" : "Pause watching";
+        // Windows' hover-to-activate (a Windows setting; the app sends no input). Ticked = on, as Windows has it now.
+        _hoverItem = new Forms.ToolStripMenuItem("Hover to activate windows", null, (_, _) =>
+        {
+            var hover = _main!.ViewModel.Hover;
+            hover.Enabled = !hover.Enabled;
+        });
+        menu.Items.Add(_hoverItem);
+        menu.Opening += (_, _) =>
+        {
+            _pauseItem.Text = _main!.ViewModel.Paused ? "Start placing windows" : "Stop placing windows";
+            _main.ViewModel.Hover.Refresh();
+            _hoverItem.Checked = _main.ViewModel.Hover.Enabled;
+        };
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
         TrayMenuStyle.Apply(menu);
@@ -187,6 +201,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _main?.ViewModel.Hover.OnAppExit();   // only if the user asked for it in Settings
         if (_tray is not null)
         {
             _tray.Visible = false;
