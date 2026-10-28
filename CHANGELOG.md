@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.1 – update test (2026-10-28)
+A small release to check that installed copies of v0.3.0 update themselves.
+- Docs: the release file list in `docs/releasing.md` matches what a release really contains.
+
 ## v0.3.0 – first public release (2026-10-28)
 The first public release. Same app as v0.2.4 (plug and play), now installable from GitHub Releases with auto-update.
 - **Install:** `WoWBoxer-Setup.exe` (stable link: `/releases/latest/download/WoWBoxer-Setup.exe`). Installs per user

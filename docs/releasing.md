@@ -21,7 +21,7 @@ publishes it as *Latest*. Last, it tells the website (see below).
 | `WoWBoxer-Setup.exe` | **Stable name** – the website links `…/releases/latest/download/WoWBoxer-Setup.exe` |
 | `WoWBoxer-Portable.zip` | Stable name for the portable zip (no install, no auto-update) |
 | `WoWBoxer.Layouts-win-Setup.exe`, `WoWBoxer.Layouts-win-Portable.zip` | The same files under Velopack's own names (kept so older links work) |
-| `WoWBoxer.Layouts-X.Y.Z-full.nupkg`, `-delta.nupkg`, `releases.win.json`, `assets.win.json`, `RELEASES` | Velopack update feed. Installed apps read these |
+| `WoWBoxer.Layouts-X.Y.Z-full.nupkg`, `-delta.nupkg` (from the second release on), `releases.win.json`, `RELEASES` | Velopack update feed. Installed apps read these |
 | `SHA256SUMS.txt` | SHA-256 of every `.exe`, `.zip` and `.nupkg` |
 
 `https://github.com/WoW-Multiboxing/wowboxer-layouts/releases/latest/download/<file>` always serves the newest
@@ -32,6 +32,9 @@ publishes it as *Latest*. Last, it tells the website (see below).
 - `--framework net10.0-x64-desktop`: Setup checks for the .NET 10 Desktop Runtime (x64) and, if missing, downloads
   Microsoft's installer and runs it before installing the app. The runtime is machine-wide, so **that step alone
   shows a UAC prompt**. On a PC that already has the runtime there is no prompt at all.
+- Setup options: `--silent`, `--log <file>`, `--installto <dir>`. Do **not** pass app arguments after `--`:
+  Velopack 1.2.161's Setup panics on them (`Mismatch between definition and access of EXE_ARGS`) and hangs, found
+  2026-10-28. After install, Setup always starts the app once.
 - Updates: the app checks GitHub at start (if enabled), downloads in the background and applies the update when
   the app quits.
 
