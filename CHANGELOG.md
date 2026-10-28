@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.3.2 – Start/Stop and hover to activate (2026-10-28)
+Released at the owner's request before the live test on real WoW windows (needs the PC idle). Hover to activate
+is off by default; its Windows values are unit-tested only so far.
 - **Start / Stop placing windows.** The app opens **stopped** and leaves every window alone until you press **Start
   placing windows** (the main button while stopped). While started, a **■ Stop** button sits next to it; the tray menu
   has the same Start/Stop. Found by the owner: opening the app during a Retail session moved the Retail windows into
