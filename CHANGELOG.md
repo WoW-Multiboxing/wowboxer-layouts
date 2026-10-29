@@ -9,6 +9,7 @@
   (Settings › Restore, on quit if chosen, always on uninstall).
 - **Website links now open https://wowboxer.com/** (the site's new domain) instead of the Vercel address: the Guide,
   the first-run screen, About and the rules link next to the switch.
+  The README links to the website, and the GitHub repos list it as their website.
 
 ## v0.3.3 – Fix: the app did not start (2026-10-28)
 - **v0.3.2 closed right away on start.** The Settings screen used the grey-zone box style that only the Setup screen
