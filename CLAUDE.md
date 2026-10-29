@@ -24,7 +24,7 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
   Re-read them at the start of every milestone and before each UI pass; note what you used/rejected in the notes'
   "Claude Code status" section.
 - Continue through the milestones without waiting. After each milestone: `[WS-C]` entry in LOG.md, row C in
-  00_Workstreams.md (project folder, Danish).
+  00_Workstreams.md (project folder, in English).
 
 ## Hard rules (never break)
 - The app only moves, resizes and restyles windows. **No keystrokes, no mouse events, no input hooks,
@@ -32,8 +32,10 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 - Never steal focus: `SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS`.
 - One exception, by the owner's decision (2026-10-28): a built-in switch for Windows' own hover-to-activate setting
   (`SystemParametersInfo` ACTIVEWINDOWTRACKING/-TIMEOUT/-ZORDER). A Windows setting, never input. Off by default,
-  only on the user's click, grey-zone notice shown, original values kept and restored (Settings, on quit if chosen,
-  uninstall hook).
+  only on the user's click, original values kept and restored (Settings, on quit if chosen, uninstall hook).
+  Since 2026-10-29 it is THE WoWBoxer way to switch windows: no grey-zone notice, no Alt+Tab/clicking advice.
+  State facts only ("a Windows setting; it sends nothing to the game; WoWBoxer never sends keys or clicks").
+  Never write "approved", "allowed by Blizzard" or "100% safe".
 - No telemetry. Logs stay local.
 
 ## Lessons from the prototype (keep them)
@@ -57,6 +59,6 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 - Owner's reference setup: one monitor, work area 2560×1392, 3 clients (main 1690×1392 left, two 870×696 stacked right).
 - Build and run on Windows (Claude Code on the owner's PC). CI on GitHub Actions (`windows-latest`) must stay green.
 - Keep `CHANGELOG.md` updated, small commits, clear messages. Code, UI and docs in English.
-- The owner's project notes (Danish) live outside this repo in a private project folder
+- The owner's project notes (written in English since 2026-10-29) live outside this repo in a private project folder
   (path kept in the maintainer's local notes). After each session, add a short `[WS-C]` entry to its `LOG.md`
   and update row C in its `00_Workstreams.md` if you have access.

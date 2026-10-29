@@ -126,7 +126,7 @@
                         <TextBlock Style="{StaticResource Explain}" Text="Off keeps floating overlays visible: the active window stays where it is in the stack. Works best with &quot;Always on top&quot; (the pin in Your squad) on the floating followers." />
                         <Border Style="{StaticResource TipBox}" Margin="0,14,60,0">
                             <TextBlock TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="#E4E4E4">
-                                <Run Text="Grey zone" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" /><Run Text="  Windows feature, not part of WoW. Blizzard staff have said hover-to-activate &#x201C;might&#x201D; be considered streamlining. Alt-tab or clicking is the safe choice." />
+                                <Run Text="Hover to activate is a Windows setting. It sends nothing to the game; WoWBoxer never sends keys or clicks." />
                                 <LineBreak />
                                 <Hyperlink Command="{Binding OpenGuideCommand}" Foreground="{StaticResource GoldHiBrush}">Guide</Hyperlink>
                                 <Run Text=" · " Foreground="{StaticResource MutedBrush}" />

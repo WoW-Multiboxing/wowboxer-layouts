@@ -43,7 +43,7 @@ Apply at <https://signpath.org/apply> (needs the owner's account; the repository
 |---|---|
 | Project name | WoWBoxer Window Layouts |
 | Repository | https://github.com/WoW-Multiboxing/wowboxer-layouts |
-| Homepage | https://github.com/WoW-Multiboxing/wowboxer-layouts (switch to the website once it has a public domain) |
+| Homepage | https://wowboxer.com/ |
 | Licence | MIT (OSI approved), `LICENSE` in the repository root, no proprietary parts |
 | Short description | A free Windows desktop app that places several World of Warcraft game windows in a chosen layout (one or more monitors) for manual multiboxing. It only moves and resizes windows; it never sends input to games. |
 | Programming language / platform | C# / .NET 10 / WPF, Windows 10 and 11 x64 |

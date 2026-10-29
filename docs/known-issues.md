@@ -35,15 +35,13 @@ Newest first. "Workaround" is what to do today; "Plan" is the fix.
   on, hovering raises a window only within its band, so floating followers that are "on top" stay above a non-topmost
   main. If the *main* is also "on top", hovering it can raise it over overlapping followers – keep the main off "on
   top" in overlay layouts (the Overlays preset does). With *Bring window to front* off, nothing is raised at all.
-- **Hover to activate is a grey zone.** It is a Windows feature and sends nothing to the game, but a Blizzard support
-  agent said it might count as streamlining. The app shows that next to the switch, never turns it on by itself, and
-  keeps the user's own values (Settings › Restore, on quit if chosen, always on uninstall). A portable copy has no
-  uninstall step: use Restore before deleting it.
+- **Hover to activate changes a Windows setting for your user.** It sends nothing to the game; WoWBoxer never sends
+  keys or clicks. The app never turns it on by itself and keeps the user's own values (Settings › Restore, on quit if
+  chosen, always on uninstall). A portable copy has no uninstall step: use Restore before deleting it.
 - **"Launch all" cannot pick accounts.** Starting clients with Battle.net's auto-login would log in the account
   selected in Battle.net (and could disconnect a running client). The app only opens login screens; the user logs in.
 - **Tray menu, file dialogs, monitor plug/unplug and one-monitor PCs are not covered by the automatic tests** (need
   real shell input or hardware changes). Tested by hand in earlier runs where noted in `docs/test-plan.md`.
-- **Website links use the Vercel address** (`MainViewModel.WebsiteUrl`) until the site has its own domain.
 - **Release builds are unsigned** until SignPath approves; Windows SmartScreen will warn on the installer.
 - **Idle clients get disconnected by the game** after about 30 minutes without input (seen during the unattended test
   run). Not caused by the app; the app sends no input and must not.
@@ -52,7 +50,7 @@ Newest first. "Workaround" is what to do today; "Plan" is the fix.
 
 - **Auto-fit is Classic Era only.** Forever's action bar/UI after login is not checked yet, so the app does not set
   its UI Scale by itself (the Fix action bar button still works there).
-- **Always on top with real Alt-Tab, clicks and hover-to-activate is not auto-tested**: the tests never activate a WoW
+- **Always on top with hover to activate between real WoW clients is not auto-tested**: the tests never activate a WoW
   window (rule). Foreground switches between our own windows, external on-top changes and moves are tested (24/24).
 - **One UI Scale per install**: the main window's UI shrinks a little too (0.93). Per-window bar scale = addon (WS-E,
   opt-in, `bridge.barFit`).

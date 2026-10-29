@@ -19,7 +19,7 @@ P1 = next, P2 = soon, P3 = later. Sources: design notes rounds 1–3 (project fo
    selector, compact rows.)
 4c. Keyboard reorder of squad rows (Alt+↑/↓) – also lets the UI tests reorder without the real mouse.
 4d. Make the "?" help marks reachable by keyboard and screen readers (tooltips on a Border are mouse-only).
-4b. **Owner field test of always-on-top with real alt-tab, clicks and hover-to-activate** (the automated test can only
+4b. **Owner field test of always-on-top with hover to activate between real clients** (the automated test can only
    switch focus between our own windows – it never activates a WoW window).
 
 ## P2 – quality of life

@@ -12,8 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes, shortest first. Keep it to what a player notices.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
-        ("Hover to activate, built in",
-            "Turn on Windows' \"activate the window under the mouse\" in Your squad, Settings or the tray – with a delay slider (30 ms recommended) and \"Bring window to front\". A grey zone: read the notice next to the switch. Your own Windows values are kept and come back with one click, or when you uninstall."),
+        ("Hover to activate: the WoWBoxer way to switch",
+            "Point at a window and it becomes active – Windows' own setting, in Your squad, Settings or the tray. It sends nothing to the game; WoWBoxer never sends keys or clicks. Off until you turn it on, and your own Windows values come back with one click, or when you uninstall."),
+        ("New website address",
+            "The Guide and rules links now open wowboxer.com."),
         ("Start and Stop",
             "The app now opens stopped and leaves every window alone until you press Start placing windows. Stop (next to the main button, or the tray) leaves them alone again. A desktop layout shortcut starts at once; Settings can start it whenever the app opens."),
         ("Plug and play",

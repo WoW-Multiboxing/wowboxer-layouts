@@ -42,7 +42,7 @@ Legend: âœ… passed Â· âš ï¸ passed with a note Â· âŒ failed (
 | Always on top via â–¾ details, 4 rounds on/off: WS_EX_TOPMOST follows within 200 ms both ways | âœ… 8/8 |
 | Real windows untouched through the fake-window tests (positions before = after, also after resume) | âœ… |
 | Squad row drag (guarded real mouse) + Undo, on fake windows | see below |
-| Alt-Tab / clicking / hover between real WoW clients | â¸ owner â€“ the tests never activate a WoW window |
+| Hover to activate between real WoW clients | â¸ owner â€“ the tests never activate a WoW window |
 
 **Incident during the first fake-window runs (22:37â€“22:42), fixed:** the first test version used 4 fakes against the
 owner's 3 clients. Closing one fake made it 3 vs 3, the squad switched back to the real install mid-test, and the next
@@ -62,7 +62,7 @@ checks the squad's install first and stops paused otherwise.
 | Squad row drag (guarded real mouse) row 2 â†’ row 1: real windows swap, on-top follows the slot; Undo puts windows and rows back | âœ… (found + fixed: the list swallowed the drag; Undo did not restore window order) |
 | No false "set by something else" log after our own changes | âœ… fixed |
 | One screen: rows select the slot, details inline, footer launch/apply/start, no Squad tab | âœ… (UI sweep) |
-| Alt-Tab / clicking / hover-to-activate between real WoW clients | â¸ owner â€“ the tests never activate a WoW window |
+| Hover to activate between real WoW clients | â¸ owner â€“ the tests never activate a WoW window |
 
 ## v0.2.2 checks (owner's report on v0.2.1)
 | Item | Result |

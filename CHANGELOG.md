@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.4 – Hover to activate is the WoWBoxer way to switch (2026-10-29)
+- **Hover to activate is the WoWBoxer way to switch windows** (owner's decision). The "Grey zone" notices next to the
+  switch (Setup › Your squad, Settings › Switching windows) are gone, and so is the advice to use Alt+Tab or clicking
+  (Guide, What's new, README, known issues). In their place, the facts: hover to activate is a Windows setting; it
+  sends nothing to the game; WoWBoxer never sends keys or clicks.
+- Behaviour is unchanged: off by default, only changed on your click, your own Windows values kept and restored
+  (Settings › Restore, on quit if chosen, always on uninstall).
+- **Website links now open https://wowboxer.com/** (the site's new domain) instead of the Vercel address: the Guide,
+  the first-run screen, About and the rules link next to the switch.
+
 ## v0.3.3 – Fix: the app did not start (2026-10-28)
 - **v0.3.2 closed right away on start.** The Settings screen used the grey-zone box style that only the Setup screen
   defined, so the main window could not be built. The style now lives in the shared theme. Installed v0.3.2 cannot

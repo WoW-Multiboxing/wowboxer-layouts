@@ -360,7 +360,7 @@
                                Visibility="{Binding ExtraText, Converter={x:Static app:BoolVisibility.Instance}}" />
                 </StackPanel>
 
-                <!-- Switching windows: Windows' own hover-to-activate, built in. A Windows setting, never input; grey zone, so the notice stays visible. -->
+                <!-- Switching windows: Windows' own hover-to-activate, built in – the WoWBoxer way to switch. A Windows setting, never input. -->
                 <Border DockPanel.Dock="Bottom" Margin="0,10,0,0" Padding="0,10,0,0" BorderBrush="{StaticResource LineSoftBrush}" BorderThickness="0,1,0,0" DataContext="{Binding Hover}">
                     <StackPanel>
                         <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Enabled}" AutomationProperties.AutomationId="HoverToggle" AutomationProperties.Name="Hover to activate windows"
@@ -380,10 +380,10 @@
                                 <TextBlock Text="Bring window to front when activated" FontSize="12" />
                             </CheckBox>
                         </StackPanel>
-                        <!-- grey-zone notice, WoW tooltip style -->
+                        <!-- the facts, WoW tooltip style -->
                         <Border Style="{StaticResource TipBox}" Margin="0,8,0,0">
                             <TextBlock TextWrapping="Wrap" FontSize="11.5" LineHeight="16" Foreground="#E4E4E4">
-                                <Run Text="Grey zone" Foreground="{StaticResource UiGoldBrush}" FontWeight="SemiBold" /><Run Text="  Windows feature, not part of WoW. Blizzard staff have said hover-to-activate &#x201C;might&#x201D; be considered streamlining. Alt-tab or clicking is the safe choice." />
+                                <Run Text="Hover to activate is a Windows setting. It sends nothing to the game; WoWBoxer never sends keys or clicks." />
                                 <LineBreak />
                                 <Hyperlink Command="{Binding OpenGuideCommand}" Foreground="{StaticResource GoldHiBrush}" ToolTip="Guide › Switch between windows">Guide</Hyperlink>
                                 <Run Text=" · " Foreground="{StaticResource MutedBrush}" />

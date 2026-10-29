@@ -17,7 +17,7 @@ them there.
 | Keep a window "always on top" if you ask | Read or write game memory, inject code or hook input |
 | Open the login screens of the clients you are missing (you press Play) | Log in for you or store passwords |
 | Optionally set WoW's UI Scale in `Config.wtf` so the action bar fits (with a backup) | Send telemetry. The update check is its only network call |
-| Turn Windows' "activate a window by hovering over it" on or off for you, with a delay – a grey zone, so off by default, with a notice and your own values kept | Change any Windows setting without your click |
+| Turn Windows' "activate a window by hovering over it" on or off for you, with a delay – the WoWBoxer way to switch windows. Off by default, your own values kept | Change any Windows setting without your click |
 
 **Compliance.** Blizzard allows multiboxing as long as every action in the game comes from one key press or click
 of yours on one character. Since 2022 it no longer allows software that broadcasts input to several clients. This

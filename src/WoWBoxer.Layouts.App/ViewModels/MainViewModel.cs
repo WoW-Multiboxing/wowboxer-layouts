@@ -33,7 +33,7 @@ public interface IUserDialogs
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
-    public const string WebsiteUrl = "https://wowboxer-site.vercel.app";   // until the site has its own domain
+    public const string WebsiteUrl = "https://wowboxer.com";
     public const string WebsiteGuideUrl = WebsiteUrl + "/guides/getting-started/";
     public const string RepoUrl = "https://github.com/WoW-Multiboxing/wowboxer-layouts";
 
