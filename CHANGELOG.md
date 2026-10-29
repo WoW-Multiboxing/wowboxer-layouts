@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.1 – What's new fits the screen (2026-10-30)
+- **What's new is smaller and scrolls.** It lists only the six newest changes (the rest is here in the CHANGELOG),
+  never grows taller than the screen (at most 640 px), and the list scrolls while the title and **Continue** always stay
+  in view. Before, the long list pushed Continue off the bottom of the screen (owner's report on v0.4.0). Enter or Esc
+  also closes it.
+
 ## v0.4.0 – Up to 10 clients; layout and monitors as two clear choices (2026-10-30)
 - **1–10 clients.** The number buttons go to 10 (two rows of five): clients 1–5 are party 1, 6–10 party 2, with
   client 6 as party 2's main. Your squad groups its rows as "Party 1" and "Party 2" above 5 clients; dragging a row into

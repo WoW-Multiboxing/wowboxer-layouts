@@ -9,7 +9,7 @@ namespace WoWBoxer.Layouts.App;
 /// <summary>"What's new": shown once on the first start after an update, so the owner can see what changed.</summary>
 internal static class WhatsNewWindow
 {
-    /// <summary>The newest changes, shortest first. Keep it to what a player notices.</summary>
+    /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
         ("Up to 10 clients – two parties",
@@ -36,6 +36,9 @@ internal static class WhatsNewWindow
             "Squad rows are one line – ▾ opens class, account, always on top and Identify. Window rules, UI Scale and tools moved to Settings; the activity log opens from the status bar."),
     ];
 
+    /// <summary>How many changes the window lists (the rest is in the CHANGELOG).</summary>
+    private const int Shown = 6;
+
     public static bool ShouldShow(AppSettings settings, string version) =>
         settings.FirstRunDone && !string.Equals(settings.LastSeenVersion, version, StringComparison.Ordinal);
 
@@ -44,12 +47,14 @@ internal static class WhatsNewWindow
         var res = Application.Current;
         Brush R(string key) => (Brush)res.FindResource(key);
 
-        var list = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
-        foreach (var (title, text) in Changes)
+        var list = new StackPanel { Margin = new Thickness(0, 0, 12, 0) };
+        foreach (var (title, text) in Changes.Take(Shown))
         {
-            list.Children.Add(new TextBlock { Text = title, Style = (Style)res.FindResource("H2"), FontSize = 15, Margin = new Thickness(0, 10, 0, 2) });
-            list.Children.Add(new TextBlock { Text = text, Foreground = R("TextBrush"), FontSize = 13.5, TextWrapping = TextWrapping.Wrap });
+            list.Children.Add(new TextBlock { Text = title, Style = (Style)res.FindResource("H2"), FontSize = 14, Margin = new Thickness(0, 8, 0, 2) });
+            list.Children.Add(new TextBlock { Text = text, Foreground = R("TextBrush"), FontSize = 13, TextWrapping = TextWrapping.Wrap });
         }
+        // the list scrolls; the header and Continue always stay in view
+        var scroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 12, 0, 0), Focusable = false };
 
         var ok = new Button
         {
@@ -58,26 +63,32 @@ internal static class WhatsNewWindow
             IsDefault = true,
             IsCancel = true,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 24, 0, 0),
+            Margin = new Thickness(0, 16, 0, 0),
         };
-        var content = new StackPanel
+        var header = new StackPanel
         {
             Children =
             {
-                new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/app.png")), Width = 64, Height = 64, HorizontalAlignment = HorizontalAlignment.Center },
-                new TextBlock { Text = "What's new", Style = (Style)res.FindResource("H1"), FontSize = 28, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) },
-                new TextBlock { Text = $"WoWBoxer Window Layouts {version}", Foreground = R("GoldBrush"), FontSize = 13.5, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) },
-                new ContentControl { Style = (Style)res.FindResource("Divider"), Margin = new Thickness(100, 16, 100, 0) },
-                list,
-                ok,
+                new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/app.png")), Width = 44, Height = 44, HorizontalAlignment = HorizontalAlignment.Center },
+                new TextBlock { Text = "What's new", Style = (Style)res.FindResource("H1"), FontSize = 24, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) },
+                new TextBlock { Text = $"WoWBoxer Window Layouts {version}", Foreground = R("GoldBrush"), FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) },
+                new ContentControl { Style = (Style)res.FindResource("Divider"), Margin = new Thickness(100, 12, 100, 0) },
             },
         };
+        var content = new DockPanel { LastChildFill = true };
+        DockPanel.SetDock(header, Dock.Top);
+        DockPanel.SetDock(ok, Dock.Bottom);
+        content.Children.Add(header);
+        content.Children.Add(ok);
+        content.Children.Add(scroll);
         var window = new Window
         {
             Title = "What's new in WoWBoxer Window Layouts",
             Owner = owner,
-            Width = 680,
+            Width = 620,
             SizeToContent = SizeToContent.Height,
+            // never taller than the screen (a long list used to push Continue off it)
+            MaxHeight = Math.Min(640, SystemParameters.WorkArea.Height - 40),
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
             WindowStyle = WindowStyle.None,
@@ -91,7 +102,7 @@ internal static class WhatsNewWindow
                 Margin = new Thickness(14),
                 CornerRadius = new CornerRadius(12),
                 Background = R("WarTableBrush"),
-                Child = new ContentControl { Style = (Style)res.FindResource("OrnatePanel"), Padding = new Thickness(36, 28, 36, 28), Content = content },
+                Child = new ContentControl { Style = (Style)res.FindResource("OrnatePanel"), Padding = new Thickness(32, 22, 32, 22), Content = content },
             },
         };
         System.Windows.Automation.AutomationProperties.SetAutomationId(window, "WhatsNew");
