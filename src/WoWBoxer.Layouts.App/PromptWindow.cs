@@ -18,6 +18,8 @@ internal static class PromptWindow
 
     public static bool Confirm(Window owner, string title, string message) => Dialog(owner, title, message, null, "Yes", "No");
 
+    public static bool Confirm(Window owner, string title, string message, string yes, string no) => Dialog(owner, title, message, null, yes, no);
+
     private static bool Dialog(Window owner, string title, string message, UIElement? input, string yes, string no)
     {
         var ok = new Button { Content = yes, IsDefault = true, MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };

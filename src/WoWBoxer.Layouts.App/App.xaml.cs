@@ -87,7 +87,10 @@ public partial class App : Application
             settings.LastSeenVersion = version;
             settings.Save();
         }
-        if (settings.CheckForUpdates) _ = Updater.CheckAsync(_main.ViewModel.Status, () => _main.ViewModel.Paused, e.Args);
+        if (settings.CheckForUpdates)
+            _ = Updater.CheckAsync(_main.ViewModel.Status, startInTray ? null : version => PromptWindow.Confirm(_main, "Update available",
+                $"WoWBoxer {version} is ready (you have {ViewModels.MainViewModel.AppVersion}).\n\nUpdate now? The app closes and opens again in a few seconds. Later installs it when you quit.",
+                "Update now", "Later"), e.Args);
 
         if (startProfile is not null) StartProfile(startProfile);
     }
