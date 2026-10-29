@@ -5,7 +5,7 @@
              xmlns:app="clr-namespace:WoWBoxer.Layouts.App">
     <!-- Plug and play (v0.2.4): clients, layout and monitors on the left, the map in the middle, "Your squad" on the right
          (one compact row per window, grouped by party above 5 clients, ▾ for details), one primary button in the footer
-         that follows the squad's state. v0.4.0: 1–10 clients, layout as a dropdown, a Monitors choice. -->
+         that follows the squad's state. v0.4.0: 1–10 clients and a Monitors choice (v0.4.2: the layout cards are back, owner preferred them). -->
     <UserControl.Resources>
         <!-- Squad size: gold-trimmed numbers (ListBox so the selection is two-way) -->
         <Style x:Key="SizeItem" TargetType="ListBoxItem">
@@ -39,6 +39,49 @@
                                     <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
                                 </Trigger.ExitActions>
                             </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Layout card: live mini preview + title; gold glow when active, lifts on hover -->
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource GoldFocus}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root" Margin="0,0,8,8" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform><TranslateTransform x:Name="Lift" /></Grid.RenderTransform>
+                            <Border x:Name="Body" CornerRadius="7" BorderThickness="1.5" BorderBrush="#2E3850" Padding="7,7,7,7">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.5,1"><GradientStop Color="#1E2536" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="18" Color="#E8C66A" Opacity="0" /></Border.Effect>
+                                <ContentPresenter />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldLoBrush}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="-2" Duration="0:0:0.15" /></Storyboard></BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0.55" Duration="0:0:0.25" /></Storyboard></BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.45" /></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -206,21 +249,31 @@
                 <ContentControl Style="{StaticResource OrnatePanel}" Padding="16,14,12,12" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Style="{StaticResource StepLabel}" Text="II  ·  PICK A LAYOUT" />
-                        <!-- one compact dropdown; each entry shows a live mini preview for the current clients and monitors -->
-                        <ComboBox Margin="0,10,0,0" ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" Padding="6,4"
-                                  AutomationProperties.AutomationId="LayoutPicker" AutomationProperties.Name="Layout" ToolTip="{Binding SelectedLayout.Blurb}">
-                            <ComboBox.ItemTemplate>
+                        <!-- every layout as a card with a live mini preview for the current clients and monitors; click to pick -->
+                        <ItemsControl Margin="0,10,-8,0" ItemsSource="{Binding Layouts}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel ToolTip="{Binding Blurb}">
-                                        <Border DockPanel.Dock="Left" Width="66" Height="38" Margin="0,2,10,2" CornerRadius="3" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
-                                            <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" Monitors="{Binding Monitors}" Screens="{Binding Screens}" IsHitTestVisible="False" />
-                                        </Border>
-                                        <TextBlock Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="12" Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center" />
-                                    </DockPanel>
+                                    <Button Style="{StaticResource CardButton}" Command="{Binding Apply}" AutomationProperties.Name="{Binding Title}" ToolTip="{Binding Blurb}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Border Height="48" CornerRadius="4" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
+                                                    <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" Monitors="{Binding Monitors}" Screens="{Binding Screens}" IsHitTestVisible="False" />
+                                                </Border>
+                                                <Grid Width="18" Height="18" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-6,0"
+                                                      Visibility="{Binding IsSelected, Converter={x:Static app:BoolVisibility.Instance}}">
+                                                    <Ellipse Fill="#1C170C" Stroke="{StaticResource GoldHiBrush}" StrokeThickness="1.5" />
+                                                    <Path Data="M5,9 L7.8,11.8 L13,6.5" Stroke="{StaticResource UiGoldBrush}" StrokeThickness="2" />
+                                                </Grid>
+                                            </Grid>
+                                            <TextBlock Margin="0,6,0,0" Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="10.5" Foreground="{StaticResource ParchmentBrush}"
+                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                 </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,0" TextWrapping="Wrap" Text="{Binding SelectedLayout.Blurb}" />
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,2,0,0" TextWrapping="Wrap" Text="{Binding SelectedLayout.Blurb}" />
                         <!-- 6–10 clients on one monitor: the parties share it; flip the split -->
                         <DockPanel Margin="0,6,0,0" Visibility="{Binding HasSplit, Converter={x:Static app:BoolVisibility.Instance}}">
                             <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Flip" Command="{Binding FlipSplitCommand}" FontSize="12"

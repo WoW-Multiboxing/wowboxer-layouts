@@ -26,7 +26,7 @@ public sealed class ProfileItem(StoredProfile stored) : ObservableObject
     public override string ToString() => Name;
 }
 
-/// <summary>One entry of the layout dropdown on the Setup tab, with a live mini preview for the current clients and monitors.</summary>
+/// <summary>One of the layout cards on the Setup tab, with a live mini preview for the current clients and monitors.</summary>
 public sealed class LayoutCard(PresetKind kind, string title, string blurb) : ObservableObject
 {
     private LayoutProfile? _preview;
@@ -36,13 +36,15 @@ public sealed class LayoutCard(PresetKind kind, string title, string blurb) : Ob
     public PresetKind Kind { get; } = kind;
     public string Title { get; } = title;
     public string Blurb { get; } = blurb;
+    /// <summary>A click on the card: use this layout.</summary>
+    public System.Windows.Input.ICommand? Apply { get; init; }
     public LayoutProfile? Preview { get => _preview; set => Set(ref _preview, value); }
     public bool IsSelected { get => _isSelected; set => Set(ref _isSelected, value); }
     /// <summary>For the preview: every monitor, and the chosen ones it is drawn on.</summary>
     public IReadOnlyList<MonitorInfo> Monitors { get => _monitors; set => Set(ref _monitors, value); }
     public IReadOnlyList<MonitorInfo> Screens { get => _screens; set => Set(ref _screens, value); }
 
-    public override string ToString() => Title;   // the dropdown's name for UI Automation and screen readers
+    public override string ToString() => Title;
 }
 
 /// <summary>A monitor choice: "2 monitors" with which ones ("Primary + right · 2560×1440 + 1920×1080").</summary>

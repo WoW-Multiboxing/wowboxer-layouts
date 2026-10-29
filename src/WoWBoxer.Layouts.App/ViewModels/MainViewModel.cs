@@ -103,10 +103,10 @@ public sealed class MainViewModel : ObservableObject
         Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
         Layouts =
         [
-            new(PresetKind.Side, "Main + side", "Main big, followers stacked beside it. 2+ monitors: the main fills monitor 1, followers go on the others. 6–10 clients: one block per party."),
-            new(PresetKind.Overlay, "Overlays", "Main fills the screen; followers float in a row along the bottom – one row per party."),
-            new(PresetKind.Grid, "Grid", "Every client the same size, spread evenly over your monitors."),
-            new(PresetKind.Free, "Free for all", "A loose start over your monitors – drag every window anywhere, across monitors too."),
+            Card(PresetKind.Side, "Main + side", "Main big, followers stacked beside it. 2+ monitors: the main fills monitor 1, followers go on the others. 6–10 clients: one block per party."),
+            Card(PresetKind.Overlay, "Overlays", "Main fills the screen; followers float in a row along the bottom – one row per party."),
+            Card(PresetKind.Grid, "Grid", "Every client the same size, spread evenly over your monitors."),
+            Card(PresetKind.Free, "Free for all", "A loose start over your monitors – drag every window anywhere, across monitors too."),
         ];
         FlipSplitCommand = new RelayCommand(FlipSplit, () => HasSplit);
         _monitorCheck.Tick += (_, _) =>
@@ -171,8 +171,10 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
-    /// <summary>The layout dropdown's entries, each with a live mini preview for the current clients and monitors.</summary>
+    /// <summary>The layout cards, each with a live mini preview for the current clients and monitors.</summary>
     public IReadOnlyList<LayoutCard> Layouts { get; }
+
+    private LayoutCard Card(PresetKind kind, string title, string blurb) => new(kind, title, blurb) { Apply = new RelayCommand(() => ApplyKind(kind)) };
     public IReadOnlyList<int> ClientCounts { get; } = Enumerable.Range(Presets.MinClients, Presets.MaxClients - Presets.MinClients + 1).ToList();
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
     public IReadOnlyList<AspectChoice> AspectChoices { get; } =
@@ -328,7 +330,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>The layout dropdown: the current layout's type (none for a captured or imported one).</summary>
+    /// <summary>The current layout's card (none for a captured or imported layout).</summary>
     public LayoutCard? SelectedLayout
     {
         get => Layouts.FirstOrDefault(c => c.Kind == Current?.Preset);

@@ -54,7 +54,7 @@ public sealed class GuideViewModel : ObservableObject
                 "On the Setup tab, choose how many clients you run, pick a layout and, with two or more monitors, how many of them to use. Your screens update instantly.",
                 [
                     "Choose 2–10 clients with the number buttons – or 1 for a normal single window when you play one character (no need to close the app). Clients 1–5 are party 1, 6–10 party 2, with client 6 as party 2's main.",
-                    "Pick a layout from the dropdown: Main + side, Overlays, Grid or Free for all. Each entry shows a small preview.",
+                    "Click a layout card: Main + side, Overlays, Grid or Free for all. Each card shows a live preview for your clients and monitors.",
                     "Monitors (right below, with 2+ monitors): 1 monitor, 2 monitors … The map shows exactly the chosen ones, numbered 1, 2 …; the main goes on 1. With fewer than all, \"Which ones\" picks them.",
                     "Main + side on 2+ monitors: the main fills monitor 1, the followers go on the others. With 6–10 clients each party gets its own block – one per monitor, or two halves of one monitor (Flip turns the halves). Free for all: drag windows anywhere, also across monitors.",
                     "Fine-tune by dragging windows on the map. A green dot means the whole action bar fits; a solid dot is measured on the open game window, a ring is the plan.",

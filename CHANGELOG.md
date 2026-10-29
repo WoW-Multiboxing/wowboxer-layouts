@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.2 – The layout cards are back (2026-10-30)
+- **Pick a layout with the cards again** (owner's preference): Main + side, Overlays, Grid and Free for all side by
+  side, each with its live preview for the current clients and monitors – one click switches. The dropdown from v0.4.0
+  is gone; the Monitors section stays right below the cards, and the chosen layout's short description under them.
+
 ## v0.4.1 – What's new fits the screen (2026-10-30)
 - **What's new is smaller and scrolls.** It lists only the six newest changes (the rest is here in the CHANGELOG),
   never grows taller than the screen (at most 640 px), and the list scrolls while the title and **Continue** always stay

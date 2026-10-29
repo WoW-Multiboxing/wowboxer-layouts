@@ -63,6 +63,8 @@ function Prompt($text, $button = 'OK') {
   (Pattern (Find $button $d) ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600
 }
 # Picks an entry of one of our dropdowns (layout, monitors) by its name.
+function InvokeName($name) { $e = Find $name; (Pattern2 $e ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 700 }
+function Pattern2($e, $p) { $o = $null; if ($e -and $e.TryGetCurrentPattern($p, [ref]$o)) { $o } else { throw 'no pattern' } }
 function Choose($id, $name) {
   $cb = FindId $id; if (-not $cb) { throw "not found: $id" }
   $ec = Pattern $cb ([System.Windows.Automation.ExpandCollapsePattern]::Pattern); $ec.Expand(); Start-Sleep -Milliseconds 300
@@ -91,7 +93,7 @@ foreach ($m in 1..$screens) {
   foreach ($n in 1..10) {
     Pick "$n"
     foreach ($c in $layouts) {
-      Choose 'LayoutPicker' $c
+      InvokeName $c
       Check "$m monitor(s) · $n clients · $c" { $p = Current; $p.clients -eq $n -and $p.preset -eq $kinds[$c] -and @($p.slots).Count -eq $n -and @($p.screens).Count -eq $m }
     }
   }
@@ -99,7 +101,7 @@ foreach ($m in 1..$screens) {
 
 # ---- parties, split, which monitor, overlay row on monitor 2 ----
 if ($screens -gt 1) { Choose 'MonitorCount' '1 monitor' }
-Pick '10'; Choose 'LayoutPicker' 'Main + side'
+Pick '10'; InvokeName 'Main + side'
 Check '10 clients: rows grouped as Party 1 and Party 2' { [bool](Find 'PARTY 1') -or [bool](Find 'Party 1') }
 $split = (FindId 'SplitText').Current.Name
 Invoke 'Flip'
@@ -115,13 +117,13 @@ if ($screens -gt 1) {
   Check 'Choosing the other monitor moves the layout there' { $s = @((Current).screens); $s.Count -eq 1 -and ($s[0].x -ne $first.x -or $s[0].y -ne $first.y) }
   Choose 'MonitorCount' '2 monitors'
   Check '10 clients on 2 monitors: one party per monitor, no split to flip' { -not (FindId 'SplitText') -and @((Current).screens).Count -eq 2 }
-  Pick '4'; Choose 'LayoutPicker' 'Overlays'
+  Pick '4'; InvokeName 'Overlays'
   SetToggle 'Followers on monitor 2' $true
   Check 'Overlays: followers on monitor 2' { (Current).followersOnSecond -eq $true }
   SetToggle 'Followers on monitor 2' $false
   Choose 'MonitorCount' '1 monitor'
 }
-Pick '3'; Choose 'LayoutPicker' 'Main + side'
+Pick '3'; InvokeName 'Main + side'
 
 # ---- switches ----
 Check 'Plug and play: no game selector, no live switch, no Full action bar / All monitors switches' { -not (Find 'Forever') -and -not (Find 'Classic Era') -and -not (Find 'Move WoW windows live') -and -not (Find 'Full action bar') -and -not (Find 'All monitors') }
