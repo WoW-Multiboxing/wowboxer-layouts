@@ -27,6 +27,9 @@
   When monitors are plugged in or out the list refreshes; if a monitor of the layout is gone, it goes back to 1
   monitor with a short notice (Ctrl+Z, or choose the monitors again when it is back). Share codes leave the device IDs
   out.
+- **Updates:** when the app opens and you already have the newest version, the activity log now says so ("You have
+  the newest version (0.4.0)."), so a quiet start is not a mystery. When a newer one is out, it asks "Update now /
+  Later" as since v0.3.5 (that worked: 0.3.5 → 0.3.6 on the owner's PC; there was simply nothing newer to offer after).
 - Guide › chapter 2, README and the plan explain it. CLI: `--clients` 1–10, `--preset free`.
 - Unit tests: every layout × 1–3 monitors (incl. three mixed-DPI monitors numbered out of order) × 1–10 clients, plus
   parties, split, monitor matching and fallback (2,338 cases). `tools/ui-sweep.ps1` covers the new controls.

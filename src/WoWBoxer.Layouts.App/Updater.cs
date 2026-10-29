@@ -31,7 +31,11 @@ internal static class Updater
             var manager = new UpdateManager(new GithubSource(RepoUrl, null, beta));
             if (!manager.IsInstalled) return;
             var update = await manager.CheckForUpdatesAsync();
-            if (update is null) return;
+            if (update is null)
+            {
+                status.Info($"You have the newest version ({ViewModels.MainViewModel.AppVersion}).");   // so a quiet start is not a mystery
+                return;
+            }
             var version = update.TargetFullRelease.Version;
             if (ask?.Invoke(version.ToString()) == true)
             {

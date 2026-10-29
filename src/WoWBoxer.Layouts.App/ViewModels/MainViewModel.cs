@@ -823,7 +823,8 @@ public sealed class MainViewModel : ObservableObject
     private void CheckScreens()
     {
         if (Current is null || Monitors.Count == 0) return;
-        if (ScreenSet.Resolve(Current, Monitors).Missing)
+        // older layouts remember no screens: a slot on a monitor that is not there counts as missing too
+        if (ScreenSet.Resolve(Current, Monitors).Missing || Current.Slots.Any(s => Core.Monitors.Find(Monitors, s.Monitor) is null))
         {
             ApplyKind(Current.Preset ?? PresetKind.Free, screens: [Core.Monitors.Primary(Monitors)]);
             MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor now. Choose the monitors again when it is back (or Ctrl+Z).";
