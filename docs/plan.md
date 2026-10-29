@@ -34,7 +34,7 @@ WoW windows found (class GxWindowClass* / waApplication Window, process Wow*, pa
      └─► assigned to slots (launch order, or "identify & assign")
      └─► placed: SetWindowPos (async, no activate), borderless, re-applied while WoW loads (~30 s)
 ```
-**Layout profile (shared with the website's layout designer and the companion):**
+**Layout profile (shared with the website's layout designer):**
 ```json
 { "format": "wowboxer-layout/1", "name": "Overlay 5", "clients": 5,
   "slots": [
