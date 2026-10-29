@@ -373,7 +373,12 @@
                                 <TextBlock DockPanel.Dock="Right" Text="{Binding DelayText}" Width="112" Margin="8,0,0,0" FontSize="11.5" Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center" />
                                 <Slider Minimum="0" Maximum="500" Ticks="30" SmallChange="5" LargeChange="50" Value="{Binding DelayPreview}"
                                         app:SliderCommit.Command="{Binding CommitDelayCommand}" AutomationProperties.AutomationId="HoverDelay" AutomationProperties.Name="Hover delay in milliseconds"
-                                        ToolTip="How long the mouse must rest on a window before it becomes active. About 30 ms (the mark) stops windows from activating as the mouse just passes over them. Applies when you let go." />
+                                        ToolTip="How long the mouse must rest on a window before it becomes active. 30 ms (the mark, the default) stops windows from activating as the mouse just passes over them. Applies when you let go." />
+                            </DockPanel>
+                            <DockPanel Margin="42,0,0,0">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Reset to default" FontSize="11.5" Command="{Binding ResetDelayCommand}"
+                                        AutomationProperties.AutomationId="HoverResetDelay" ToolTip="Sets the delay back to 30 ms, at once. Your own Windows values from before: Settings › Restore." />
+                                <TextBlock Text="{Binding DefaultDelayText}" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                             </DockPanel>
                             <CheckBox IsChecked="{Binding BringToFront}" Margin="0,6,0,0" AutomationProperties.AutomationId="HoverFront"
                                       ToolTip="Off: the active window stays where it is, so floating overlays stay visible. Works best with &quot;Always on top&quot; (the pin) on the followers.">

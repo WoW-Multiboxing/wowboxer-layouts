@@ -7,10 +7,14 @@ namespace WoWBoxer.Layouts.Core;
 public sealed record HoverSettings(bool Enabled, int DelayMs, bool BringToFront)
 {
     public const int MaxDelayMs = 500;
-    public const int RecommendedDelayMs = 30;
+    /// <summary>The delay the app sets when hover is turned on, and what "Reset to default" puts back.</summary>
+    public const int DefaultDelayMs = 30;
 
     /// <summary>The delay slider's range. The user's own value can be larger (set outside the app); only new values are clamped.</summary>
     public static int ClampDelay(int ms) => Math.Clamp(ms, 0, MaxDelayMs);
+
+    /// <summary>Turning it on always starts at the default delay, whatever Windows had before.</summary>
+    public HoverSettings TurnedOn() => this with { Enabled = true, DelayMs = DefaultDelayMs };
 
     public string Describe() => $"{(Enabled ? "on" : "off")}, delay {DelayMs} ms, bring to front {(BringToFront ? "on" : "off")}";
 

@@ -27,21 +27,29 @@ public sealed class HoverViewModel : ObservableObject
         OpenGuideCommand = new RelayCommand(openGuide);
         OpenRulesCommand = new RelayCommand(() => openUrl(RulesUrl));
         CommitDelayCommand = new RelayCommand(CommitDelay);
+        ResetDelayCommand = new RelayCommand(ResetDelay, () => _now.DelayMs != DefaultDelay || _delayPreview != DefaultDelay);
     }
 
     public const string RulesUrl = MainViewModel.WebsiteUrl + "/rules/#hover-to-activate-a-windows-setting";
-    private const int RecommendedDelay = HoverSettings.RecommendedDelayMs;
+    private const int DefaultDelay = HoverSettings.DefaultDelayMs;
 
     public ICommand RestoreCommand { get; }
     public ICommand OpenGuideCommand { get; }
     public ICommand OpenRulesCommand { get; }
     /// <summary>The delay slider was let go (mouse up or a key): write the new delay to Windows.</summary>
     public ICommand CommitDelayCommand { get; }
+    /// <summary>"Reset to default": the delay back to 30 ms, at once. Not the same as Restore (the user's own values).</summary>
+    public ICommand ResetDelayCommand { get; }
 
     public bool Enabled
     {
         get => _now.Enabled;
-        set => Apply(s => s with { Enabled = value }, value ? "Hover to activate is on: the window under the mouse becomes active." : "Hover to activate is off.");
+        set
+        {
+            // On always starts at the default delay (written together with on); the slider jumps there with it.
+            if (value) Apply(s => s.TurnedOn(), $"Hover to activate is on (delay {DefaultDelay} ms): the window under the mouse becomes active.");
+            else Apply(s => s with { Enabled = false }, "Hover to activate is off.");
+        }
     }
 
     public bool BringToFront
@@ -57,7 +65,9 @@ public sealed class HoverViewModel : ObservableObject
         set => SetDelayPreview((int)Math.Round(value / 5) * 5);
     }
 
-    public string DelayText => _delayPreview == RecommendedDelay ? $"{_delayPreview} ms · recommended" : $"{_delayPreview} ms";
+    public string DelayText => _delayPreview == DefaultDelay ? $"{_delayPreview} ms · default" : $"{_delayPreview} ms";
+
+    public string DefaultDelayText => $"Default: {DefaultDelay} ms";
 
     private void SetDelayPreview(int ms)
     {
@@ -73,12 +83,29 @@ public sealed class HoverViewModel : ObservableObject
         if (ms != _now.DelayMs) Apply(s => s with { DelayMs = ms }, $"Hover to activate: delay {ms} ms.");
     }
 
+    private void ResetDelay()
+    {
+        SetDelayPreview(DefaultDelay);
+        Apply(s => s with { DelayMs = DefaultDelay }, $"Hover to activate: delay back to the default, {DefaultDelay} ms.");
+    }
+
     public bool RestoreOnExit
     {
         get => _settings.RestoreHoverOnExit;
         set
         {
             _settings.RestoreHoverOnExit = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    public bool TurnOffOnExit
+    {
+        get => _settings.TurnHoverOffOnExit;
+        set
+        {
+            _settings.TurnHoverOffOnExit = value;
             _settings.Save();
             OnPropertyChanged();
         }
@@ -99,11 +126,14 @@ public sealed class HoverViewModel : ObservableObject
         RaiseAll();
     }
 
-    /// <summary>On quit: put the user's own values back if they asked for it in Settings.</summary>
+    /// <summary>On quit: the user's own values back if they asked for that, else hover off (on by default).</summary>
     public void OnAppExit()
     {
-        if (_settings.RestoreHoverOnExit && HoverSettings.NeedsRestore(_settings.HoverOriginal, HoverActivation.Read()))
+        var now = HoverActivation.Read();
+        if (_settings.RestoreHoverOnExit && HoverSettings.NeedsRestore(_settings.HoverOriginal, now))
             HoverActivation.Write(_settings.HoverOriginal!);
+        else if (!_settings.RestoreHoverOnExit && _settings.TurnHoverOffOnExit && now.Enabled)
+            HoverActivation.Write(now with { Enabled = false });
     }
 
     /// <summary>Velopack's uninstall hook: the app is going away, so its change to Windows goes too.</summary>

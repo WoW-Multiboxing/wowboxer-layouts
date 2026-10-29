@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+- **Hover to activate starts at 30 ms.** Turning the switch on (Setup › Your squad, Settings › Switching windows, the
+  tray or the Guide) now writes a 30 ms delay together with "on", whatever delay Windows had before; the slider jumps
+  to 30 ms with it. The slider stays free (0–500 ms) and still applies when you let go.
+- **Reset to default** next to the delay slider (Setup and Settings) sets the delay back to 30 ms at once, with a
+  "Default: 30 ms" label under the slider (the mark on the slider is the same 30 ms). It is separate from "Restore my
+  original Windows settings", which still puts back your own values from before you first used the switch.
+- **Quitting turns hover to activate off.** Closing the app (✕, tray › Quit, signing out of Windows) switches it off
+  again; the delay stays for next time. Settings › Switching windows › "Turn hover to activate off when WoWBoxer quits"
+  (on by default). "Restore them when WoWBoxer quits" still puts back your own values instead.
+- **Updates install when you open the app.** A new version found at start is installed straight away and the app
+  opens again (What's new shows what changed) – as long as it is still stopped. Once it is placing windows, the
+  update waits until you quit, as before. Before, every update was only installed on quit, so the app was always one
+  version behind when opened.
+- Guide › Switch between windows explains the default, Reset and quitting.
+
 ## v0.3.4 – Hover to activate is the WoWBoxer way to switch (2026-10-29)
 - **Hover to activate is the WoWBoxer way to switch windows** (owner's decision). The old notices next to the switch
   (Setup › Your squad, Settings › Switching windows) are gone, and so is the advice about other ways to switch

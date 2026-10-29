@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes, shortest first. Keep it to what a player notices.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Hover to activate starts at 30 ms",
+            "Turning hover to activate on now sets the delay to 30 ms, the default. Move the slider for faster or slower; Reset to default next to it puts 30 ms back. Closing WoWBoxer turns it off again (Settings can keep it on)."),
+        ("Updates when you open it",
+            "A new version is now installed as soon as you open the app (while it is stopped), so you always run the newest one."),
         ("Hover to activate: the WoWBoxer way to switch",
             "Point at a window and it becomes active – Windows' own setting, in Your squad, Settings or the tray. It sends nothing to the game; WoWBoxer never sends keys or clicks. Off until you turn it on, and your own Windows values come back with one click, or when you uninstall."),
         ("New website address",

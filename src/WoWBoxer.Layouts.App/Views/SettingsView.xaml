@@ -121,7 +121,12 @@
                             <Slider Minimum="0" Maximum="500" Ticks="30" SmallChange="5" LargeChange="50" Value="{Binding DelayPreview}"
                                     app:SliderCommit.Command="{Binding CommitDelayCommand}" AutomationProperties.AutomationId="HoverDelaySettings" AutomationProperties.Name="Hover delay in milliseconds" />
                         </DockPanel>
-                        <TextBlock Style="{StaticResource Explain}" Text="0–500 ms. About 30 ms (the mark) stops windows from activating while the mouse just passes over them. Applies when you let go." />
+                        <DockPanel Margin="0,2,60,0">
+                            <Button DockPanel.Dock="Right" Content="Reset to default" Command="{Binding ResetDelayCommand}" AutomationProperties.AutomationId="HoverResetDelaySettings"
+                                    ToolTip="Sets the delay back to 30 ms, at once" />
+                            <TextBlock Text="{Binding DefaultDelayText}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Explain}" Text="0–500 ms. Turning hover on sets 30 ms, the default (the mark): it stops windows from activating while the mouse just passes over them. Move the slider for faster or slower; it applies when you let go. Reset to default puts 30 ms back." />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding BringToFront}"><TextBlock Text="Bring window to front when activated" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="Off keeps floating overlays visible: the active window stays where it is in the stack. Works best with &quot;Always on top&quot; (the pin in Your squad) on the floating followers." />
                         <Border Style="{StaticResource TipBox}" Margin="0,14,60,0">
@@ -133,10 +138,12 @@
                                 <Hyperlink Command="{Binding OpenRulesCommand}" Foreground="{StaticResource GoldHiBrush}">Rules on the website</Hyperlink>
                             </TextBlock>
                         </Border>
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding TurnOffOnExit}" AutomationProperties.AutomationId="HoverOffOnExit"><TextBlock Text="Turn hover to activate off when WoWBoxer quits" /></CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="On by default: closing the app (the window's ✕, Quit in the tray, or signing out of Windows) turns it off again. The delay stays for next time." />
                         <TextBlock Style="{StaticResource Explain}" Margin="0,14,60,0" Text="{Binding OriginalText}" AutomationProperties.AutomationId="HoverOriginal" />
                         <Button Content="Restore my original Windows settings" Command="{Binding RestoreCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" AutomationProperties.AutomationId="HoverRestore"
                                 ToolTip="Puts hover to activate, its delay and &quot;bring to front&quot; back the way they were before WoWBoxer first changed them" />
-                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding RestoreOnExit}" AutomationProperties.AutomationId="HoverRestoreOnExit"><TextBlock Text="Restore them when WoWBoxer quits" /></CheckBox>
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding RestoreOnExit}" AutomationProperties.AutomationId="HoverRestoreOnExit"><TextBlock Text="Restore them when WoWBoxer quits (instead of just turning it off)" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="Uninstalling WoWBoxer always restores them." />
                     </StackPanel>
                 </ContentControl>

@@ -71,9 +71,9 @@ public sealed class GuideViewModel : ObservableObject
             new(SwitchingChapter, "Switch between windows",
                 "Hover to activate is the WoWBoxer way to switch: the window under your mouse becomes active, so your next key press goes to that character. One key press = one action on one character.",
                 [
-                    "The switch below turns on Windows' own \"Activate a window by hovering over it with the mouse\" – the window under your mouse becomes active. A delay of about 30 ms stops windows from activating while the mouse just passes over them.",
+                    "The switch below turns on Windows' own \"Activate a window by hovering over it with the mouse\" – the window under your mouse becomes active. Turning it on sets the delay to 30 ms, the default: windows do not activate while the mouse just passes over them. Move the slider for faster or slower; Reset to default puts 30 ms back.",
                     "With overlays, leave \"Bring window to front\" off and set the floating followers to \"Always on top\" (the pin in Your squad), so the main window can never cover them.",
-                    "WoWBoxer keeps your own Windows values: Settings › Switching windows puts them back with one click, and uninstalling does it too.",
+                    "Closing WoWBoxer turns hover to activate off again (Settings can keep it on). WoWBoxer also keeps your own Windows values from before you first used the switch: \"Restore my original Windows settings\" in Settings › Switching windows puts them back, and uninstalling does it too.",
                 ],
                 "Hover to activate is a Windows setting. It sends nothing to the game; WoWBoxer never sends keys or clicks. It is off until you turn it on.",
                 hover: hover),

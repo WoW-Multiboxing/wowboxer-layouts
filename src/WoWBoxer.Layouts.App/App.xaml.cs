@@ -87,7 +87,7 @@ public partial class App : Application
             settings.LastSeenVersion = version;
             settings.Save();
         }
-        if (settings.CheckForUpdates) _ = Updater.CheckAsync(_main.ViewModel.Status);
+        if (settings.CheckForUpdates) _ = Updater.CheckAsync(_main.ViewModel.Status, () => _main.ViewModel.Paused, e.Args);
 
         if (startProfile is not null) StartProfile(startProfile);
     }
@@ -201,7 +201,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _main?.ViewModel.Hover.OnAppExit();   // only if the user asked for it in Settings
+        if (!Updater.RestartingForUpdate) _main?.ViewModel.Hover.OnAppExit();   // hover off (or the user's own values) on quit
         if (_tray is not null)
         {
             _tray.Visible = false;

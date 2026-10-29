@@ -31,8 +31,10 @@ public sealed class AppSettings
     public List<string> Accounts { get; set; } = [];
     /// <summary>The user's own hover-to-activate values from before the app first changed them; null = the app never changed them.</summary>
     public HoverSettings? HoverOriginal { get; set; }
-    /// <summary>Put the original hover-to-activate values back when the app quits.</summary>
+    /// <summary>Put the original hover-to-activate values back when the app quits (wins over <see cref="TurnHoverOffOnExit"/>).</summary>
     public bool RestoreHoverOnExit { get; set; }
+    /// <summary>Turn hover to activate off when the app quits (on by default; the delay and bring-to-front stay).</summary>
+    public bool TurnHoverOffOnExit { get; set; } = true;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 

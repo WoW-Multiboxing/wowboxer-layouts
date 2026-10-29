@@ -34,6 +34,19 @@ public class HoverSettingsTests
         Assert.Equal(original, JsonSerializer.Deserialize<HoverSettings>(JsonSerializer.Serialize(original, options), options));
     }
 
+    [Theory]
+    [InlineData(false, 0, true)]
+    [InlineData(false, 200, false)]
+    [InlineData(false, 1200, true)]    // a value set outside the app, above the slider's range
+    [InlineData(true, 30, false)]
+    public void Turning_on_always_sets_the_default_delay_and_keeps_bring_to_front(bool enabled, int delay, bool front)
+    {
+        var on = new HoverSettings(enabled, delay, front).TurnedOn();
+
+        Assert.Equal(new HoverSettings(true, HoverSettings.DefaultDelayMs, front), on);
+        Assert.Equal(30, HoverSettings.DefaultDelayMs);
+    }
+
     [Fact]
     public void Describe_reads_like_the_windows_setting() =>
         Assert.Equal("on, delay 30 ms, bring to front off", new HoverSettings(true, 30, false).Describe());
