@@ -1,8 +1,8 @@
 # Changelog
 
 ## v0.3.4 – Hover to activate is the WoWBoxer way to switch (2026-10-29)
-- **Hover to activate is the WoWBoxer way to switch windows** (owner's decision). The "Grey zone" notices next to the
-  switch (Setup › Your squad, Settings › Switching windows) are gone, and so is the advice about other ways to switch
+- **Hover to activate is the WoWBoxer way to switch windows** (owner's decision). The old notices next to the switch
+  (Setup › Your squad, Settings › Switching windows) are gone, and so is the advice about other ways to switch
   windows (Guide, What's new, README, known issues). In their place, the facts: hover to activate is a Windows setting; it
   sends nothing to the game; WoWBoxer never sends keys or clicks.
 - Behaviour is unchanged: off by default, only changed on your click, your own Windows values kept and restored
@@ -12,7 +12,7 @@
   The README links to the website, and the GitHub repos list it as their website.
 
 ## v0.3.3 – Fix: the app did not start (2026-10-28)
-- **v0.3.2 closed right away on start.** The Settings screen used the grey-zone box style that only the Setup screen
+- **v0.3.2 closed right away on start.** The Settings screen used the tooltip box style that only the Setup screen
   defined, so the main window could not be built. The style now lives in the shared theme. Installed v0.3.2 cannot
   update itself (it never gets far enough to check), so install this version with WoWBoxer-Setup.exe.
 - CI and the release now start the built app and fail if it does not open its main window (`tools/smoke-start.ps1`),

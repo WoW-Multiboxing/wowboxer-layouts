@@ -96,7 +96,7 @@ Notes:
 ## 5. Hotkey "swap main" (window-only)
 
 - **Technically:** `RegisterHotKey` in our app, then exchange two clients' rectangles with `SetWindowPos` (`SWP_NOACTIVATE`). No input reaches the game. Do **not** combine it with automatic focus switching in v1.
-- **Policy:** Blizzard's support article 24258 says multiboxing is allowed and **input broadcasting** may be penalized [verified]. The May 2021 policy adds that it bans tools that "**automate or streamline multi-boxing in any way**" [verified, quoted]. A layout swap is plausibly fine and is WOB's core feature. However, "streamline" is vague, and Blizzard flagged WOB's round-robin without warning. **Grey zone, not officially confirmed.** Ship it **off by default**, with a clear note, one window move per key press, no queues or timers.
+- **Policy:** Blizzard's support article 24258 says multiboxing is allowed and **input broadcasting** may be penalized [verified]. The May 2021 policy adds that it bans tools that "**automate or streamline multi-boxing in any way**" [verified, quoted]. A layout swap is plausibly fine and is WOB's core feature. However, "streamline" is vague, and Blizzard flagged WOB's round-robin without warning. **Not officially confirmed.** Ship it **off by default**, with a clear note, one window move per key press, no queues or timers.
 
 ---
 

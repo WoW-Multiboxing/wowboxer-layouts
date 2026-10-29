@@ -33,7 +33,7 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 - One exception, by the owner's decision (2026-10-28): a built-in switch for Windows' own hover-to-activate setting
   (`SystemParametersInfo` ACTIVEWINDOWTRACKING/-TIMEOUT/-ZORDER). A Windows setting, never input. Off by default,
   only on the user's click, original values kept and restored (Settings, on quit if chosen, uninstall hook).
-  Since 2026-10-29 it is THE WoWBoxer way to switch windows: no grey-zone notice, no Alt+Tab/clicking advice.
+  Since 2026-10-29 it is THE WoWBoxer way to switch windows: no warning notice, no advice about other ways to switch.
   State facts only ("a Windows setting; it sends nothing to the game; WoWBoxer never sends keys or clicks").
   Never write "approved", "allowed by Blizzard" or "100% safe".
 - No telemetry. Logs stay local.

@@ -36,5 +36,5 @@ P1 = next, P2 = soon, P3 = later. Sources: design notes rounds 1–3 (project fo
 ## P3 – later
 13. Locale (Danish), winget package.
 14. Read layout codes straight from the website (deep link `wowboxer://layout/WBX1:…`).
-15. Grey-zone features stay out unless the owner decides: swap-main hotkey (off by default, clearly labelled).
+15. Swap-main hotkey stays out unless the owner decides (off by default, clearly labelled).
 16. A tiny always-on-top "squad bar" with the checklist during launch.

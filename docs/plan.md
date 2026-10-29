@@ -12,10 +12,10 @@ first-run screen, installer + auto-update. The CLI (`wbx`) is only the engine an
 
 ## 2. Hard rules (compliance)
 - Only move, resize and restyle windows. No keystrokes, no mouse events, no input hooks, no round-robin, no focus-switch hotkeys in v1.
-  Exception (owner, 2026-10-28): a switch for Windows' own hover-to-activate setting – a Windows setting, not input; off by default, only on the user's click, original values kept and restored. Since 2026-10-29 it is *the* WoWBoxer way to switch windows; the UI states facts only (a Windows setting, sends nothing to the game) – no grey-zone notice, never "approved", "allowed by Blizzard" or "100% safe".
+  Exception (owner, 2026-10-28): a switch for Windows' own hover-to-activate setting – a Windows setting, not input; off by default, only on the user's click, original values kept and restored. Since 2026-10-29 it is *the* WoWBoxer way to switch windows; the UI states facts only (a Windows setting, sends nothing to the game) – no warning notice, never "approved", "allowed by Blizzard" or "100% safe".
 - No reading of game memory, no injection, no login automation. The player presses Play themselves, once per account.
 - The app shows a short "what it does / never does" screen on first run and links to the WoWBoxer rules page.
-- Optional later features in the grey zone (e.g. a "swap main window" hotkey) are off by default and clearly labelled.
+- Optional later features (e.g. a "swap main window" hotkey) are off by default and clearly labelled.
 
 ## 3. Decisions (from research)
 | Topic | Decision | Why |
@@ -84,7 +84,7 @@ WoW windows found (class GxWindowClass* / waApplication Window, process Wow*, pa
 
 **Later (v1.1+):**
 - per-profile Config.wtf hints (CVars)
-- an optional "swap main" hotkey, labelled grey zone and off by default
+- an optional "swap main" hotkey, off by default
 - a picture-in-picture preview
 - locale (Danish)
 - winget package
