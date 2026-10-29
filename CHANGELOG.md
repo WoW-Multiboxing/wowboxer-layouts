@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.6 – update test (2026-10-29)
+A small release to check that v0.3.5 asks "Update now / Later" when it opens. No other changes.
+
 ## v0.3.5 – Hover starts at 30 ms, off on quit; the app asks to update when it opens (2026-10-29)
 - **Hover to activate starts at 30 ms.** Turning the switch on (Setup › Your squad, Settings › Switching windows, the
   tray or the Guide) now writes a 30 ms delay together with "on", whatever delay Windows had before; the slider jumps
