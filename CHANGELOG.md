@@ -2,8 +2,8 @@
 
 ## v0.3.4 – Hover to activate is the WoWBoxer way to switch (2026-10-29)
 - **Hover to activate is the WoWBoxer way to switch windows** (owner's decision). The "Grey zone" notices next to the
-  switch (Setup › Your squad, Settings › Switching windows) are gone, and so is the advice to use Alt+Tab or clicking
-  (Guide, What's new, README, known issues). In their place, the facts: hover to activate is a Windows setting; it
+  switch (Setup › Your squad, Settings › Switching windows) are gone, and so is the advice about other ways to switch
+  windows (Guide, What's new, README, known issues). In their place, the facts: hover to activate is a Windows setting; it
   sends nothing to the game; WoWBoxer never sends keys or clicks.
 - Behaviour is unchanged: off by default, only changed on your click, your own Windows values kept and restored
   (Settings › Restore, on quit if chosen, always on uninstall).
@@ -36,9 +36,8 @@ is off by default; its Windows values are unit-tested only so far.
 - **Your own values are kept:** the first change saves your Windows values (on/off, delay, bring to front).
   Settings › "Restore my original Windows settings" puts them back; "Restore them when WoWBoxer quits" (off by
   default) does it on quit; uninstalling always does it (Velopack uninstall hook).
-- **Grey-zone notice** next to the switch (WoW tooltip style): a Windows feature, not part of WoW; Blizzard staff have
-  said it "might" be considered streamlining; Alt-tab or clicking is the safe choice. Links to the Guide chapter and
-  the website's rules page.
+- Notice next to the switch (WoW tooltip style) explaining that hover to activate is a Windows feature, not part of
+  WoW, with links to the Guide chapter and the website's rules page. (Replaced in v0.3.4 by a short factual line.)
 - Website links point to the live site (`wowboxer-site.vercel.app`) instead of a placeholder.
 - New app-wide slider style (gold track, marked values).
 
