@@ -43,11 +43,15 @@ WoW windows found (class GxWindowClass* / waApplication Window, process Wow*, pa
   "options": { "borderless": true, "minAspect": 1.25, "fit": "shrink-anchor", "useTaskbarArea": false } }
 ```
 - Positions are in % of a monitor's work area, so one profile works on any resolution. `monitor` is "primary", an index, or a saved device ID.
-- **Built-in presets for N = 2–8:**
-  - **Main + side:** like today's launcher.
-  - **Overlays:** the main client fills the screen, and the followers float in a row along the bottom (as in the mockup).
-  - **Grid.**
-  - **Main on monitor 1, followers on monitor 2.**
+- **Built-in presets for N = 1–10, across 1–N chosen monitors** (v0.4.0; clients 1–5 = party 1, 6–10 = party 2 with client 6 as its main):
+  - **Main + side:** like today's launcher. On 2+ monitors the main fills monitor 1 and the followers spread over the
+    others (this replaced the separate "2 monitors" preset). 6–10 clients: one block per party – one per monitor, or the
+    two halves of one monitor (side by side or stacked, whichever gives bigger windows; the user can flip it).
+  - **Overlays:** the main client fills the screen, and the followers float in a row along the bottom (as in the mockup);
+    optionally on monitor 2. 6–10 clients: two rows, or one row per monitor.
+  - **Grid:** tiles spread evenly over the chosen monitors.
+  - **Free for all:** a loose start spread over the chosen monitors; windows can be dragged anywhere, also across monitors.
+  - A layout remembers its monitors (device ID, with place and size as fallback); if one is missing it falls back to 1 monitor.
 - **Share code:** `WBX1:` + base64 of the JSON, to copy between the website, the app and friends.
 
 ## 5. Lessons the app must keep (from the launcher)
@@ -64,7 +68,7 @@ WoW windows found (class GxWindowClass* / waApplication Window, process Wow*, pa
 ## 6. Version 1 scope
 **v1 (MVP):**
 1. **Monitor view:** detects monitors, resolution, DPI and taskbar, and draws them to scale.
-2. **Presets:** pick a squad size (2–8) and a preset; see a live preview.
+2. **Presets:** pick a squad size (1–10), a preset and the monitors; see a live preview.
 3. **Editor:**
    - drag and resize slots on the canvas
    - snap to edges and to other slots
@@ -97,7 +101,7 @@ wowboxer-layouts/                      (GitHub, MIT, public)
   src/WoWBoxer.Layouts.Win32/          window finding, placing, DPI, monitors, elevation (CsWin32)
   src/WoWBoxer.Layouts.App/            WPF UI: monitor canvas, editor, profiles, tray, first-run
   src/WoWBoxer.Layouts.Cli/            "wbx arrange|diagnose|start" (headless, same core; replaces the .cmd files)
-  tests/WoWBoxer.Layouts.Core.Tests/   xUnit: presets for N=2–8 on 1080p/1440p/21:9/4K/dual, 5:4 fit, rounding, JSON round-trip
+  tests/WoWBoxer.Layouts.Core.Tests/   xUnit: presets for N=1–10 × 1–3 monitors on 1080p/1440p/21:9/4K/dual/triple mixed DPI, 5:4 fit, rounding, JSON round-trip
   docs/                                user guide, code-signing policy (required by SignPath), privacy (no telemetry)
   .github/workflows/                   build + test on every push; release: Velopack pack → SignPath sign → GitHub Release
 ```
@@ -116,7 +120,7 @@ wowboxer-layouts/                      (GitHub, MIT, public)
 Total: about 10–13 working sessions. M0–M2 can start before launch; M4/M6 need the Forever client.
 
 ## 9. Test plan
-- **Unit (CI):** every preset × N = 2–8 × common monitor setups; 5:4 fit; no slot outside its work area; JSON round-trip.
+- **Unit (CI):** every preset × N = 1–10 × 1–3 chosen monitors × common monitor setups; 5:4 fit; no slot outside its work area; JSON round-trip.
 - **Manual matrix:**
 
   | Area | Cases |

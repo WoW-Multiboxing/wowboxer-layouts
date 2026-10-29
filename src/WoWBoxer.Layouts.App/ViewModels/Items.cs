@@ -14,7 +14,8 @@ public sealed class ProfileItem(StoredProfile stored) : ObservableObject
     public string Path { get; set; } = stored.Path;
     public LayoutProfile Profile { get; set; } = stored.Profile;
     public string Name => Profile.Name;
-    public string Summary => $"{Profile.Clients} clients · {(Profile.Preset is { } p ? Presets.DisplayName(p) : "custom")}";
+    public string Summary => $"{Profile.Clients} clients · {(Profile.Preset is { } p ? Presets.DisplayName(p) : "custom")}"
+        + (Profile.Screens is { Count: > 1 } s ? $" · {s.Count} monitors" : "");
 
     public void Refresh()
     {
@@ -25,31 +26,29 @@ public sealed class ProfileItem(StoredProfile stored) : ObservableObject
     public override string ToString() => Name;
 }
 
-/// <summary>One of the big layout choices on the Setup tab, with a live mini preview for the current client count.</summary>
-public sealed class LayoutCard(PresetKind kind, string title, string blurb, ICommand apply) : ObservableObject
+/// <summary>One entry of the layout dropdown on the Setup tab, with a live mini preview for the current clients and monitors.</summary>
+public sealed class LayoutCard(PresetKind kind, string title, string blurb) : ObservableObject
 {
     private LayoutProfile? _preview;
     private bool _isSelected;
-    private string? _unavailable;
+    private IReadOnlyList<MonitorInfo> _monitors = [], _screens = [];
 
     public PresetKind Kind { get; } = kind;
     public string Title { get; } = title;
     public string Blurb { get; } = blurb;
-    public ICommand Apply { get; } = apply;
     public LayoutProfile? Preview { get => _preview; set => Set(ref _preview, value); }
     public bool IsSelected { get => _isSelected; set => Set(ref _isSelected, value); }
+    /// <summary>For the preview: every monitor, and the chosen ones it is drawn on.</summary>
+    public IReadOnlyList<MonitorInfo> Monitors { get => _monitors; set => Set(ref _monitors, value); }
+    public IReadOnlyList<MonitorInfo> Screens { get => _screens; set => Set(ref _screens, value); }
 
-    /// <summary>Why this card cannot be used right now (e.g. only one monitor), or null.</summary>
-    public string? Unavailable
-    {
-        get => _unavailable;
-        set
-        {
-            if (Set(ref _unavailable, value)) OnPropertyChanged(nameof(IsAvailable));
-        }
-    }
+    public override string ToString() => Title;   // the dropdown's name for UI Automation and screen readers
+}
 
-    public bool IsAvailable => _unavailable is null;
+/// <summary>A monitor choice: "2 monitors" with which ones ("Primary + right · 2560×1440 + 1920×1080").</summary>
+public sealed record MonitorChoice(IReadOnlyList<MonitorInfo> Screens, string Title, string Detail)
+{
+    public override string ToString() => Title;
 }
 
 /// <summary>A slot's window: none yet (Awaiting), being placed (first 30 s), in its slot (Connected), or moved out of it.</summary>
@@ -73,6 +72,10 @@ public sealed class PartyMember : ObservableObject
     public string AutomationName => $"Window {Number}";
     public int Index => Number - 1;
     public string Role { get; init; } = "";
+    /// <summary>"Party 1" / "Party 2" when there are more than 5 clients (rows are grouped by it); "" otherwise.</summary>
+    public string PartyName { get; init; } = "";
+    /// <summary>1, 2 … within its party (0 for a main).</summary>
+    public int FollowerNumber { get; init; }
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
     public IReadOnlyList<string> Accounts { get; init; } = [];
     /// <summary>Last characters per WoW account (from WTF folder times): a hint, never a fact.</summary>
@@ -116,7 +119,7 @@ public sealed class PartyMember : ObservableObject
     }
 
     public Brush ClassBrush => _class.Brush;
-    public string Title => _name.Length > 0 ? _name : Role == "Main" ? "Main" : $"Follower {Number - 1}";
+    public string Title => _name.Length > 0 ? _name : Role == "Main" ? "Main" : $"Follower {FollowerNumber}";
 
     /// <summary>The WoW account folder this slot plays on (local setting, never in shared layouts).</summary>
     public string Account

@@ -31,6 +31,15 @@ public sealed record LayoutProfile
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public WowGame? Game { get; init; }
     public IReadOnlyList<LayoutSlot> Slots { get; init; } = [];
+    /// <summary>The monitors the layout is made for, in order (1 = the main's). Null in older files: the monitors the slots use.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ScreenRef>? Screens { get; init; }
+    /// <summary>6–10 clients on one monitor: how the two parties share it. Null = whichever gives the bigger game windows.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PartySplit? Split { get; init; }
+    /// <summary>Overlays with up to 5 clients: the followers float on monitor 2 instead of over the main.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool FollowersOnSecond { get; init; }
 
     /// <summary>The game, with older files (no game) counted as Classic Era – the only game before Forever.</summary>
     [JsonIgnore]
@@ -39,7 +48,8 @@ public sealed record LayoutProfile
 
     public bool Equals(LayoutProfile? other) =>
         other is not null && Format == other.Format && Name == other.Name && Clients == other.Clients && Preset == other.Preset && Game == other.Game
-        && Options == other.Options && Slots.SequenceEqual(other.Slots);
+        && Options == other.Options && Slots.SequenceEqual(other.Slots) && Split == other.Split && FollowersOnSecond == other.FollowersOnSecond
+        && (Screens ?? []).SequenceEqual(other.Screens ?? []) && (Screens is null) == (other.Screens is null);
 
     public override int GetHashCode() => HashCode.Combine(Format, Name, Clients, Options, Slots.Count);
 }

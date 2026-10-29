@@ -42,8 +42,8 @@ internal sealed class CliOptions
           wbx snap       save a picture of what each WoW window shows (read-only): wbx snap [--out FOLDER]
 
         Layout:
-          --preset side|overlay|grid|dual   built-in layout (default: side = main left, followers right)
-          --clients N                       1-8 (default: start 3, arrange = number of open windows)
+          --preset side|overlay|grid|free   built-in layout (default: side = main left, followers right; dual = side on 2 monitors)
+          --clients N                       1-10 (default: start 3, arrange = number of open windows)
           --profile FILE.json               use a saved wowboxer-layout/1 file instead of a preset
           --code WBX1:...                   use a layout share code instead of a preset
           --monitor primary|N               monitor for the main window (default: primary)
@@ -82,7 +82,7 @@ internal sealed class CliOptions
                 case "--preset":
                     var p = Next(arg);
                     o.Preset = Enum.TryParse<PresetKind>(p, ignoreCase: true, out var kind) && Enum.IsDefined(kind)
-                        ? kind : throw new UsageException($"Unknown preset \"{p}\". Use side, overlay, grid or dual.");
+                        ? kind : throw new UsageException($"Unknown preset \"{p}\". Use side, overlay, grid, free or dual.");
                     break;
                 case "--clients": o.Clients = ParseInt(arg, Next(arg)); break;
                 case "--profile": o.ProfilePath = Next(arg); break;

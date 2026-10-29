@@ -3,8 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:c="clr-namespace:WoWBoxer.Layouts.App.Controls"
              xmlns:app="clr-namespace:WoWBoxer.Layouts.App">
-    <!-- Plug and play (v0.2.4): clients + layout on the left, the map in the middle, "Your squad" on the right (one compact
-         row per window, ▾ for details), one primary button in the footer that follows the squad's state. -->
+    <!-- Plug and play (v0.2.4): clients, layout and monitors on the left, the map in the middle, "Your squad" on the right
+         (one compact row per window, grouped by party above 5 clients, ▾ for details), one primary button in the footer
+         that follows the squad's state. v0.4.0: 1–10 clients, layout as a dropdown, a Monitors choice. -->
     <UserControl.Resources>
         <!-- Squad size: gold-trimmed numbers (ListBox so the selection is two-way) -->
         <Style x:Key="SizeItem" TargetType="ListBoxItem">
@@ -13,7 +14,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Grid Margin="0,0,3,4" Width="28" Height="38">
+                        <Grid Margin="0,0,5,5" Height="36">
                             <Border x:Name="Body" CornerRadius="5" BorderThickness="1.5" BorderBrush="#3A4560" Background="#121722">
                                 <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="14" Color="#E8C66A" Opacity="0" /></Border.Effect>
                             </Border>
@@ -38,49 +39,6 @@
                                     <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
                                 </Trigger.ExitActions>
                             </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Layout card: live mini preview + title; gold glow when active, lifts on hover -->
-        <Style x:Key="CardButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource GoldFocus}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid x:Name="Root" Margin="0,0,8,8" RenderTransformOrigin="0.5,0.5">
-                            <Grid.RenderTransform><TranslateTransform x:Name="Lift" /></Grid.RenderTransform>
-                            <Border x:Name="Body" CornerRadius="7" BorderThickness="1.5" BorderBrush="#2E3850" Padding="7,7,7,7">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.5,1"><GradientStop Color="#1E2536" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush>
-                                </Border.Background>
-                                <Border.Effect><DropShadowEffect x:Name="GlowFx" ShadowDepth="0" BlurRadius="18" Color="#E8C66A" Opacity="0" /></Border.Effect>
-                                <ContentPresenter />
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldLoBrush}" />
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="-2" Duration="0:0:0.15" /></Storyboard></BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
-                                </Trigger.ExitActions>
-                            </Trigger>
-                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
-                                <DataTrigger.EnterActions>
-                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0.55" Duration="0:0:0.25" /></Storyboard></BeginStoryboard>
-                                </DataTrigger.EnterActions>
-                                <DataTrigger.ExitActions>
-                                    <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="GlowFx" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" /></Storyboard></BeginStoryboard>
-                                </DataTrigger.ExitActions>
-                            </DataTrigger>
-                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.45" /></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -237,45 +195,82 @@
                     <StackPanel>
                         <TextBlock Style="{StaticResource StepLabel}" Text="I  ·  HOW MANY CLIENTS?" />
                         <ListBox Margin="0,10,0,0" ItemsSource="{Binding ClientCounts}" SelectedItem="{Binding ClientCount}" ItemContainerStyle="{StaticResource SizeItem}"
-                                 ToolTip="How many WoW clients you play at once. 1 = one normal window filling the screen, when you play a single character. The layout adapts instantly (Ctrl+ and Ctrl− work too).">
-                            <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                                 AutomationProperties.AutomationId="ClientCount"
+                                 ToolTip="How many WoW clients you play at once: 1–5 is one party, 6–10 two parties (the top row is party 1). 1 = one normal window filling the screen, when you play a single character. The layout adapts instantly (Ctrl+ and Ctrl− work too).">
+                            <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="5" /></ItemsPanelTemplate></ListBox.ItemsPanel>
                         </ListBox>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,1,0,0" Text="1–5: one party  ·  6–10: two parties" />
                     </StackPanel>
                 </ContentControl>
 
-                <ContentControl Style="{StaticResource OrnatePanel}" Padding="16,14,8,8" Margin="0,12,0,0">
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="16,14,12,12" Margin="0,12,0,0">
                     <StackPanel>
                         <TextBlock Style="{StaticResource StepLabel}" Text="II  ·  PICK A LAYOUT" />
-                        <ItemsControl Margin="0,10,0,0" ItemsSource="{Binding Cards}">
-                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
+                        <!-- one compact dropdown; each entry shows a live mini preview for the current clients and monitors -->
+                        <ComboBox Margin="0,10,0,0" ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" Padding="6,4"
+                                  AutomationProperties.AutomationId="LayoutPicker" AutomationProperties.Name="Layout" ToolTip="{Binding SelectedLayout.Blurb}">
+                            <ComboBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Button Style="{StaticResource CardButton}" Command="{Binding Apply}" IsEnabled="{Binding IsAvailable}" AutomationProperties.Name="{Binding Title}"
-                                            ToolTip="{Binding Blurb}">
-                                        <StackPanel>
-                                            <Grid>
-                                                <Border Height="48" CornerRadius="4" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
-                                                    <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" IsHitTestVisible="False"
-                                                                    Monitors="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-                                                </Border>
-                                                <Grid Width="18" Height="18" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-6,0"
-                                                      Visibility="{Binding IsSelected, Converter={x:Static app:BoolVisibility.Instance}}">
-                                                    <Ellipse Fill="#1C170C" Stroke="{StaticResource GoldHiBrush}" StrokeThickness="1.5" />
-                                                    <Path Data="M5,9 L7.8,11.8 L13,6.5" Stroke="{StaticResource UiGoldBrush}" StrokeThickness="2" />
-                                                </Grid>
-                                            </Grid>
-                                            <TextBlock Margin="0,6,0,0" Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="10.5" Foreground="{StaticResource ParchmentBrush}"
-                                                       TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" />
-                                            <TextBlock Text="{Binding Unavailable}" FontSize="10.5" Foreground="{StaticResource WarnBrush}" Margin="0,2,0,0" HorizontalAlignment="Center"
-                                                       Visibility="{Binding Unavailable, Converter={x:Static app:BoolVisibility.Instance}}" />
-                                        </StackPanel>
-                                    </Button>
+                                    <DockPanel ToolTip="{Binding Blurb}">
+                                        <Border DockPanel.Dock="Left" Width="66" Height="38" Margin="0,2,10,2" CornerRadius="3" Background="#05070B" BorderBrush="#3A4560" BorderThickness="1" ClipToBounds="True">
+                                            <c:LayoutCanvas Compact="True" Profile="{Binding Preview}" Monitors="{Binding Monitors}" Screens="{Binding Screens}" IsHitTestVisible="False" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="12" Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center" />
+                                    </DockPanel>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,0" TextWrapping="Wrap" Text="{Binding SelectedLayout.Blurb}" />
+                        <!-- 6–10 clients on one monitor: the parties share it; flip the split -->
+                        <DockPanel Margin="0,6,0,0" Visibility="{Binding HasSplit, Converter={x:Static app:BoolVisibility.Instance}}">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Flip" Command="{Binding FlipSplitCommand}" FontSize="12"
+                                    AutomationProperties.AutomationId="FlipSplit" ToolTip="Side by side ⇄ one above the other (the app starts with the one that gives bigger windows)" />
+                            <TextBlock Text="{Binding SplitText}" FontSize="12" Foreground="{StaticResource ParchmentBrush}" VerticalAlignment="Center" AutomationProperties.AutomationId="SplitText" />
+                        </DockPanel>
+                        <CheckBox Margin="0,6,0,0" IsChecked="{Binding FollowersOnSecond}" AutomationProperties.AutomationId="FollowersOnSecond"
+                                  Visibility="{Binding CanFollowersOnSecond, Converter={x:Static app:BoolVisibility.Instance}}"
+                                  ToolTip="The followers' row floats on monitor 2 instead of over the main">
+                            <TextBlock Text="Followers on monitor 2" FontSize="12" />
+                        </CheckBox>
+                        <TextBlock Margin="0,6,0,0" FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Text="{Binding LayoutAdvice}"
+                                   AutomationProperties.AutomationId="LayoutAdvice" Visibility="{Binding LayoutAdvice, Converter={x:Static app:BoolVisibility.Instance}}" />
                     </StackPanel>
                 </ContentControl>
 
+                <!-- Monitors: a separate choice right below the layout (only with 2+ monitors connected) -->
+                <Border Margin="6,10,6,0" Padding="14,10,14,12" CornerRadius="8" BorderBrush="{StaticResource GoldLoBrush}" BorderThickness="1"
+                        Visibility="{Binding ShowMonitors, Converter={x:Static app:BoolVisibility.Instance}}">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#141A27" Offset="0" /><GradientStop Color="#0D111A" Offset="1" /></LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7F4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource GoldHiBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Style="{StaticResource StepLabel}" Text="MONITORS" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ComboBox Margin="0,8,0,0" ItemsSource="{Binding MonitorCounts}" SelectedItem="{Binding SelectedMonitorCount}"
+                                  AutomationProperties.AutomationId="MonitorCount" AutomationProperties.Name="Monitors"
+                                  ToolTip="How many of your monitors the layout uses. Your screens (the map) shows exactly these, numbered 1, 2 …; the main goes on 1.">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontSize="13" />
+                                        <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <StackPanel Visibility="{Binding ShowMonitorSets, Converter={x:Static app:BoolVisibility.Instance}}">
+                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,8,0,3" Text="Which ones" />
+                            <ComboBox ItemsSource="{Binding MonitorSets}" SelectedItem="{Binding SelectedMonitorSet}" AutomationProperties.AutomationId="MonitorSet" AutomationProperties.Name="Which monitors"
+                                      ToolTip="Which monitors to use (the first one holds the main)">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Title}" FontSize="12" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
                 <!-- saved layout: compact dropdown, Save as, and the rest in ⋯ -->
                 <ContentControl Style="{StaticResource OrnatePanel}" Padding="16,12" Margin="0,12,0,0">
                     <DockPanel>
@@ -328,8 +323,13 @@
                 </DockPanel>
 
                 <Grid Grid.Row="1" Margin="0,8,0,0">
-                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Current}" Monitors="{Binding Monitors}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
-                                    SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}" ShowAllMonitors="False" />
+                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Current}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
+                                    SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}" />
+                    <!-- a monitor of the layout went away -->
+                    <Border Style="{StaticResource TipBox}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" MaxWidth="460"
+                            Visibility="{Binding MonitorNotice, Converter={x:Static app:BoolVisibility.Instance}}">
+                        <TextBlock Text="{Binding MonitorNotice}" Foreground="{StaticResource WarnBrush}" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="MonitorNotice" />
+                    </Border>
                     <!-- Auto-fit notice -->
                     <Border Style="{StaticResource TipBox}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" MaxWidth="460"
                             Visibility="{Binding UiScaleNotice, Converter={x:Static app:BoolVisibility.Instance}}">
@@ -401,6 +401,17 @@
                 <!-- one compact row per window; drag ⋮⋮ to reorder; ▾ opens the window's details -->
                 <ListBox x:Name="PartyList" ItemsSource="{Binding Party}" SelectedIndex="{Binding SelectedSlotIndex}" ItemContainerStyle="{StaticResource SquadItem}" PreviewGotKeyboardFocus="OnRowFocus"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False" AutomationProperties.Name="Squad rows">
+                    <!-- more than 5 clients: rows grouped as Party 1 and Party 2 (the grouping is set in code) -->
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource StepLabel}" Margin="2,2,0,6"
+                                               Visibility="{Binding Name, Converter={x:Static app:BoolVisibility.Instance}}" />
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid>

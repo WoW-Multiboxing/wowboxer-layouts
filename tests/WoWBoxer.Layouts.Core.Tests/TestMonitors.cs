@@ -26,6 +26,14 @@ public static class TestMonitors
             Single(2560, 1440, 120),
             new(2, @"\\.\DISPLAY2", false, new PixelRect(-1920, 360, 1920, 1080), new PixelRect(-1920, 360, 1920, 1032)),
         ],
+        // Three mixed screens: a 1080p on the left (100 %), the primary 1440p (125 %), a 4K on the right (150 %);
+        // Windows numbers them out of order and the left one is lower.
+        ["triple-mixed"] =
+        [
+            new(1, @"\\.\DISPLAY1", false, new PixelRect(2560, 0, 3840, 2160), new PixelRect(2560, 0, 3840, 2088), 144) { DeviceId = "MON-4K" },
+            new(2, @"\\.\DISPLAY2", true, new PixelRect(0, 0, 2560, 1440), new PixelRect(0, 0, 2560, 1380), 120) { DeviceId = "MON-1440" },
+            new(3, @"\\.\DISPLAY3", false, new PixelRect(-1920, 200, 1920, 1080), new PixelRect(-1920, 200, 1920, 1032)) { DeviceId = "MON-1080" },
+        ],
     };
 
     public static IEnumerable<string> SingleSetups => Setups.Where(s => s.Value.Count == 1).Select(s => s.Key);

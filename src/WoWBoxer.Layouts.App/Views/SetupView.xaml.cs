@@ -19,6 +19,13 @@ public partial class SetupView : UserControl
         InitializeComponent();
         Canvas.SlotEdited += (_, e) => (DataContext as MainViewModel)?.OnSlotEdited(e.Index, e.Slot);
         Canvas.SlotsSwapped += (_, e) => (DataContext as MainViewModel)?.SwapSlots(e.A, e.B);
+        // rows grouped as "Party 1" / "Party 2" (one unnamed group, so no header, up to 5 clients)
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is not MainViewModel vm) return;
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(vm.Party);
+            if (view.GroupDescriptions.Count == 0) view.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(PartyMember.PartyName)));
+        };
     }
 
     /// <summary>The saved layout's "⋯" opens its menu on a normal click.</summary>

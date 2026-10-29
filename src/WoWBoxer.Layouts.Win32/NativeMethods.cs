@@ -147,6 +147,24 @@ internal static unsafe partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetMonitorInfo(nint hMonitor, MONITORINFOEXW* info);
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAY_DEVICEW
+    {
+        public int cb;
+        public fixed char DeviceName[32];
+        public fixed char DeviceString[128];
+        public uint StateFlags;
+        public fixed char DeviceID[128];
+        public fixed char DeviceKey[128];
+    }
+
+    public const uint EDD_GET_DEVICE_INTERFACE_NAME = 1;
+
+    /// <summary>The monitor attached to a display (its device interface name identifies the screen across restarts).</summary>
+    [LibraryImport("user32.dll", EntryPoint = "EnumDisplayDevicesW", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumDisplayDevices(string device, uint devNum, DISPLAY_DEVICEW* info, uint flags);
+
     [LibraryImport("shcore.dll")]
     public static partial int GetDpiForMonitor(nint hMonitor, int dpiType, out uint dpiX, out uint dpiY);
 

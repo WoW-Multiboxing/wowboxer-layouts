@@ -19,10 +19,11 @@ public sealed class SlotsSwappedEventArgs(int a, int b) : EventArgs
 }
 
 /// <summary>
-/// Draws the monitors to scale – exactly what will happen on screen, taskbar included – with the layout's windows
-/// on top. Windows glide to new positions when the layout changes. In edit mode the user moves (drag), resizes
+/// Draws the chosen monitors to scale, in their real arrangement and numbered 1, 2, 3 … – exactly what will happen on
+/// screen, taskbar included – with the layout's windows on top. Windows glide to new positions when the layout, the
+/// monitors or the client count change. In edit mode the user moves (drag, also onto another monitor), resizes
 /// (handles), snaps (monitor and window edges; hold Alt to place freely) and nudges (arrow keys) windows.
-/// <see cref="Compact"/> draws a small, non-interactive preview for the layout cards.
+/// <see cref="Compact"/> draws a small, non-interactive preview for the layout dropdown.
 /// </summary>
 public sealed class LayoutCanvas : FrameworkElement
 {
@@ -34,8 +35,8 @@ public sealed class LayoutCanvas : FrameworkElement
         nameof(SelectedIndex), typeof(int), typeof(LayoutCanvas), new FrameworkPropertyMetadata(-1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
     public static readonly DependencyProperty CompactProperty = DependencyProperty.Register(
         nameof(Compact), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
-    public static readonly DependencyProperty ShowAllMonitorsProperty = DependencyProperty.Register(
-        nameof(ShowAllMonitors), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty ScreensProperty = DependencyProperty.Register(
+        nameof(Screens), typeof(IReadOnlyList<MonitorInfo>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty LiveSlotsProperty = DependencyProperty.Register(
         nameof(LiveSlots), typeof(IReadOnlyDictionary<int, ViewModels.LiveSlot>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty UiScaleProperty = DependencyProperty.Register(
@@ -51,8 +52,8 @@ public sealed class LayoutCanvas : FrameworkElement
     public int SelectedIndex { get => (int)GetValue(SelectedIndexProperty); set => SetValue(SelectedIndexProperty, value); }
     public bool Compact { get => (bool)GetValue(CompactProperty); set => SetValue(CompactProperty, value); }
     public bool Animate { get => (bool)GetValue(AnimateProperty); set => SetValue(AnimateProperty, value); }
-    /// <summary>False: draw only the monitors the layout uses (bigger), true: every monitor (to drag windows across).</summary>
-    public bool ShowAllMonitors { get => (bool)GetValue(ShowAllMonitorsProperty); set => SetValue(ShowAllMonitorsProperty, value); }
+    /// <summary>The chosen monitors, in the layout's order (1 = the main's): exactly these are drawn and windows stay on them. Null: the monitors the slots use.</summary>
+    public IReadOnlyList<MonitorInfo>? Screens { get => (IReadOnlyList<MonitorInfo>?)GetValue(ScreensProperty); set => SetValue(ScreensProperty, value); }
     /// <summary>Slot index → what the open WoW window in that slot really draws. Those slots show the measured action-bar state (solid dot).</summary>
     public IReadOnlyDictionary<int, ViewModels.LiveSlot>? LiveSlots { get => (IReadOnlyDictionary<int, ViewModels.LiveSlot>?)GetValue(LiveSlotsProperty); set => SetValue(LiveSlotsProperty, value); }
     /// <summary>WoW's UI Scale (1 = automatic), used for the planned state of slots without an open window (ring dot).</summary>
@@ -128,12 +129,12 @@ public sealed class LayoutCanvas : FrameworkElement
         return list.OrderBy(t => t.Slot.Z == ZOrder.Top ? 1 : 0).ThenBy(t => t.Index == SelectedIndex ? 1 : 0).ThenBy(t => t.Index).ToList();
     }
 
-    /// <summary>The monitors to draw: all of them, or in a compact preview only those the layout uses.</summary>
+    /// <summary>The monitors to draw, in the layout's order: the chosen ones, or those the layout uses.</summary>
     private IReadOnlyList<MonitorInfo> Shown()
     {
-        if (Monitors is not { Count: > 0 } all || (ShowAllMonitors && !Compact) || Profile is null) return Monitors ?? [];
-        var used = Profile.Slots.Select(s => (Core.Monitors.Find(all, s.Monitor) ?? Core.Monitors.Primary(all)).Index).ToHashSet();
-        return all.Where(m => used.Contains(m.Index)).ToList();
+        if (Screens is { Count: > 0 } chosen) return chosen;
+        if (Monitors is not { Count: > 0 } all || Profile is null) return Monitors ?? [];
+        return ScreenSet.Used(Profile, all);
     }
 
     private void UpdateTransform()
@@ -209,8 +210,10 @@ public sealed class LayoutCanvas : FrameworkElement
         UpdateTransform();
         var radius = Compact ? 2.5 : 6;
 
-        foreach (var m in Shown())
+        var screens = Shown();
+        for (var number = 1; number <= screens.Count; number++)
         {
+            var m = screens[number - 1];
             var bounds = ToCanvas(m.Bounds);
             // bezel + screen
             if (!Compact)
@@ -240,17 +243,18 @@ public sealed class LayoutCanvas : FrameworkElement
 
             if (!Compact)
             {
-                var title = Text($"{m.Index}{(m.IsPrimary ? " · PRIMARY" : "")}  ·  {m.Bounds.Width}×{m.Bounds.Height}  ·  {m.ScalePercent} %", 11, Brush(0xD0, Gold), ppd, display: true);
+                var title = Text($"{number}{(m.IsPrimary ? " · PRIMARY" : "")}  ·  {m.Bounds.Width}×{m.Bounds.Height}  ·  {m.ScalePercent} %", 11, Brush(0xD0, Gold), ppd, display: true);
+                if (title.Width > bounds.Width) title = Text($"{number}  ·  {m.Bounds.Width}×{m.Bounds.Height}", 11, Brush(0xD0, Gold), ppd, display: true);
                 Draw(dc, title, new Point(bounds.X, bounds.Y - title.Height - 8));
             }
         }
 
         var items = Items();
         if (!Compact)
-            foreach (var m in Shown().Where(m => items.All(i => i.Monitor.Index != m.Index)))
+            foreach (var m in screens.Where(m => items.All(i => i.Monitor.Index != m.Index)))
             {
                 var b = ToCanvas(m.WorkArea);
-                var hint = Text("Free – pick “2 monitors” to put followers here, or drag a window over", 12, Brush(0x90, Parchment), ppd);
+                var hint = Text("Free – drag a window over", 12, Brush(0x90, Parchment), ppd);
                 hint.MaxTextWidth = Math.Max(40, b.Width - 40);
                 hint.TextAlignment = TextAlignment.Center;
                 Draw(dc, hint, new Point(b.X + 20, b.Y + (b.Height - hint.Height) / 2));
@@ -451,9 +455,12 @@ public sealed class LayoutCanvas : FrameworkElement
         if (!Keyboard.IsKeyDown(Key.LeftAlt) && !Keyboard.IsKeyDown(Key.RightAlt))
         {
             var others = Items().Where(i => i.Index != _dragIndex).Select(i => i.Raw);
-            var (xs, ys) = SlotEditing.SnapLines(others, Monitors!, Options.UseTaskbarArea);
+            var (xs, ys) = SlotEditing.SnapLines(others, Shown(), Options.UseTaskbarArea);
             rect = SlotEditing.Snap(rect, _dragEdges, xs, ys, (int)Math.Ceiling(SnapScreenPixels / _scale));
         }
+        // a moved window lands on the chosen monitor that holds its centre, inside it (across monitor borders too)
+        if (_dragEdges == ResizeEdges.All && Shown() is { Count: > 0 } screens)
+            rect = SlotEditing.ClampInto(rect, ProfileCapture.MonitorOf(rect, screens).Area(Options.UseTaskbarArea));
         _dragRect = rect;
         _swapTarget = _dragEdges == ResizeEdges.All ? SwapTargetAt(p) : -1;
         InvalidateVisual();
@@ -542,7 +549,8 @@ public sealed class LayoutCanvas : FrameworkElement
     {
         if (Profile is null || Monitors is null) return;
         _from.Clear();   // the user put it there – no glide
-        SlotEdited?.Invoke(this, new SlotEditedEventArgs(index, SlotEditing.WithRect(Profile.Slots[index], rect, Monitors, Options)));
+        var screens = Shown();
+        SlotEdited?.Invoke(this, new SlotEditedEventArgs(index, SlotEditing.WithRect(Profile.Slots[index], rect, screens.Count > 0 ? screens : Monitors, Options)));
     }
 
     // ---------- text ----------

@@ -26,15 +26,23 @@ public static unsafe class MonitorReader
             var info = new MONITORINFOEXW { cbSize = sizeof(MONITORINFOEXW) };
             if (!GetMonitorInfo(h, &info)) continue;
             var dpi = GetDpiForMonitor(h, 0, out var dpiX, out _) == 0 ? (int)dpiX : 96;   // MDT_EFFECTIVE_DPI
+            var device = new string(info.szDevice);
             monitors.Add(new MonitorInfo(
                 monitors.Count + 1,
-                new string(info.szDevice),
+                device,
                 (info.dwFlags & MONITORINFOF_PRIMARY) != 0,
                 ToRect(info.rcMonitor),
                 ToRect(info.rcWork),
-                dpi));
+                dpi) { DeviceId = DeviceIdOf(device) });
         }
         return monitors;
+    }
+
+    /// <summary>The screen's device interface name (\\?\DISPLAY#…), "" if Windows does not say.</summary>
+    private static string DeviceIdOf(string device)
+    {
+        var dd = new DISPLAY_DEVICEW { cb = sizeof(DISPLAY_DEVICEW) };
+        return EnumDisplayDevices(device, 0, &dd, EDD_GET_DEVICE_INTERFACE_NAME) ? new string(dd.DeviceID) : "";
     }
 
     [UnmanagedCallersOnly]

@@ -5,6 +5,9 @@ public sealed record MonitorInfo(int Index, string DeviceName, bool IsPrimary, P
 {
     public int ScalePercent => (int)Math.Round(Dpi * 100.0 / 96);
 
+    /// <summary>Windows' device interface name of the screen (stable per monitor, unlike the index); "" if unknown.</summary>
+    public string DeviceId { get; init; } = "";
+
     public PixelRect Area(bool useTaskbarArea) => useTaskbarArea ? Bounds : WorkArea;
 }
 

@@ -27,7 +27,7 @@ public interface IUserDialogs
 
 /// <summary>
 /// The whole app's state. Start/Stop: while started, the app watches for WoW windows and puts each new one in the next
-/// free slot. It opens stopped (nothing is touched) unless a shortcut, "--resume" or the Settings switch starts it. Flow: how many clients → pick a layout card → fine-tune on the canvas; the one primary
+/// free slot. It opens stopped (nothing is touched) unless a shortcut, "--resume" or the Settings switch starts it. Flow: how many clients → pick a layout → pick the monitors → fine-tune on the canvas; the one primary
 /// button opens the missing clients or re-arranges. The current layout is always a saved profile (auto-saved); every
 /// edit can be undone and moves the open WoW windows right away.
 /// </summary>
@@ -101,14 +101,19 @@ public sealed class MainViewModel : ObservableObject
         ShowFirstRunCommand = new RelayCommand(() => FirstRunRequested?.Invoke());
 
         Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
-        Cards =
+        Layouts =
         [
-            Card(PresetKind.Side, "Main + side", "Your main client big on the left, the followers stacked on the right."),
-            Card(PresetKind.Overlay, "Overlays", "Main client fills the screen; followers float in a row along the bottom."),
-            Card(PresetKind.Grid, "Grid", "Every client the same size, in an even grid."),
-            Card(PresetKind.Dual, "2 monitors", "Main client on one monitor, the followers on the other."),
-            Card(PresetKind.Free, "Free for all", "A loose start – drag every window wherever you like."),
+            new(PresetKind.Side, "Main + side", "Main big, followers stacked beside it. 2+ monitors: the main fills monitor 1, followers go on the others. 6–10 clients: one block per party."),
+            new(PresetKind.Overlay, "Overlays", "Main fills the screen; followers float in a row along the bottom – one row per party."),
+            new(PresetKind.Grid, "Grid", "Every client the same size, spread evenly over your monitors."),
+            new(PresetKind.Free, "Free for all", "A loose start over your monitors – drag every window anywhere, across monitors too."),
         ];
+        FlipSplitCommand = new RelayCommand(FlipSplit, () => HasSplit);
+        _monitorCheck.Tick += (_, _) =>
+        {
+            _monitorCheck.Stop();
+            CheckScreens();
+        };
 
         CloseMineCommand = new RelayCommand(() => _launcher.CloseMine(Status), () => _launcher.Started.Count > 0);
         RefreshHintsCommand = new RelayCommand(() =>
@@ -156,9 +161,6 @@ public sealed class MainViewModel : ObservableObject
     private int RunningClientsNow() =>
         SquadExe is { } exe ? UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!) : -1;
 
-    private LayoutCard Card(PresetKind kind, string title, string blurb) =>
-        new(kind, title, blurb, new RelayCommand(() => ApplyKind(kind)));
-
     // =====================================================================================
     // State
     // =====================================================================================
@@ -169,7 +171,8 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
-    public IReadOnlyList<LayoutCard> Cards { get; }
+    /// <summary>The layout dropdown's entries, each with a live mini preview for the current clients and monitors.</summary>
+    public IReadOnlyList<LayoutCard> Layouts { get; }
     public IReadOnlyList<int> ClientCounts { get; } = Enumerable.Range(Presets.MinClients, Presets.MaxClients - Presets.MinClients + 1).ToList();
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
     public IReadOnlyList<AspectChoice> AspectChoices { get; } =
@@ -212,6 +215,7 @@ public sealed class MainViewModel : ObservableObject
             if (!Set(ref _current, value)) return;
             foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
                 OnPropertyChanged(name);
+            RefreshScreens();
             if ((value?.Slots.Count ?? 0) != _slotChoices.Count)
             {
                 OnPropertyChanged(nameof(SlotChoices));
@@ -233,7 +237,9 @@ public sealed class MainViewModel : ObservableObject
         {
             if (value is null || !Set(ref _selectedProfile, value)) return;
             _undo.Clear();
+            MonitorNotice = "";
             Current = value.Profile;
+            CheckScreens();   // its monitors may be numbered differently now, or not connected
             SelectedSlotIndex = 0;
             LastProfileName = value.Name;
             ScheduleLive();
@@ -307,7 +313,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     // =====================================================================================
-    // Step 1 + 2: clients and layout cards
+    // Step 1 + 2: clients and layout
     // =====================================================================================
 
     /// <summary>How many clients. Changing it re-applies the current layout type for the new number.</summary>
@@ -322,31 +328,38 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private void RefreshCards()
+    /// <summary>The layout dropdown: the current layout's type (none for a captured or imported one).</summary>
+    public LayoutCard? SelectedLayout
     {
-        var n = Current?.Clients ?? 3;
-        foreach (var card in Cards)
+        get => Layouts.FirstOrDefault(c => c.Kind == Current?.Preset);
+        set
         {
-            card.IsSelected = Current?.Preset == card.Kind;
-            if (TryPreset(card.Kind, n, out var preview, quiet: true))
-            {
-                card.Preview = preview;
-                card.Unavailable = null;
-            }
-            else
-            {
-                card.Preview = null;
-                card.Unavailable = card.Kind == PresetKind.Dual ? "Needs a second monitor" : "Not available";
-            }
+            if (value is not null && value.Kind != Current?.Preset) ApplyKind(value.Kind);
         }
     }
 
-    /// <summary>Applies a layout type (one click on a card), keeping names and classes. Undo brings the old one back.</summary>
-    private void ApplyKind(PresetKind kind, int? clients = null)
+    private void RefreshCards()
     {
-        if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false)) return;
+        var n = Current?.Clients ?? 3;
+        foreach (var card in Layouts)
+        {
+            card.IsSelected = Current?.Preset == card.Kind;
+            card.Monitors = Monitors;
+            card.Screens = ChosenScreens;
+            card.Preview = TryPreset(card.Kind, n, out var preview, quiet: true) ? preview : null;
+        }
+        OnPropertyChanged(nameof(SelectedLayout));
+    }
+
+    /// <summary>
+    /// Applies a layout type, client count or monitor choice (anything not given stays as it is), keeping names and
+    /// classes. Undo brings the old one back.
+    /// </summary>
+    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null)
+    {
+        if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond)) return;
         var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class } : s).ToList();
-        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots });
+        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond });
         SelectedSlotIndex = 0;
     }
 
@@ -357,15 +370,19 @@ public sealed class MainViewModel : ObservableObject
         Status.Info($"Reset to {Presets.DisplayName(Current.Preset ?? PresetKind.Side)}. Ctrl+Z brings your changes back.");
     }
 
-    private bool TryPreset(PresetKind kind, int clients, out LayoutProfile profile, bool quiet)
+    /// <summary>The preset for the chosen monitors (or <paramref name="screens"/>); split and overlay rows as the current layout has them.</summary>
+    private bool TryPreset(PresetKind kind, int clients, out LayoutProfile profile, bool quiet, IReadOnlyList<MonitorInfo>? screens = null,
+        PartySplit? split = null, bool? followersOnSecond = null)
     {
         try
         {
             var options = Current?.Options ?? new LayoutOptions { MinAspect = 4.0 / 3 };
-            profile = Presets.Create(kind, clients, Monitors, options: options with { Fit = FitMode.ShrinkAnchor });
+            screens ??= ChosenScreens.Count > 0 ? ChosenScreens : [Core.Monitors.Primary(Monitors)];
+            profile = Presets.ForScreens(kind, clients, screens, options with { Fit = FitMode.ShrinkAnchor },
+                split ?? Current?.Split, followersOnSecond ?? Current?.FollowersOnSecond ?? false);
             return true;
         }
-        catch (ArgumentException e)
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException)
         {
             if (!quiet) Status.Warn(e.Message.Split(" (Parameter")[0]);
             profile = null!;
@@ -482,7 +499,8 @@ public sealed class MainViewModel : ObservableObject
             var fitted = LayoutEngine.Fit(raw, s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect, frame);
             var (gw, gh) = LayoutEngine.GameArea(fitted, frame);
             var aspect = gh == 0 ? 0 : (double)gw / gh;
-            var text = $"Monitor {monitor.Index} · window {fitted.Width} × {fitted.Height} · game draws {gw} × {gh} ({aspect:0.00})";
+            var number = ChosenScreens.ToList().FindIndex(m => m.Index == monitor.Index) + 1;
+            var text = $"Monitor {(number > 0 ? number : monitor.Index)} · window {fitted.Width} × {fitted.Height} · game draws {gw} × {gh} ({aspect:0.00})";
             if (fitted != raw) text += $"\nShortened from {raw.Width} × {raw.Height} to keep the aspect rule.";
             return text;
         }
@@ -553,6 +571,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(UiScaleEffective));
         OnPropertyChanged(nameof(LiveSlots));
         OnPropertyChanged(nameof(UiScaleText));
+        OnPropertyChanged(nameof(LayoutAdvice));
         for (var i = 0; i < Party.Count; i++)
         {
             Party[i].OnTop = Current?.Slots.ElementAtOrDefault(i)?.Z == ZOrder.Top;
@@ -690,19 +709,177 @@ public sealed class MainViewModel : ObservableObject
     public ICommand FitActionBarCommand { get; }
     public ICommand FixUiScaleCommand { get; }
     public ICommand ResetUiScaleCommand { get; }
+    public ICommand FlipSplitCommand { get; }
 
     // =====================================================================================
     // Saved layouts
     // =====================================================================================
 
+    /// <summary>
+    /// Re-reads the monitors (at start, on Windows' display change and before placing). The layout's own monitors are
+    /// checked a moment later: monitors blink off and on while Windows wakes up or re-plugs them.
+    /// </summary>
     public void RefreshMonitors()
     {
         var monitors = MonitorReader.GetMonitors();
         if (monitors.SequenceEqual(Monitors)) return;
+        var first = Monitors.Count == 0;
         Monitors = monitors;
         OnPropertyChanged(nameof(MonitorSummary));
+        OnPropertyChanged(nameof(ShowMonitors));
+        _monitorCounts = null;
+        RefreshScreens();
         RefreshCards();
         RaiseSlotProperties();
+        if (!first && Current is not null)
+        {
+            _monitorCheck.Stop();
+            _monitorCheck.Start();
+        }
+    }
+
+    // =====================================================================================
+    // Monitors: which of the connected monitors the layout uses
+    // =====================================================================================
+
+    private readonly System.Windows.Threading.DispatcherTimer _monitorCheck = new() { Interval = TimeSpan.FromSeconds(2) };
+    private IReadOnlyList<MonitorInfo> _chosen = [];
+    private IReadOnlyList<MonitorChoice>? _monitorCounts;
+    private IReadOnlyList<MonitorChoice> _monitorSets = [];
+    private string _monitorNotice = "";
+
+    /// <summary>The monitors the layout uses now, in its order (1 = the main's). The map shows exactly these.</summary>
+    public IReadOnlyList<MonitorInfo> ChosenScreens => _chosen;
+
+    /// <summary>The Monitors section shows only when more than one monitor is connected.</summary>
+    public bool ShowMonitors => Monitors.Count > 1;
+
+    /// <summary>"1 monitor", "2 monitors" … up to the number connected, each with its default monitors.</summary>
+    public IReadOnlyList<MonitorChoice> MonitorCounts => _monitorCounts ??= Enumerable.Range(1, Monitors.Count).Select(k =>
+    {
+        var set = ScreenSet.Choices(Monitors, k)[0];
+        return new MonitorChoice(set, k == 1 ? "1 monitor" : $"{k} monitors", ScreenSet.Describe(set, Monitors));
+    }).ToList();
+
+    public MonitorChoice? SelectedMonitorCount
+    {
+        get => MonitorCounts.FirstOrDefault(c => c.Screens.Count == _chosen.Count);
+        set
+        {
+            if (value is not null && value.Screens.Count != _chosen.Count) ApplyScreens(value.Screens);
+        }
+    }
+
+    /// <summary>Which monitors, when fewer than all are used (every set of that size; the first is the default).</summary>
+    public IReadOnlyList<MonitorChoice> MonitorSets => _monitorSets;
+
+    public bool ShowMonitorSets => _monitorSets.Count > 1;
+
+    public MonitorChoice? SelectedMonitorSet
+    {
+        get => _monitorSets.FirstOrDefault(c => SameScreens(c.Screens, _chosen));
+        set
+        {
+            if (value is not null && !SameScreens(value.Screens, _chosen)) ApplyScreens(value.Screens);
+        }
+    }
+
+    /// <summary>A short line after the layout lost a monitor ("" = nothing to say).</summary>
+    public string MonitorNotice { get => _monitorNotice; private set => Set(ref _monitorNotice, value); }
+
+    private static bool SameScreens(IReadOnlyList<MonitorInfo> a, IReadOnlyList<MonitorInfo> b) => a.Select(m => m.Index).SequenceEqual(b.Select(m => m.Index));
+
+    private void RefreshScreens()
+    {
+        IReadOnlyList<MonitorInfo> chosen = Current is null || Monitors.Count == 0 ? [] : ScreenSet.Resolve(Current, Monitors).Chosen;
+        if (chosen.Count == 0 && Monitors.Count > 0) chosen = [Core.Monitors.Primary(Monitors)];
+        if (chosen.Count != _chosen.Count || !SameScreens(chosen, _chosen) || _monitorCounts is null)
+        {
+            if (chosen.Count != _chosen.Count || _monitorCounts is null)
+                _monitorSets = chosen.Count < Monitors.Count
+                    ? ScreenSet.Choices(Monitors, chosen.Count).Select(set => new MonitorChoice(set, ScreenSet.Describe(set, Monitors), "")).ToList()
+                    : [];
+            _chosen = chosen;
+            foreach (var name in new[] { nameof(ChosenScreens), nameof(MonitorCounts), nameof(SelectedMonitorCount), nameof(MonitorSets), nameof(ShowMonitorSets), nameof(SelectedMonitorSet) })
+                OnPropertyChanged(name);
+        }
+        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(LayoutAdvice) })
+            OnPropertyChanged(name);
+    }
+
+    /// <summary>Uses these monitors (a hand-made layout starts again as Free for all on them).</summary>
+    private void ApplyScreens(IReadOnlyList<MonitorInfo> screens)
+    {
+        if (Current is null) return;
+        MonitorNotice = "";
+        if (Current.Preset is null) Status.Info("This layout was made by hand: it starts again as Free for all on the chosen monitors. Ctrl+Z brings it back.");
+        ApplyKind(Current.Preset ?? PresetKind.Free, screens: screens);
+    }
+
+    /// <summary>
+    /// After the monitors changed or a layout was opened: monitors Windows numbers differently are followed (by device
+    /// ID, else place and size); if one is not connected, the layout goes back to 1 monitor with a short notice.
+    /// </summary>
+    private void CheckScreens()
+    {
+        if (Current is null || Monitors.Count == 0) return;
+        if (ScreenSet.Resolve(Current, Monitors).Missing)
+        {
+            ApplyKind(Current.Preset ?? PresetKind.Free, screens: [Core.Monitors.Primary(Monitors)]);
+            MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor now. Choose the monitors again when it is back (or Ctrl+Z).";
+            Status.Warn(MonitorNotice);
+            return;
+        }
+        var remapped = ScreenSet.Remap(Current, Monitors);
+        if (ReferenceEquals(remapped, Current)) return;
+        Update(remapped, pushUndo: false);
+        Status.Info("Windows numbered the monitors differently – the layout stays on its own monitors.");
+    }
+
+    /// <summary>6–10 clients on one monitor (Main + side): the parties share it side by side or stacked.</summary>
+    public bool HasSplit => Current is { Preset: { } kind } && Presets.HasSplit(kind, Current.Clients, _chosen.Count);
+
+    private PartySplit EffectiveSplit => Current?.Split
+        ?? (Current is not null && _chosen.Count > 0 ? Presets.BestSplit(Current.Clients, _chosen[0], Current.Options) : PartySplit.SideBySide);
+
+    public string SplitText => EffectiveSplit == PartySplit.SideBySide ? "Parties side by side" : "Parties stacked, one above the other";
+
+    private void FlipSplit()
+    {
+        if (!HasSplit) return;
+        ApplyKind(Current!.Preset!.Value, split: EffectiveSplit == PartySplit.SideBySide ? PartySplit.Stacked : PartySplit.SideBySide);
+        Status.Info($"{SplitText}. Ctrl+Z flips it back.");
+    }
+
+    /// <summary>Overlays with up to 5 clients and 2+ monitors: the followers' row can go on monitor 2.</summary>
+    public bool CanFollowersOnSecond => Current is { Preset: PresetKind.Overlay, Clients: > 1 and <= Presets.PartySize } && _chosen.Count > 1;
+
+    public bool FollowersOnSecond
+    {
+        get => Current?.FollowersOnSecond ?? false;
+        set
+        {
+            if (Current is not null && value != Current.FollowersOnSecond) ApplyKind(PresetKind.Overlay, followersOnSecond: value);
+        }
+    }
+
+    /// <summary>The honest action-bar verdict for the whole layout, and a tip when one monitor holds both parties.</summary>
+    public string LayoutAdvice
+    {
+        get
+        {
+            if (Current is null || Current.Slots.Count < 2 || Monitors.Count == 0) return "";
+            var bars = Enumerable.Range(0, Current.Slots.Count).Select(i => UiScale.EffectiveAspect(PlannedAspect(i), UiScaleNow)).ToList();
+            var full = bars.Count(a => a >= 4.0 / 3 - 0.001);
+            var text = full == bars.Count
+                ? $"The whole action bar fits in all {bars.Count} windows."
+                : $"The whole action bar fits in {full} of {bars.Count} windows at UI Scale {UiScaleNow.Display} – Auto-fit or Settings › Fix action bar sets a smaller one.";
+            if (Current.Clients > Presets.PartySize && _chosen.Count == 1)
+                text += Monitors.Count > 1
+                    ? " Two parties on one monitor make small windows: choose 2 monitors to give each party its own."
+                    : " Two parties on one monitor make small windows: a second monitor gives each party its own.";
+            return text;
+        }
     }
 
     private void LoadProfiles()
@@ -710,6 +887,12 @@ public sealed class MainViewModel : ObservableObject
         var errors = new List<string>();
         var stored = _store.LoadAll(errors).ToList();   // layouts work with every WoW install
         foreach (var e in errors) Status.Warn($"Skipped a broken layout file: {e}");
+        for (var i = 0; i < stored.Count; i++)
+            if (stored[i].Profile.Preset == PresetKind.Dual)   // the old "2 monitors" card is Main + side on two monitors now
+            {
+                var profile = stored[i].Profile with { Preset = PresetKind.Side };
+                stored[i] = new StoredProfile(_store.Save(profile, stored[i].Path), profile);
+            }
         if (stored.Count == 0 && Monitors.Count > 0)
         {
             // First start: a ready-to-use layout for 3 clients.
@@ -818,7 +1001,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void EditSlotRect(PixelRect rect)
     {
-        if (Slot is { } s && Current is not null) OnSlotEdited(SelectedSlotIndex, SlotEditing.WithRect(s, rect, Monitors, Current.Options));
+        if (Slot is { } s && Current is not null) OnSlotEdited(SelectedSlotIndex, SlotEditing.WithRect(s, rect, ChosenScreens.Count > 0 ? ChosenScreens : Monitors, Current.Options));
     }
 
     private void EditOptions(Func<LayoutOptions, LayoutOptions> change)
@@ -1237,13 +1420,19 @@ public sealed class MainViewModel : ObservableObject
             var accounts = WowAccounts.Select(a => a.Name).Prepend("").ToList();
             var lastPlayed = WowAccounts.ToDictionary(a => a.Name, a => a.LastPlayed, StringComparer.OrdinalIgnoreCase);
             Party.Clear();
+            var parties = Current.Slots.Count > Presets.PartySize;
+            var followers = new int[3];
             for (var i = 0; i < Current.Slots.Count; i++)
             {
                 var index = i;
+                var party = Presets.PartyOf(i + 1);
+                var main = Current.Slots[i].Role == SlotRole.Main;
                 Party.Add(new PartyMember
                 {
                     Number = i + 1,
-                    Role = Current.Slots[i].Role == SlotRole.Main ? "Main" : "Follower",
+                    Role = main ? "Main" : "Follower",
+                    FollowerNumber = main ? 0 : ++followers[party],
+                    PartyName = parties ? $"Party {party}" : "",
                     Accounts = accounts,
                     LastPlayed = lastPlayed,
                     Identify = new RelayCommand(() => IdentifySlot(index)),

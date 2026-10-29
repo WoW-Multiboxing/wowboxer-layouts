@@ -1,7 +1,7 @@
 # WoWBoxer Window Layouts
 
 Free, open-source (MIT) Windows app for **manual** World of Warcraft multiboxing.
-It opens your WoW clients and places 1–8 game windows in a layout you choose, on one monitor or several, and keeps
+It opens your WoW clients and places 1–10 game windows (two parties) in a layout you choose, on one monitor or several, and keeps
 them there. Guides, the rules and the downloads are on **[wowboxer.com](https://wowboxer.com/)**.
 
 ![The Setup tab: client count, layout cards, a to-scale map of the monitor and the squad list](docs/screenshots/setup-after-v0.2.4.png)
@@ -46,8 +46,9 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
 
 ## Using it
 
-- **Setup** – how many clients (1–8), pick a layout card (Main + side, Overlays, Grid, 2 monitors, Free for all),
-  then fine-tune on a to-scale map of your monitors: drag, resize, snap, nudge, undo. One button opens the missing
+- **Setup** – how many clients (1–10; 6–10 = two parties), a layout from the dropdown (Main + side, Overlays, Grid,
+  Free for all) and how many monitors to use, then fine-tune on a to-scale map of the chosen monitors: drag (also
+  across monitors), resize, snap, nudge, undo. One button opens the missing
   clients; new WoW windows drop into the next free slot by themselves. Layouts save automatically; share them as
   `WBX1:` codes or files, or capture an arrangement you made by hand.
 - **Guide** – WoW display settings, switching windows, troubleshooting.

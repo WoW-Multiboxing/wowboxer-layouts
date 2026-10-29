@@ -40,8 +40,10 @@ public static class ProfileJson
         return profile;
     }
 
+    /// <summary>A share code. The screens' device IDs stay on this PC (place and size are enough to find a friend's monitors).</summary>
     public static string ToShareCode(LayoutProfile profile) =>
-        SharePrefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(Serialize(profile, indented: false)));
+        SharePrefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(Serialize(
+            profile with { Screens = profile.Screens?.Select(s => s with { Id = null }).ToList() }, indented: false)));
 
     public static LayoutProfile FromShareCode(string code)
     {

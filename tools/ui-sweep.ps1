@@ -62,6 +62,15 @@ function Prompt($text, $button = 'OK') {
   (Pattern $box ([System.Windows.Automation.ValuePattern]::Pattern)).SetValue($text)
   (Pattern (Find $button $d) ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600
 }
+# Picks an entry of one of our dropdowns (layout, monitors) by its name.
+function Choose($id, $name) {
+  $cb = FindId $id; if (-not $cb) { throw "not found: $id" }
+  $ec = Pattern $cb ([System.Windows.Automation.ExpandCollapsePattern]::Pattern); $ec.Expand(); Start-Sleep -Milliseconds 300
+  $item = $cb.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, $name)))
+  if (-not $item) { $ec.Collapse(); throw "not in ${id}: $name" }
+  (Pattern $item ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); Start-Sleep -Milliseconds 300
+  if ($ec.Current.ExpandCollapseState -ne 'Collapsed') { $ec.Collapse() }; Start-Sleep -Milliseconds 300
+}
 function Answer($button) { $d = Dialog; (Pattern (Find $button $d) ([System.Windows.Automation.InvokePattern]::Pattern)).Invoke(); Start-Sleep -Milliseconds 600 }
 
 $script:startStamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
@@ -69,22 +78,50 @@ Pick 'SETUP'
 if ((FindId 'HeaderStatus').Current.Name -notlike 'Stopped*') { throw 'Start the app with --pause first: the sweep changes layouts, and a watching app would move your WoW windows.' }
 $original = (Settings).lastProfile
 
-# ---- layouts × client counts ----
-$cards = 'Main + side', 'Overlays', 'Grid', '2 monitors', 'Free for all'
-$kinds = @{ 'Main + side' = 'side'; 'Overlays' = 'overlay'; 'Grid' = 'grid'; '2 monitors' = 'dual'; 'Free for all' = 'free' }
+# ---- layouts × monitors × client counts ----
+$layouts = 'Main + side', 'Overlays', 'Grid', 'Free for all'
+$kinds = @{ 'Main + side' = 'side'; 'Overlays' = 'overlay'; 'Grid' = 'grid'; 'Free for all' = 'free' }
+$screens = [System.Windows.Forms.Screen]::AllScreens.Count
 Invoke 'Save as…'; Prompt 'UI sweep'
 $sweepName = (Settings).lastProfile
 Check 'Save as creates and selects a "UI sweep" layout' { $sweepName -like 'UI sweep*' -and (Test-Path (Join-Path $profiles ($sweepName + '.json'))) }
-foreach ($n in 2..8) {
-  Pick "$n"
-  foreach ($c in $cards) {
-    $card = Find $c
-    if (-not $card.Current.IsEnabled) { $results.Add("SKIP  $n clients · $c (not available on this PC)"); continue }
-    Invoke $c
-    Check "$n clients · $c" { $p = Current; $p.clients -eq $n -and $p.preset -eq $kinds[$c] -and @($p.slots).Count -eq $n }
+Check "Monitors section shown only with 2+ monitors ($screens here)" { [bool](FindId 'MonitorCount') -eq ($screens -gt 1) }
+foreach ($m in 1..$screens) {
+  if ($screens -gt 1) { Choose 'MonitorCount' $(if ($m -eq 1) { '1 monitor' } else { "$m monitors" }) }
+  foreach ($n in 1..10) {
+    Pick "$n"
+    foreach ($c in $layouts) {
+      Choose 'LayoutPicker' $c
+      Check "$m monitor(s) · $n clients · $c" { $p = Current; $p.clients -eq $n -and $p.preset -eq $kinds[$c] -and @($p.slots).Count -eq $n -and @($p.screens).Count -eq $m }
+    }
   }
 }
-Pick '3'; Invoke 'Main + side'
+
+# ---- parties, split, which monitor, overlay row on monitor 2 ----
+if ($screens -gt 1) { Choose 'MonitorCount' '1 monitor' }
+Pick '10'; Choose 'LayoutPicker' 'Main + side'
+Check '10 clients: rows grouped as Party 1 and Party 2' { [bool](Find 'PARTY 1') -or [bool](Find 'Party 1') }
+$split = (FindId 'SplitText').Current.Name
+Invoke 'Flip'
+Check "Flip splits the monitor the other way ($split → $((FindId 'SplitText').Current.Name))" { (FindId 'SplitText').Current.Name -ne $split -and [bool](Current).split }
+Check 'Two parties on one monitor: the advice suggests 2 monitors' { ($screens -eq 1) -or ((FindId 'LayoutAdvice').Current.Name -match '2 monitors') }
+if ($screens -gt 1) {
+  $first = @((Current).screens)[0]
+  $e = FindId 'MonitorSet'
+  Check '1 of 2 monitors: "Which ones" lists both' { [bool]$e }
+  $ec = Pattern $e ([System.Windows.Automation.ExpandCollapsePattern]::Pattern); $ec.Expand(); Start-Sleep -Milliseconds 300
+  $items = @($e.FindAll($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem))))
+  (Pattern $items[-1] ([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select(); Start-Sleep -Milliseconds 300; if ($ec.Current.ExpandCollapseState -ne 'Collapsed') { $ec.Collapse() }; Start-Sleep -Milliseconds 300
+  Check 'Choosing the other monitor moves the layout there' { $s = @((Current).screens); $s.Count -eq 1 -and ($s[0].x -ne $first.x -or $s[0].y -ne $first.y) }
+  Choose 'MonitorCount' '2 monitors'
+  Check '10 clients on 2 monitors: one party per monitor, no split to flip' { -not (FindId 'SplitText') -and @((Current).screens).Count -eq 2 }
+  Pick '4'; Choose 'LayoutPicker' 'Overlays'
+  SetToggle 'Followers on monitor 2' $true
+  Check 'Overlays: followers on monitor 2' { (Current).followersOnSecond -eq $true }
+  SetToggle 'Followers on monitor 2' $false
+  Choose 'MonitorCount' '1 monitor'
+}
+Pick '3'; Choose 'LayoutPicker' 'Main + side'
 
 # ---- switches ----
 Check 'Plug and play: no game selector, no live switch, no Full action bar / All monitors switches' { -not (Find 'Forever') -and -not (Find 'Classic Era') -and -not (Find 'Move WoW windows live') -and -not (Find 'Full action bar') -and -not (Find 'All monitors') }
@@ -153,7 +190,7 @@ Check 'No Squad tab any more (merged into Setup)' { -not (Find 'SQUAD') }
 Check 'Activity opens from the status bar' { $pid0 = (Get-Process WoWBoxer.Layouts).Id; [bool]($A::RootElement.FindAll($Scope::Children, (New-Object System.Windows.Automation.PropertyCondition ($A::ProcessIdProperty, $pid0))) | ForEach-Object { $_.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Activity log'))) } | Where-Object { $_ }) }
 Pick 'GUIDE'
 Start-Sleep -Milliseconds 600
-foreach ($ch in 'Prepare your WoW clients', 'Pick clients and a layout', 'Open your clients', 'Switch between windows', 'If something looks wrong', 'What WoWBoxer never does') {
+foreach ($ch in 'Prepare your WoW clients', 'Pick clients, a layout and your monitors', 'Open your clients', 'Switch between windows', 'If something looks wrong', 'What WoWBoxer never does') {
   Check "Guide chapter: $ch" { Invoke $ch; $true }
 }
 Check 'Guide tab is the current tab' { (Settings).lastTab -eq 'Guide' }

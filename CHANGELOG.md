@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.4.0 – Up to 10 clients; layout and monitors as two clear choices (2026-10-30)
+- **1–10 clients.** The number buttons go to 10 (two rows of five): clients 1–5 are party 1, 6–10 party 2, with
+  client 6 as party 2's main. Your squad groups its rows as "Party 1" and "Party 2" above 5 clients; dragging a row into
+  the other party works as before (rows, map and real windows follow).
+- **Layout is a dropdown.** Section II is now one compact dropdown – Main + side, Overlays, Grid, Free for all – each
+  entry with a live mini preview; the chosen layout's short description sits under it.
+- **New section: Monitors** (right below the layout, only with 2+ monitors): "1 monitor", "2 monitors" … up to the
+  number Windows reports, each showing which ones ("Primary + right · 2560×1440 + 1920×1080"). With fewer than all,
+  "Which ones" picks them (default: the primary first, then left to right). Default: 1 monitor, the primary.
+- **Your screens shows exactly the chosen monitors**, numbered 1, 2, 3 … in their real arrangement and scale, and glides
+  when the layout, monitors or client count change.
+- **Every layout works across the chosen monitors:**
+  - *Main + side*: up to 5 clients on 1 monitor as before; on 2+ monitors the main fills monitor 1 and the followers
+    spread over the others (this replaces the separate "2 monitors" layout – older layouts made with it open as Main +
+    side on two monitors). 6–10 clients: one Main + side block per party – one per monitor, or the two halves of one
+    monitor (side by side or stacked, whichever gives the bigger game windows; **Flip** turns it).
+  - *Overlays*: main on monitor 1 with the followers floating along the bottom, or on monitor 2 ("Followers on monitor
+    2"). 6–10 clients: two rows on one monitor, or one row per monitor with party 2's main under its row.
+  - *Grid*: tiles spread evenly over the chosen monitors.
+  - *Free for all*: new windows start spread over the chosen monitors; drag a window anywhere, also across a monitor
+    border – it lands on the monitor holding its centre and snaps to each monitor's edges.
+- **The action-bar verdict for the whole layout** sits under the layout ("The whole action bar fits in 7 of 10
+  windows …"). With two parties on one monitor it suggests using 2 monitors.
+- **Saved layouts remember their monitors** (by Windows' device ID, with place and size as a fallback when IDs change).
+  When monitors are plugged in or out the list refreshes; if a monitor of the layout is gone, it goes back to 1
+  monitor with a short notice (Ctrl+Z, or choose the monitors again when it is back). Share codes leave the device IDs
+  out.
+- Guide › chapter 2, README and the plan explain it. CLI: `--clients` 1–10, `--preset free`.
+- Unit tests: every layout × 1–3 monitors (incl. three mixed-DPI monitors numbered out of order) × 1–10 clients, plus
+  parties, split, monitor matching and fallback (2,338 cases). `tools/ui-sweep.ps1` covers the new controls.
+- `docs/test-plan.md`: repaired characters that an earlier edit had double-encoded ("âœ…" → "✅").
+
 ## v0.3.6 – update test (2026-10-29)
 A small release to check that v0.3.5 asks "Update now / Later" when it opens. No other changes.
 
