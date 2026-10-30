@@ -37,6 +37,13 @@ internal static class Screenshots
         main.Left = main.Top = -20000;
         main.Width = Width;
         main.Height = Height;
+        // Windows still keeps a window within the screen size (a CI runner's screen is 1024×768), so the app's content is
+        // laid out at exactly 1440×900 on a canvas, whatever size the window itself gets. Only the content is rendered.
+        var content = (FrameworkElement)main.Content;
+        main.Content = null;
+        content.Width = Width;
+        content.Height = Height;
+        main.Content = new Canvas { Children = { content } };
         main.Show();
 
         var shots = new List<Shot>();
@@ -44,7 +51,7 @@ internal static class Screenshots
         {
             if (vm.SelectedTab == AppTab.Setup) await InPlace(vm);
             await Settle();
-            var bitmap = render?.Invoke() ?? Render((FrameworkElement)main.Content);
+            var bitmap = render?.Invoke() ?? Render(content);
             Save(bitmap, Path.Combine(folder, name + ".png"));
             shots.Add(new Shot(name, title, alt, caption));
         }
@@ -104,14 +111,14 @@ internal static class Screenshots
         vm.SelectedTab = AppTab.Setup;
         vm.SelectedSlotIndex = -1;
         await Snap("tray-menu", "Tray menu", "The WoWBoxer tray menu: Open WoWBoxer, Open missing WoW clients, Re-arrange, Identify windows, Stop placing windows, Hover to activate windows, Report a problem and Quit.",
-            "Everything you need mid-raid is one right-click away in the tray.", () => WithTrayMenu(Render((FrameworkElement)main.Content), trayMenu()));
+            "Everything you need mid-raid is one right-click away in the tray.", () => WithTrayMenu(Render(content), trayMenu()));
 
         // 9) First start: the welcome screen over the app
         vm.SelectedTab = AppTab.Setup;
         await Snap("first-run", "Welcome screen", "WoWBoxer welcome screen on first start: what the app does (places WoW windows) and what it never does (no keys or clicks sent to the game, no memory reading, no injection).",
             "What it does – and what it never does.", () =>
             {
-                var app = Render((FrameworkElement)main.Content);
+                var app = Render(content);
                 var welcome = FirstRunWindow.Create(null);
                 welcome.ShowActivated = false;
                 welcome.ShowInTaskbar = false;
