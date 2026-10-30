@@ -18,6 +18,14 @@ public static class WindowPlacer
     /// <summary>Asks the window to move into <paramref name="rect"/>. Does nothing if it is already there.</summary>
     public static PlaceResult Place(nint h, PixelRect rect, bool borderless, ZOrder z = ZOrder.Normal)
     {
+        if (Sandbox.Active)
+        {
+            if (!Sandbox.IsFake(h)) return PlaceResult.Gone;
+            var topChanged = Sandbox.SetTopmost(h, z == ZOrder.Top);
+            if (Sandbox.RectOf(h) == rect) return topChanged ? PlaceResult.Requested : PlaceResult.AlreadyThere;
+            Sandbox.Move(h, rect);
+            return PlaceResult.Requested;
+        }
         if (!IsWindow(h)) return PlaceResult.Gone;
         if (IsZoomed(h) || IsIconic(h)) ShowWindowAsync(h, SW_SHOWNOACTIVATE);   // un-maximise / un-minimise without activating
         var styleChanged = borderless ? MakeBorderless(h) : AddFrame(h);
@@ -32,7 +40,7 @@ public static class WindowPlacer
     }
 
     /// <summary>True if the window has the "always on top" style (WS_EX_TOPMOST).</summary>
-    public static bool IsTopmost(nint h) => (GetWindowLong(h, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+    public static bool IsTopmost(nint h) => Sandbox.Active ? Sandbox.IsTopmost(h) : (GetWindowLong(h, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
 
     /// <summary>
     /// Makes the window's "always on top" match the slot: <see cref="ZOrder.Top"/> sets it (HWND_TOPMOST), anything
@@ -40,6 +48,7 @@ public static class WindowPlacer
     /// </summary>
     public static bool ApplyZOrder(nint h, ZOrder z)
     {
+        if (Sandbox.Active) return Sandbox.SetTopmost(h, z == ZOrder.Top);
         if (!IsWindow(h)) return false;
         var top = z == ZOrder.Top;
         if (IsTopmost(h) == top) return false;
@@ -53,7 +62,7 @@ public static class WindowPlacer
     /// </summary>
     public static async Task NudgeAsync(nint h, PixelRect rect, CancellationToken cancel = default)
     {
-        if (!IsWindow(h)) return;
+        if (Sandbox.Active || !IsWindow(h)) return;
         const uint flags = NoActivateAsync | SWP_NOZORDER;
         var r = WithInvisibleFrame(h, rect);
         SetWindowPos(h, 0, r.X, r.Y, r.Width - 2, r.Height - 2, flags);
@@ -64,6 +73,7 @@ public static class WindowPlacer
     /// <summary>Synchronous move for Diagnose. 0 = ok, otherwise the Windows error (5 = access denied, usually admin).</summary>
     public static int TryMove(nint h, PixelRect rect)
     {
+        if (Sandbox.Active) return Sandbox.Move(h, rect) ? 0 : -1;
         var r = WithInvisibleFrame(h, rect);
         if (SetWindowPos(h, 0, r.X, r.Y, r.Width, r.Height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW)) return 0;
         var error = Marshal.GetLastPInvokeError();
@@ -73,6 +83,7 @@ public static class WindowPlacer
     /// <summary>Removes title bar and borders. Returns true if the style changed.</summary>
     public static bool MakeBorderless(nint h)
     {
+        if (Sandbox.Active) return false;
         var style = GetWindowLong(h, GWL_STYLE);
         var borderless = style & ~BorderStyles;
         if (borderless == style) return false;
@@ -83,6 +94,7 @@ public static class WindowPlacer
     /// <summary>Puts title bar and borders back (style only; the caller applies it with SWP_FRAMECHANGED). True if changed.</summary>
     public static bool AddFrame(nint h)
     {
+        if (Sandbox.Active) return false;
         var style = GetWindowLong(h, GWL_STYLE);
         if ((style & BorderStyles) == BorderStyles) return false;
         SetWindowLong(h, GWL_STYLE, style | BorderStyles);
@@ -92,6 +104,7 @@ public static class WindowPlacer
     /// <summary>Puts title bar and borders back and clears "always on top". Position and size stay as they are.</summary>
     public static bool RestoreFrame(nint h)
     {
+        if (Sandbox.Active) return Sandbox.SetTopmost(h, false);
         if (!IsWindow(h)) return false;
         var style = GetWindowLong(h, GWL_STYLE);
         SetWindowLong(h, GWL_STYLE, style | BorderStyles);
@@ -131,6 +144,7 @@ public static class WindowPlacer
     /// <summary>Sets the window title (e.g. "WoW - Paladin"). Gives up after 1 s if the game is busy.</summary>
     public static unsafe bool SetTitle(nint h, string title)
     {
+        if (Sandbox.Active) return Sandbox.IsFake(h);
         fixed (char* text = title)
             return SendMessageTimeout(h, WM_SETTEXT, 0, text, SMTO_ABORTIFHUNG, 1000, out _) != 0;
     }

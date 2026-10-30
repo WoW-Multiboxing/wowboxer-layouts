@@ -27,6 +27,7 @@ public sealed unsafe class ZOrderGuard : IDisposable
         _corrected = corrected;
         _active?.Dispose();
         _active = this;
+        if (Sandbox.Active) return;   // demo mode: no real windows to watch
         const uint flags = WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS;
         _hooks.Add(SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, 0, &OnEvent, 0, 0, flags));
         _hooks.Add(SetWinEventHook(EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZEEND, 0, &OnEvent, 0, 0, flags));

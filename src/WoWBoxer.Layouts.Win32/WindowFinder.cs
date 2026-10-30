@@ -57,6 +57,7 @@ public static unsafe class WindowFinder
     /// </summary>
     public static List<WindowInfo> FindGameWindows(WowGame? game = null)
     {
+        if (Sandbox.Active) return Sandbox.GameWindows().Where(w => game is not { } g || w.Game == g).ToList();
         var wowPids = new HashSet<uint>();
         foreach (var p in Process.GetProcesses())
         {
@@ -117,14 +118,14 @@ public static unsafe class WindowFinder
         return new string(buffer, 0, Math.Max(n, 0));
     }
 
-    public static PixelRect RectOf(nint h) => GetWindowRect(h, out var r) ? MonitorReader.ToRect(r) : default;
+    public static PixelRect RectOf(nint h) => Sandbox.Active ? Sandbox.RectOf(h) : GetWindowRect(h, out var r) ? MonitorReader.ToRect(r) : default;
 
     /// <summary>The size the game actually renders at (inside title bar and borders).</summary>
-    public static (int Width, int Height) ClientSizeOf(nint h) => GetClientRect(h, out var r) ? (r.Right - r.Left, r.Bottom - r.Top) : default;
+    public static (int Width, int Height) ClientSizeOf(nint h) => Sandbox.Active ? (Sandbox.RectOf(h).Width, Sandbox.RectOf(h).Height) : GetClientRect(h, out var r) ? (r.Right - r.Left, r.Bottom - r.Top) : default;
 
     /// <summary>The window as the user sees it (no invisible resize borders). Falls back to <see cref="RectOf"/>.</summary>
-    public static unsafe PixelRect VisibleRectOf(nint h) =>
+    public static unsafe PixelRect VisibleRectOf(nint h) => Sandbox.Active ? Sandbox.RectOf(h) :
         DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, out var r, sizeof(RECT)) == 0 ? MonitorReader.ToRect(r) : RectOf(h);
 
-    public static bool Exists(nint h) => IsWindow(h);
+    public static bool Exists(nint h) => Sandbox.Active ? Sandbox.IsFake(h) : IsWindow(h);
 }

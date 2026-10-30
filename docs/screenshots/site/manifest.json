@@ -1,0 +1,123 @@
+{
+  "app": "WoWBoxer Window Layouts",
+  "appVersion": "0.5.1",
+  "images": [
+    {
+      "file": "setup-main-side.webp",
+      "small": "setup-main-side-720.webp",
+      "title": "Setup: clients, layout and monitors",
+      "alt": "WoWBoxer Window Layouts, Setup: three WoW windows in the Main + side layout on one monitor – the main window big on the left, two followers stacked on the right – and the squad list with every window connected.",
+      "caption": "Pick how many clients and a layout – every window goes to its place as it opens.",
+      "appVersion": "0.5.1",
+      "order": 1,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "setup-two-monitors-free.webp",
+      "small": "setup-two-monitors-free-720.webp",
+      "title": "Two monitors, Free for all",
+      "alt": "WoWBoxer Setup with two monitors (2560×1440 and 1920×1080) and the Free for all layout: four WoW windows arranged by hand over both monitors on the map – window 2 straddles the border between them.",
+      "caption": "Two monitors, Free for all: drag any window anywhere – across monitors too.",
+      "appVersion": "0.5.1",
+      "order": 2,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "setup-ten-clients.webp",
+      "small": "setup-ten-clients-720.webp",
+      "title": "Ten clients in two parties",
+      "alt": "WoWBoxer Setup with ten WoW clients in two parties of five over two monitors; the squad list is grouped into Party 1 and Party 2.",
+      "caption": "Up to 10 clients: two parties of five, each with its own main.",
+      "appVersion": "0.5.1",
+      "order": 3,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "window-details.webp",
+      "small": "window-details-720.webp",
+      "title": "Window details",
+      "alt": "WoWBoxer Setup with the details of window 1 open: name, class, position and size in pixels, always on top, and whether the whole action bar fits.",
+      "caption": "Fine-tune any window: exact position and size, on top, and an action-bar check.",
+      "appVersion": "0.5.1",
+      "order": 4,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "settings.webp",
+      "small": "settings-720.webp",
+      "title": "Settings: hover to activate and action bar",
+      "alt": "WoWBoxer Settings: hover to activate windows (a Windows setting) with its delay, the action-bar fit (UI Scale) and the window rules.",
+      "caption": "Hover to activate is a Windows setting – it sends nothing to the game. Auto-fit keeps the whole action bar in view.",
+      "appVersion": "0.5.1",
+      "order": 5,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "help.webp",
+      "small": "help-720.webp",
+      "title": "Help and Report a problem",
+      "alt": "WoWBoxer Help tab: the Report a problem button, links to the WoWBoxer Discord, YouTube and website, tools to see what the app sees, and common problems with their fixes.",
+      "caption": "Stuck? Common problems with their fixes, and Report a problem for #setup-help on Discord.",
+      "appVersion": "0.5.1",
+      "order": 6,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "about.webp",
+      "small": "about-720.webp",
+      "title": "About and community links",
+      "alt": "WoWBoxer About tab: version, MIT licence, privacy (no telemetry) and the Discord, YouTube and website links.",
+      "caption": "Free and open source (MIT). No telemetry – your layouts and logs stay on your PC.",
+      "appVersion": "0.5.1",
+      "order": 7,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "tray-menu.webp",
+      "small": "tray-menu-720.webp",
+      "title": "Tray menu",
+      "alt": "The WoWBoxer tray menu: Open WoWBoxer, Open missing WoW clients, Re-arrange, Identify windows, Stop placing windows, Hover to activate windows, Report a problem and Quit.",
+      "caption": "Everything you need mid-raid is one right-click away in the tray.",
+      "appVersion": "0.5.1",
+      "order": 8,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    },
+    {
+      "file": "first-run.webp",
+      "small": "first-run-720.webp",
+      "title": "Welcome screen",
+      "alt": "WoWBoxer welcome screen on first start: what the app does (places WoW windows) and what it never does (no keys or clicks sent to the game, no memory reading, no injection).",
+      "caption": "What it does – and what it never does.",
+      "appVersion": "0.5.1",
+      "order": 9,
+      "width": 1440,
+      "height": 900,
+      "smallWidth": 720,
+      "smallHeight": 450
+    }
+  ]
+}

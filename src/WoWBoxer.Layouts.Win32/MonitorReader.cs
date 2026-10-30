@@ -9,6 +9,7 @@ public static unsafe class MonitorReader
     /// <summary>All monitors in the order Windows reports them (index 1, 2 ...), in physical pixels.</summary>
     public static IReadOnlyList<MonitorInfo> GetMonitors()
     {
+        if (Sandbox.Active) return Sandbox.Monitors;
         var handles = new List<nint>();
         var gc = GCHandle.Alloc(handles);
         try

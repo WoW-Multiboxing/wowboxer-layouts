@@ -23,6 +23,7 @@ publishes it as *Latest*. Last, it tells the website (see below).
 | `WoWBoxer.Layouts-win-Setup.exe`, `WoWBoxer.Layouts-win-Portable.zip` | The same files under Velopack's own names (kept so older links work) |
 | `WoWBoxer.Layouts-X.Y.Z-full.nupkg`, `-delta.nupkg` (from the second release on), `releases.win.json`, `RELEASES` | Velopack update feed. Installed apps read these |
 | `SHA256SUMS.txt` | SHA-256 of every `.exe`, `.zip` and `.nupkg` |
+| `site-screenshots.zip` | The website's screenshot set for this version: `*.webp` (1440×900 and `-720` 720×450) + `manifest.json` (see below) |
 
 `https://github.com/WoW-Multiboxing/wowboxer-layouts/releases/latest/download/<file>` always serves the newest
 **non-prerelease**, so the stable names never need changing on the website.
@@ -37,6 +38,22 @@ publishes it as *Latest*. Last, it tells the website (see below).
   2026-10-28. After install, Setup always starts the app once.
 - Updates: the app checks GitHub at start (if enabled), downloads in the background and applies the update when
   the app quits.
+
+### Website screenshots
+`tools/make-screenshots.ps1` starts the app with `--screenshots` – **demo mode**: made-up monitors (2560×1440 primary +
+1920×1080), a made-up squad (names and classes), every window "Connected"; nothing real is read or changed (no
+windows, Windows settings, Config.wtf, processes or network; settings and logs go to a temporary folder). The app renders
+each screen itself with WPF's renderer, off-screen and without focus, so it works the same on a GitHub runner as on a
+PC. The script converts the pictures to WebP and writes `manifest.json`:
+`{ app, appVersion, images: [ { file, small, title, alt, caption, appVersion, order, width, height, smallWidth, smallHeight } ] }`.
+
+- The set is committed in `docs/screenshots/site/` (run the script after UI changes; it writes there by default).
+- `build.yml` renders it on every push (artifact `site-screenshots`), so a break shows up before a release.
+- `release.yml` renders it again from the release's own build into `docs/screenshots/site/` and attaches
+  `site-screenshots.zip`. If rendering ever fails on the runner, the committed set is attached instead (warning in the log).
+- `WoWBoxer.Layouts.exe --demo` opens the same demo for a look by hand; it runs next to an open WoWBoxer.
+- Text uses Segoe UI Variable where Windows has it (Windows 11) and Segoe UI otherwise, so runner pictures can differ
+  from local ones by a pixel here and there.
 
 ## Beta channel (prereleases)
 Tag `vX.Y.Z-beta.N` (any version with a `-`). The workflow then:

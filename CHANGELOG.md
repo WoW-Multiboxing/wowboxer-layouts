@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+- **Website screenshots, always current.** `--demo` opens the app with made-up monitors (2560×1440 + 1920×1080) and a
+  made-up squad; nothing real on the PC is read or changed. `--screenshots FOLDER` renders every screen (Setup with 3
+  clients, 2 monitors + Free for all, 10 clients in two parties, window details, Settings, Help, About, the tray menu,
+  the welcome screen) and `tools/make-screenshots.ps1` turns them into WebP (1440 and 720 wide) plus `manifest.json`.
+  The set lives in `docs/screenshots/site/`; CI renders it on every push, and every release gets `site-screenshots.zip`
+  built from its own version.
+
 ## v0.5.1 – A Help tab (2026-10-30)
 - **New tab: HELP** (between Settings and About; Ctrl+4 or F1). Left: *Get help* – Report a problem, and the Discord,
   YouTube and website links – and *See what the app sees* – Identify all windows, Diagnose, Open logs, Give title

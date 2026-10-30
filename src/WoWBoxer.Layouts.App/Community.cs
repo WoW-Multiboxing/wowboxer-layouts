@@ -13,7 +13,7 @@ internal static class Community
 {
     public const string LinksUrl = "https://wowboxer.com/links.json";
 
-    private static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WoWBoxer", "Layouts");
+    private static string Folder => Demo.On ? Path.Combine(Demo.Root, "local") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WoWBoxer", "Layouts");
     private static string CacheFile => Path.Combine(Folder, "links.json");
     /// <summary>When the website was last asked (also after a failed try, so it is never asked more than once a day).</summary>
     private static string CheckedFile => Path.Combine(Folder, "links.checked");

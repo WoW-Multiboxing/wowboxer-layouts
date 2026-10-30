@@ -122,7 +122,7 @@ public sealed class SquadWatcher(SquadPlan plan, IStatusSink sink)
     /// <summary>Starts Battle.net if it is not running. Never logs in or presses anything.</summary>
     public static void EnsureBattleNet(IStatusSink sink, string? configuredExe, bool toolIsAdmin)
     {
-        if (BattleNet.IsRunning())
+        if (Sandbox.Active || BattleNet.IsRunning())
         {
             sink.Info("Battle.net is already running.");
             return;

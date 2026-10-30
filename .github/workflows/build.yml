@@ -35,6 +35,17 @@ jobs:
         shell: pwsh
         run: ./tools/smoke-start.ps1 -Exe src/WoWBoxer.Layouts.App/bin/Release/net10.0-windows/WoWBoxer.Layouts.exe
 
+      # Demo mode renders every screen with WPF's own renderer (no real windows, monitors or network), so it works here.
+      - name: Website screenshots (demo mode)
+        shell: pwsh
+        run: ./tools/make-screenshots.ps1 -Exe src/WoWBoxer.Layouts.App/bin/Release/net10.0-windows/WoWBoxer.Layouts.exe -Out out/site-screenshots
+
+      - name: Upload website screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-screenshots
+          path: out/site-screenshots
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

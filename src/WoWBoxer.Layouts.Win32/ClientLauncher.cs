@@ -25,6 +25,11 @@ public sealed class ClientLauncher
     /// <summary>Starts <paramref name="count"/> clients and returns how many started.</summary>
     public int Start(string exe, int count, IStatusSink sink)
     {
+        if (Sandbox.Active)
+        {
+            sink.Info("Demo mode: no WoW client is opened.");
+            return 0;
+        }
         if (!File.Exists(exe))
         {
             sink.Warn($"Game not found at {exe}. Set the game exe in Settings.");
@@ -91,6 +96,7 @@ public static class GameInstall
     /// <summary>The client exe of <paramref name="game"/>. A configured exe of another game is ignored.</summary>
     public static string? FindExe(string? configured, WowGame game = WowGame.ClassicEra)
     {
+        if (Sandbox.Active) return Sandbox.GameExe;
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured) && GameDetection.GameOf(configured) is var g && (g == game || g == WowGame.Unknown))
             return configured;
 
@@ -115,5 +121,5 @@ public static class GameInstall
     public static string? FolderOf(string? exe) => exe is null ? null : Path.GetDirectoryName(exe);
 
     /// <summary>Accounts and characters from that client's WTF folder (read-only hints).</summary>
-    public static IReadOnlyList<WtfAccount> Accounts(string? exe) => FolderOf(exe) is { } folder ? WtfInfo.Read(folder) : [];
+    public static IReadOnlyList<WtfAccount> Accounts(string? exe) => Sandbox.Active ? [] : FolderOf(exe) is { } folder ? WtfInfo.Read(folder) : [];
 }

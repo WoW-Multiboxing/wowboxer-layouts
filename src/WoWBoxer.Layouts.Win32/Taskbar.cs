@@ -26,6 +26,7 @@ public static partial class Taskbar
 
     public static bool AutoHides()
     {
+        if (Sandbox.Active) return false;
         var data = new APPBARDATA { cbSize = Marshal.SizeOf<APPBARDATA>() };
         return ((int)SHAppBarMessage(ABM_GETSTATE, ref data) & ABS_AUTOHIDE) != 0;
     }

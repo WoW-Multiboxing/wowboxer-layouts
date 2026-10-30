@@ -7,7 +7,7 @@ namespace WoWBoxer.Layouts.App;
 /// <summary>Small per-user settings in %APPDATA%\WoWBoxer\Layouts\settings.json. Nothing leaves the PC.</summary>
 public sealed class AppSettings
 {
-    public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WoWBoxer", "Layouts");
+    public static string Folder => Demo.On ? Path.Combine(Demo.Root, "roaming") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WoWBoxer", "Layouts");
     public static string ProfilesFolder => Path.Combine(Folder, "profiles");
     private static string FilePath => Path.Combine(Folder, "settings.json");
 

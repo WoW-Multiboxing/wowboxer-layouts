@@ -21,7 +21,10 @@ internal static class FirstRunWindow
         return link;
     }
 
-    public static void Show(Window? owner)
+    public static void Show(Window? owner) => Create(owner).ShowDialog();
+
+    /// <summary>The welcome window, not shown yet (the screenshots render it off-screen).</summary>
+    public static Window Create(Window? owner)
     {
         var res = Application.Current;
         Brush R(string key) => (Brush)res.FindResource(key);
@@ -103,6 +106,6 @@ internal static class FirstRunWindow
         };
         WindowChrome.SetWindowChrome(window, new WindowChrome { CaptionHeight = 60, ResizeBorderThickness = new Thickness(0), GlassFrameThickness = new Thickness(0) });
         go.Click += (_, _) => window.Close();
-        window.ShowDialog();
+        return window;
     }
 }

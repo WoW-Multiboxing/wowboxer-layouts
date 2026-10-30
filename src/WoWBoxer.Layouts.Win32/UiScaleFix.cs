@@ -15,6 +15,7 @@ public static class UiScaleFix
     /// <summary>Running game clients whose exe lives in <paramref name="installFolder"/>.</summary>
     public static int RunningClients(string installFolder)
     {
+        if (Sandbox.Active) return Sandbox.GameWindows().Count;
         var folder = Path.GetFullPath(installFolder).TrimEnd('\\');
         var count = 0;
         foreach (var p in Process.GetProcesses())
@@ -38,11 +39,16 @@ public static class UiScaleFix
         return count;
     }
 
-    public static UiScaleSetting Read(string exe) => UiScale.ReadFile(WowConfig.ConfigPathFor(exe));
+    public static UiScaleSetting Read(string exe) => Sandbox.Active ? Sandbox.UiScale : UiScale.ReadFile(WowConfig.ConfigPathFor(exe));
 
     /// <summary>Sets "Use UI Scale" and the scale. Returns null on success, otherwise why it did not write.</summary>
     public static string? Write(string exe, bool use, double scale)
     {
+        if (Sandbox.Active)
+        {
+            Sandbox.UiScale = Sandbox.UiScale with { Use = use, Scale = Math.Clamp(scale, UiScale.Min, UiScale.Max) };
+            return null;
+        }
         var folder = Path.GetDirectoryName(exe) ?? "";
         var running = RunningClients(folder);
         if (running > 0) return $"{running} client(s) of this WoW install are running. WoW rewrites Config.wtf when it closes, so close them first.";

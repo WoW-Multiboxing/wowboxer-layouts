@@ -24,6 +24,11 @@ public partial class App : Application
         Dpi.EnsurePerMonitorV2();
         // English UI with the same number format on every PC ("1.25", not "1,25").
         System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        if (DemoArgs(e.Args) is { } demo)
+        {
+            StartDemo(demo.Shots);
+            return;
+        }
 
         _mutex = new Mutex(true, InstanceName, out var first);
         if (!first)
@@ -96,6 +101,43 @@ public partial class App : Application
         if (startProfile is not null) StartProfile(startProfile);
     }
 
+    /// <summary>"--demo" (made-up monitors and squad, nothing real touched) and "--screenshots FOLDER" (demo + render every screen, then quit).</summary>
+    private static (bool Demo, string? Shots)? DemoArgs(string[] args)
+    {
+        var i = Array.FindIndex(args, a => a.Equals("--screenshots", StringComparison.OrdinalIgnoreCase));
+        var shots = i >= 0 && i + 1 < args.Length ? System.IO.Path.GetFullPath(args[i + 1]) : null;
+        return shots is not null || args.Any(a => a.Equals("--demo", StringComparison.OrdinalIgnoreCase)) ? (true, shots) : null;
+    }
+
+    /// <summary>Demo mode: its own temporary settings, no single-instance lock, tray, update check or network.</summary>
+    private async void StartDemo(string? shots)
+    {
+        _main = new MainWindow(Demo.Start());
+        _main.Closed += (_, _) => Shutdown();
+        if (shots is null)
+        {
+            _main.Show();
+            return;
+        }
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Console.Error.WriteLine(args.Exception);
+            args.Handled = true;
+            Shutdown(1);
+        };
+        try
+        {
+            await Screenshots.RunAsync(_main, shots, TrayMenu);
+            Shutdown(0);
+        }
+        catch (Exception error)
+        {
+            Console.Error.WriteLine(error);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(shots, "error.txt"), error.ToString());
+            Shutdown(1);
+        }
+    }
+
     private static string PendingArgsFile => System.IO.Path.Combine(AppSettings.Folder, "pending-args.txt");
 
     /// <summary>"--pause" (or "--paused") = true, "--resume" = false, neither = null.</summary>
@@ -153,6 +195,21 @@ public partial class App : Application
 
     private void CreateTray()
     {
+        var menu = TrayMenu();
+        using var stream = GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"))!.Stream;
+        _tray = new Forms.NotifyIcon
+        {
+            Icon = new System.Drawing.Icon(stream),
+            Text = "WoWBoxer Window Layouts",
+            ContextMenuStrip = menu,
+            Visible = true,
+        };
+        _tray.DoubleClick += (_, _) => ShowMain();
+    }
+
+    /// <summary>The tray icon's menu (also drawn for the website's screenshots).</summary>
+    private Forms.ContextMenuStrip TrayMenu()
+    {
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open WoWBoxer", null, (_, _) => ShowMain());
         menu.Items.Add("Open missing WoW clients", null, (_, _) => Run(_main!.ViewModel.OpenClientsCommand));
@@ -184,16 +241,7 @@ public partial class App : Application
         });
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
         TrayMenuStyle.Apply(menu);
-
-        using var stream = GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"))!.Stream;
-        _tray = new Forms.NotifyIcon
-        {
-            Icon = new System.Drawing.Icon(stream),
-            Text = "WoWBoxer Window Layouts",
-            ContextMenuStrip = menu,
-            Visible = true,
-        };
-        _tray.DoubleClick += (_, _) => ShowMain();
+        return menu;
     }
 
     private static void Run(System.Windows.Input.ICommand command)
@@ -219,6 +267,7 @@ public partial class App : Application
         }
         _showSignal?.Dispose();
         _mutex?.Dispose();
+        Demo.End();
         base.OnExit(e);
     }
 }

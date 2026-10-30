@@ -17,6 +17,7 @@ public static class BattleNet
 
     public static string? FindExe(string? configured = null)
     {
+        if (Sandbox.Active) return Sandbox.BattleNetExe;
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
 
         var candidates = new List<string>

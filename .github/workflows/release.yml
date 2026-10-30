@@ -83,6 +83,21 @@ jobs:
         shell: pwsh
         run: ./tools/smoke-start.ps1 -Exe publish/app/WoWBoxer.Layouts.exe
 
+      # The website's screenshot set (docs/screenshots/site + manifest.json), rendered again from this release's own
+      # build in demo mode, so it always shows this version. If rendering ever fails on the runner, the set committed in
+      # docs/screenshots/site is attached instead (with a warning), so the release is never blocked by it.
+      - name: Website screenshots (site-screenshots.zip)
+        shell: pwsh
+        run: |
+          try {
+            ./tools/make-screenshots.ps1 -Exe publish/app/WoWBoxer.Layouts.exe -Out docs/screenshots/site
+          } catch {
+            Write-Warning "Screenshots could not be rendered ($($_.Exception.Message)) - attaching the committed set."
+          }
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path docs/screenshots/site/*.webp, docs/screenshots/site/manifest.json -DestinationPath out/site-screenshots.zip -Force
+          Get-Content docs/screenshots/site/manifest.json -TotalCount 3
+
       # ---- Code signing (SignPath Foundation) -------------------------------------------------------------------
       # Off until the SignPath Foundation project is approved. To switch on (docs/code-signing-policy.md):
       #   repo variable SIGNPATH_ENABLED=true, SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG; secret SIGNPATH_API_TOKEN.
@@ -168,7 +183,7 @@ jobs:
           vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} `
             -o Releases --channel ${{ steps.v.outputs.channel }} --tag ${{ steps.v.outputs.tag }} $pre `
             --releaseName "WoWBoxer Window Layouts ${{ steps.v.outputs.version }}"
-          gh release upload ${{ steps.v.outputs.tag }} "Releases/${{ steps.v.outputs.setup }}" "Releases/${{ steps.v.outputs.portable }}" Releases/SHA256SUMS.txt --clobber
+          gh release upload ${{ steps.v.outputs.tag }} "Releases/${{ steps.v.outputs.setup }}" "Releases/${{ steps.v.outputs.portable }}" Releases/SHA256SUMS.txt out/site-screenshots.zip --clobber
           gh release edit ${{ steps.v.outputs.tag }} --notes-file out/release-notes.md
 
       - name: Publish the release

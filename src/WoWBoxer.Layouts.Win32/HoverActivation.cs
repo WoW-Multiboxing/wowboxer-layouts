@@ -11,6 +11,7 @@ public static unsafe class HoverActivation
 {
     public static HoverSettings Read()
     {
+        if (Sandbox.Active) return Sandbox.Hover;
         int tracking = 0, front = 0;
         uint delay = 0;
         NativeMethods.SystemParametersInfo(NativeMethods.SPI_GETACTIVEWINDOWTRACKING, 0, &tracking, 0);
@@ -22,6 +23,11 @@ public static unsafe class HoverActivation
     /// <summary>Writes the values that differ from now. False if Windows refused one of them.</summary>
     public static bool Write(HoverSettings wanted)
     {
+        if (Sandbox.Active)
+        {
+            Sandbox.Hover = wanted;
+            return true;
+        }
         var now = Read();
         var ok = true;
         // The SET actions take the value itself in pvParam, not a pointer to it.
