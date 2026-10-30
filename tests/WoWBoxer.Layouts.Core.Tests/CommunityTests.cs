@@ -66,6 +66,14 @@ public class CommunityTests
     }
 
     [Fact]
+    public void A_character_named_like_the_app_does_not_hide_the_app_name()
+    {
+        var redacted = ProblemReport.Redact("App: WoWBoxer Window Layouts 0.5.0 · slot 1 Main · Jaina", Fake with { CharacterNames = ["Wowboxer", "Main", "Jaina"] });
+
+        Assert.Equal("App: WoWBoxer Window Layouts 0.5.0 · slot 1 Main · <character>", redacted);
+    }
+
+    [Fact]
     public void A_short_report_is_one_code_block_after_the_users_words()
     {
         var message = ProblemReport.ForDiscord("Windows do not move", "Version: 0.4.3\nLast log lines:\nline 1");

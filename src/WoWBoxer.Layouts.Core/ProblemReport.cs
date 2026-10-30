@@ -12,6 +12,16 @@ public static class ProblemReport
     /// <summary>Discord's limit for one message (without Nitro).</summary>
     public const int DiscordLimit = 2000;
 
+    /// <summary>
+    /// Words of the app and the game that are never treated as a name, so a character called "Wowboxer" or "Main" does
+    /// not turn the report into nonsense (such a name says nothing personal anyway).
+    /// </summary>
+    private static readonly HashSet<string> AppWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "WoWBoxer", "Window", "Windows", "Layouts", "Layout", "Main", "Follower", "Slot", "Party", "Classic", "Era", "Forever",
+        "Retail", "Discord", "Monitor", "Monitors", "Hover", "Game", "App", "Ok", "Info", "Warn", "Error", "Battle", "Microsoft",
+    };
+
     /// <summary>What a report must not contain, and what each is replaced with.</summary>
     public sealed record Secrets(
         IReadOnlyCollection<string> UserFolders,
@@ -29,7 +39,7 @@ public static class ProblemReport
         foreach (var folder in secrets.UserFolders.Where(f => f.Length > 3).OrderByDescending(f => f.Length))
             text = Regex.Replace(text, Regex.Escape(folder.TrimEnd('\\', '/')), "%USERPROFILE%", RegexOptions.IgnoreCase);
         foreach (var (names, mask) in new[] { (secrets.UserNames, "<user>"), (secrets.AccountNames, "<account>"), (secrets.CharacterNames, "<character>") })
-            foreach (var name in names.Select(n => n.Trim()).Where(n => n.Length >= 2).Distinct(StringComparer.OrdinalIgnoreCase).OrderByDescending(n => n.Length))
+            foreach (var name in names.Select(n => n.Trim()).Where(n => n.Length >= 2 && !AppWords.Contains(n)).Distinct(StringComparer.OrdinalIgnoreCase).OrderByDescending(n => n.Length))
                 text = Regex.Replace(text, $@"(?<![\p{{L}}\p{{N}}_]){Regex.Escape(name)}(?![\p{{L}}\p{{N}}_])", mask, RegexOptions.IgnoreCase);
         return text;
     }
