@@ -67,7 +67,7 @@ public sealed class MainViewModel : ObservableObject
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
         Hover = new HoverViewModel(settings, Status, OpenSwitchingGuide, OpenUrl);
         ReportProblemCommand = new RelayCommand(() => ReportRequested?.Invoke());
-        Guide = new GuideViewModel(Hover, ReportProblemCommand);
+        Guide = new GuideViewModel(Hover, new RelayCommand(() => SelectedTab = AppTab.Help));
 
         SetTabCommand = new RelayCommand(p => SelectedTab = Enum.Parse<AppTab>(p!.ToString()!));
         MoreClientsCommand = new RelayCommand(() => ClientCount++, () => ClientCount < Presets.MaxClients);

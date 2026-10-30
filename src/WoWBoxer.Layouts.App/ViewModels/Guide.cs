@@ -38,7 +38,8 @@ public sealed class GuideViewModel : ObservableObject
 
     public const int SwitchingChapter = 4;
 
-    public GuideViewModel(HoverViewModel hover, ICommand reportProblem)
+    /// <param name="openHelp">Opens the Help tab (troubleshooting, Report a problem).</param>
+    public GuideViewModel(HoverViewModel hover, ICommand openHelp)
     {
         Chapters =
         [
@@ -84,10 +85,10 @@ public sealed class GuideViewModel : ObservableObject
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
                     "Action bar ends cut off: the game picture is narrower than 4:3. Auto-fit action bar (on by default) sets one smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead.",
-                    "Still stuck: press Report a problem below (also in Settings and the tray). It copies a short report and opens #setup-help in the WoWBoxer Discord – paste with Ctrl+V and press Enter. The full report is saved as a file you can drag in if someone asks.",
+                    "Still stuck: Help › Report a problem (also in the tray). It copies a short report and opens #setup-help in the WoWBoxer Discord – paste with Ctrl+V and press Enter. The full report is saved as a file you can drag in if someone asks.",
                 ],
-                "Report a problem builds the report for you, with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
-                "Report a problem", reportProblem),
+                "The Help tab lists the common problems with their fixes, and has Report a problem: a report with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
+                "Open Help", openHelp),
             new(6, "What WoWBoxer never does",
                 "WoWBoxer only places and sizes your game windows. That is the whole job.",
                 [

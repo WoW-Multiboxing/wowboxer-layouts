@@ -6,7 +6,7 @@ using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.App.ViewModels;
 
-public enum AppTab { Setup, Guide, Settings, About }
+public enum AppTab { Setup, Guide, Settings, Help, About }
 
 /// <summary>A saved layout in the "Saved layouts" list.</summary>
 public sealed class ProfileItem(StoredProfile stored) : ObservableObject

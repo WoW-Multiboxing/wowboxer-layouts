@@ -49,7 +49,7 @@ contain account names. Uninstalling removes the app. Delete the two `WoWBoxer` f
 - It never sends keystrokes or clicks to the game.
 
 ## Reporting a problem
-**Report a problem** (Guide › If something looks wrong, Settings › Tools, the tray menu) builds a report on your PC:
+**Report a problem** (the Help tab, the tray menu) builds a report on your PC:
 app and Windows version, the layout, client count, monitors (resolution and scale), each slot's window status, the
 action-bar / UI Scale state, the hover-to-activate setting and the last 50 log lines. Your Windows user folder and user
 name, your WoW account names and your character names are replaced with `%USERPROFILE%`, `<user>`, `<account>` and
@@ -59,4 +59,4 @@ name, your WoW account names and your character names are replaced with `%USERPR
 a code block), saves a longer report – plus a read-only Diagnose that moves no window, and the last 300 log lines, also
 redacted – as a `.txt` in the logs folder, and opens the invite to `#setup-help` on the WoWBoxer Discord. You paste it
 yourself; the app never posts anything, and has no webhook or bot token. The `.txt` is only shared if you drag it into
-Discord yourself. Diagnose (Settings › Tools) still writes its own report file; nothing is uploaded.
+Discord yourself. Diagnose (Help tab) still writes its own report file; nothing is uploaded.

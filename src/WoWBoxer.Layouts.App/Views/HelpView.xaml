@@ -1,0 +1,80 @@
+<UserControl x:Class="WoWBoxer.Layouts.App.Views.HelpView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:WoWBoxer.Layouts.App.Views"
+             xmlns:vm="clr-namespace:WoWBoxer.Layouts.App.ViewModels">
+    <!-- Help: everything for when something goes wrong, in one place. Left: ask for help (Report a problem, Discord,
+         YouTube, website) and the tools that show what the app sees. Right: common problems with their fixes. -->
+    <UserControl.Resources>
+        <Style x:Key="Explain" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="5*" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="7*" />
+        </Grid.ColumnDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Get help" />
+                        <TextBlock Style="{StaticResource Explain}" Margin="0,8,0,0"
+                                   Text="Ask in #setup-help on the WoWBoxer Discord. Report a problem builds a short report of what the app sees – with your Windows user name, WoW account and character names hidden. You see all of it first, and paste it yourself." />
+                        <Button Style="{StaticResource EnterWorldButton}" Command="{Binding ReportProblemCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="22,8"
+                                AutomationProperties.AutomationId="ReportProblem" AutomationProperties.Name="Report a problem"
+                                ToolTip="Shows the report, copies it as one Discord message and opens #setup-help. Nothing is posted for you.">
+                            <TextBlock Text="REPORT A PROBLEM" />
+                        </Button>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,22,0,8" Text="Join the WoWBoxer Discord – tips, layouts and help." />
+                        <v:CommunityBar HorizontalAlignment="Left" IconSize="22" ShowLabels="True" />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="See what the app sees" />
+                        <WrapPanel Margin="0,12,0,0">
+                            <Button Content="Identify all windows" Command="{Binding IdentifyCommand}" Margin="0,0,8,8" ToolTip="Show each window's number on top of it for a few seconds (Ctrl+I)" />
+                            <Button Content="Diagnose" Command="{Binding DiagnoseCommand}" Margin="0,0,8,8"
+                                    ToolTip="Writes a full report (monitors, windows, admin rights, WoW display settings) and tries one placement per window" />
+                            <Button Content="Open logs" Command="{Binding OpenLogsCommand}" Margin="0,0,8,8" ToolTip="The activity log and saved reports (stay on your PC)" />
+                            <Button Content="Give title bars back" Command="{Binding RestoreFramesCommand}" Margin="0,0,8,8"
+                                    ToolTip="Undo &quot;Remove title bars&quot; on every open WoW window" />
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Explain}"
+                                   Text="Diagnose writes a longer report file and moves each window once to test it. Logs and reports stay on your PC, with your Windows user name hidden. The Activity line at the bottom shows the latest messages." />
+                    </StackPanel>
+                </ContentControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <ContentControl Grid.Column="2" Style="{StaticResource OrnatePanel}" Padding="24,20">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource H2}" Text="Common problems" />
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Explain}" Margin="0,6,0,8" Text="What you see, and what to do. More in the Guide tab." />
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{x:Static vm:HelpTopics.All}" AutomationProperties.AutomationId="HelpTopics">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,8,10" Padding="14,10" CornerRadius="6" BorderBrush="#2E3850" BorderThickness="1">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#1C2333" Offset="0" /><GradientStop Color="#121722" Offset="1" /></LinearGradientBrush>
+                                    </Border.Background>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Problem}" FontFamily="{StaticResource DisplayFont}" FontSize="13" Foreground="{StaticResource UiGoldBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Fix}" Margin="0,4,0,0" FontSize="13" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" LineHeight="18" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </ContentControl>
+    </Grid>
+</UserControl>

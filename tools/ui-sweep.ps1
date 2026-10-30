@@ -201,7 +201,9 @@ foreach ($t in 'Title WoW windows with the character names', 'Animations', 'Chec
   $before = ToggleState $t; SetToggle $t ($before -ne 'On'); SetToggle $t ($before -eq 'On')
   Check "Setting toggles and restores: $t" { (ToggleState $t) -eq $before }
 }
-Check 'Tools moved to Settings' { [bool](Find 'Diagnose') -and [bool](Find 'Close clients I started') -and [bool](Find 'Fix action bar now') }
+Check 'Settings keeps its tools' { [bool](Find 'Close clients I started') -and [bool](Find 'Fix action bar now') -and -not (Find 'Diagnose') }
+Pick 'HELP'
+Check 'Help tab: Report a problem, Diagnose, Open logs, links, common problems' { [bool](FindId 'ReportProblem') -and [bool](Find 'Diagnose') -and [bool](Find 'Open logs') -and [bool](FindId 'LinkDiscord') -and [bool](FindId 'HelpTopics') }
 Pick 'ABOUT'; Check 'About shows the version' { [bool](Find 'Version') -or [bool](Find 'WINDOW LAYOUTS') }
 
 # ---- clean up ----

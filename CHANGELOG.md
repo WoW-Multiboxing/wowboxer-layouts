@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.1 – A Help tab (2026-10-30)
+- **New tab: HELP** (between Settings and About; Ctrl+4 or F1). Left: *Get help* – Report a problem, and the Discord,
+  YouTube and website links – and *See what the app sees* – Identify all windows, Diagnose, Open logs, Give title
+  bars back. Right: *Common problems*, each with its fix (stopped app, admin rights, windows jumping back, cut-off
+  action bar, Windowed (Fullscreen), wrong character, ignored windows, hover too quick, unplugged monitor, SmartScreen,
+  idle disconnects).
+- Settings › Tools keeps the setup tools (Identify, Close clients I started, title bars, layouts folder, welcome
+  screen); Diagnose, Open logs and Report a problem moved to Help. Guide › If something looks wrong has an "Open Help"
+  button; the tray's Report a problem opens Help first. About is Ctrl+5 now.
+
 ## v0.5.0 – Community links and Report a problem (2026-10-30)
 - **Community links, small and always there:** Discord, YouTube and website icons in the status bar, the same with
   labels in About, and one line – "Join the WoWBoxer Discord – tips, layouts and help" – on the welcome screen and at

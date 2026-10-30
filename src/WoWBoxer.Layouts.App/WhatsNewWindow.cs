@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("New Help tab",
+            "Everything for when something goes wrong, in one place: common problems with their fixes, Report a problem (a short report you see first, pasted by you in #setup-help), Diagnose, the logs and the Discord, YouTube and website links. F1 opens it."),
         ("Up to 10 clients – two parties",
             "Pick 1–10 clients. Clients 1–5 are party 1, 6–10 party 2 (client 6 is its main); Your squad groups the rows by party."),
         ("Layout and monitors: two clear choices",

@@ -179,7 +179,8 @@ public partial class App : Application
         menu.Items.Add("Report a problem…", null, (_, _) =>
         {
             ShowMain();
-            Run(_main!.ViewModel.ReportProblemCommand);
+            _main!.ViewModel.SelectedTab = ViewModels.AppTab.Help;
+            Run(_main.ViewModel.ReportProblemCommand);
         });
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
         TrayMenuStyle.Apply(menu);
