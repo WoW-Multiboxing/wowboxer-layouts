@@ -51,7 +51,8 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
   across monitors), resize, snap, nudge, undo. One button opens the missing
   clients; new WoW windows drop into the next free slot by themselves. Layouts save automatically; share them as
   `WBX1:` codes or files, or capture an arrangement you made by hand.
-- **Guide** – WoW display settings, switching windows, troubleshooting.
+- **Guide** – WoW display settings, switching windows, troubleshooting, and **Report a problem** (a report you see
+  first, names hidden, pasted by you into `#setup-help` on the [WoWBoxer Discord](https://discord.gg/Q5xwbqhKzQ)).
 - **Settings** – window rules, action bar (UI Scale), titles, tools (Identify, Diagnose, title bars back), shortcut,
   updates.
 - **Start / Stop placing windows** (main screen and tray). The app opens stopped, so it never touches the windows of

@@ -12,6 +12,15 @@ namespace WoWBoxer.Layouts.App;
 /// <summary>First start: what the app does and never does (docs/plan.md §2), in the War Table style.</summary>
 internal static class FirstRunWindow
 {
+    /// <summary>"Join the WoWBoxer Discord – tips, layouts and help" as a link (first-run screen, What's new). Never a pop-up.</summary>
+    public static Hyperlink DiscordLink()
+    {
+        var link = new Hyperlink(new Run("Join the WoWBoxer Discord – tips, layouts and help")) { NavigateUri = new Uri(Community.Links.Discord) };
+        link.SetResourceReference(TextElement.ForegroundProperty, "GoldHiBrush");
+        link.RequestNavigate += (_, e) => Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+        return link;
+    }
+
     public static void Show(Window? owner)
     {
         var res = Application.Current;
@@ -65,6 +74,7 @@ internal static class FirstRunWindow
                 new ContentControl { Style = (Style)res.FindResource("Divider"), Margin = new Thickness(120, 20, 120, 0) },
                 columns,
                 new TextBlock { Margin = new Thickness(0, 18, 0, 0), HorizontalAlignment = HorizontalAlignment.Center, FontSize = 13.5, Inlines = { link } },
+                new TextBlock { Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Center, FontSize = 13.5, Inlines = { DiscordLink() } },
                 go,
             },
         };

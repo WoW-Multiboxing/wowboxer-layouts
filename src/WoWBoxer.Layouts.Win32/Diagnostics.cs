@@ -7,7 +7,8 @@ namespace WoWBoxer.Layouts.Win32;
 /// <summary>The Diagnose report (same for wbx and the app): what Windows sees, then one test placement per window.</summary>
 public static class Diagnostics
 {
-    public static async Task RunAsync(SquadPlan plan, IReadOnlyList<WindowInfo> open, IStatusSink log, string tool, string dpiAwareness)
+    /// <param name="tryPlacement">False ("Report a problem"): only look – no window is moved.</param>
+    public static async Task RunAsync(SquadPlan plan, IReadOnlyList<WindowInfo> open, IStatusSink log, string tool, string dpiAwareness, bool tryPlacement = true)
     {
         log.Info($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}   {tool}   {RuntimeInformation.FrameworkDescription}   {RuntimeInformation.OSDescription}");
         log.Info($"Runs as administrator: {plan.ToolIsAdmin}   DPI: {dpiAwareness}");
@@ -45,6 +46,12 @@ public static class Diagnostics
             log.Info($"  window pid {w.Pid}: game renders {cw}x{ch}, {((w.Style & 0x00C00000) == 0 ? "borderless" : "title bar")}");
         }
 
+        if (!tryPlacement)
+        {
+            log.Title($"Game windows recognised (oldest first): {open.Count}");
+            foreach (var w in open) log.Info($"  pid {w.Pid}  {WindowFinder.VisibleRectOf(w.Handle)}");
+            return;
+        }
         log.Title($"Game windows recognised (oldest first): {open.Count}");
         var n = Math.Min(open.Count, plan.Slots.Count);
         for (var i = 0; i < n; i++)

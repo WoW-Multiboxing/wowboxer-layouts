@@ -38,7 +38,7 @@ public sealed class GuideViewModel : ObservableObject
 
     public const int SwitchingChapter = 4;
 
-    public GuideViewModel(HoverViewModel hover)
+    public GuideViewModel(HoverViewModel hover, ICommand reportProblem)
     {
         Chapters =
         [
@@ -84,9 +84,10 @@ public sealed class GuideViewModel : ObservableObject
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
                     "Action bar ends cut off: the game picture is narrower than 4:3. Auto-fit action bar (on by default) sets one smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead.",
-                    "Still stuck: Settings → Diagnose writes a report you can send. It stays on your PC until you do.",
+                    "Still stuck: press Report a problem below (also in Settings and the tray). It copies a short report and opens #setup-help in the WoWBoxer Discord – paste with Ctrl+V and press Enter. The full report is saved as a file you can drag in if someone asks.",
                 ],
-                "Reports hide your Windows user name, so they are safe to share."),
+                "Report a problem builds the report for you, with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
+                "Report a problem", reportProblem),
             new(6, "What WoWBoxer never does",
                 "WoWBoxer only places and sizes your game windows. That is the whole job.",
                 [

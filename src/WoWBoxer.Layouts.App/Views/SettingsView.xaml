@@ -100,8 +100,10 @@
                                     ToolTip="Undo &quot;Remove title bars&quot; on every open WoW window" />
                             <Button Content="Diagnose" Command="{Binding DiagnoseCommand}" Margin="0,0,8,8"
                                     ToolTip="Writes a report (monitors, windows, admin rights, WoW display settings) and tries one placement per window" />
+                            <Button Content="Report a problem" Command="{Binding ReportProblemCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="ReportProblem"
+                                    ToolTip="Builds a short report (names hidden), shows it to you, copies it and opens #setup-help in the WoWBoxer Discord. You paste it yourself." />
                         </WrapPanel>
-                        <TextBlock Style="{StaticResource Explain}" Text="Diagnose writes a report you can send when you ask for help. Logs and reports stay on your PC, with your Windows user name hidden." />
+                        <TextBlock Style="{StaticResource Explain}" Text="Report a problem asks for help in the WoWBoxer Discord: you see the report first, with your Windows user name, WoW account and character names hidden, and paste it yourself. Logs and reports stay on your PC." />
                         <WrapPanel Margin="0,12,0,0">
                             <Button Content="Open logs" Command="{Binding OpenLogsCommand}" Margin="0,0,8,8" />
                             <Button Content="Open layouts folder" Command="{Binding OpenLayoutsFolderCommand}" Margin="0,0,8,8" />
@@ -161,7 +163,7 @@
                     <StackPanel>
                         <TextBlock Style="{StaticResource H2}" Text="Updates and privacy" />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding CheckForUpdates}"><TextBlock Text="Check for updates when the app starts" /></CheckBox>
-                        <TextBlock Style="{StaticResource Explain}" Text="The only network call the app makes. Updates install when you quit. No telemetry, ever." />
+                        <TextBlock Style="{StaticResource Explain}" Text="Asks GitHub for a new version (you choose Update now or Later) and, at most once a day, reads the community links from wowboxer.com. Both are plain web requests that send nothing about you. Off = no network at all. No telemetry, ever." />
                     </StackPanel>
                 </ContentControl>
             </StackPanel>

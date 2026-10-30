@@ -77,9 +77,11 @@ internal static class WhatsNewWindow
         };
         var content = new DockPanel { LastChildFill = true };
         DockPanel.SetDock(header, Dock.Top);
-        DockPanel.SetDock(ok, Dock.Bottom);
+        // one quiet line at the bottom: where to talk about it
+        var bottom = new StackPanel { Children = { new TextBlock { Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Center, FontSize = 13, Inlines = { FirstRunWindow.DiscordLink() } }, ok } };
+        DockPanel.SetDock(bottom, Dock.Bottom);
         content.Children.Add(header);
-        content.Children.Add(ok);
+        content.Children.Add(bottom);
         content.Children.Add(scroll);
         var window = new Window
         {

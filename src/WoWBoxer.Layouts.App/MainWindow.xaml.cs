@@ -21,6 +21,7 @@ public partial class MainWindow : Window, IUserDialogs
         InitializeComponent();
         ViewModel = new MainViewModel(settings, this, paused);
         ViewModel.FirstRunRequested += () => FirstRunWindow.Show(this);
+        ViewModel.ReportRequested += () => ReportWindow.Show(this, ViewModel.BuildReport(), ViewModel.SaveFullReport, Community.Links.DiscordHelp, url => ViewModel.OpenUrlCommand.Execute(url));
         DataContext = ViewModel;
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;

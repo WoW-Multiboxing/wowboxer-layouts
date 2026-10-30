@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.5.0 – Community links and Report a problem (2026-10-30)
+- **Community links, small and always there:** Discord, YouTube and website icons in the status bar, the same with
+  labels in About, and one line – "Join the WoWBoxer Discord – tips, layouts and help" – on the welcome screen and at
+  the bottom of What's new. Never a pop-up, reminder or badge.
+- **Links in one place:** the app reads `https://wowboxer.com/links.json` at most once a day (cached on the PC;
+  format `wowboxer-links/1`, see `Core/CommunityLinks.cs`) and uses the built-in links until then or when it cannot be
+  read. Only https links to Discord, YouTube and wowboxer.com are accepted. It follows the "Check for updates" switch,
+  so that switch off means no network at all. docs/privacy.md explains it.
+- **Report a problem** (Guide › If something looks wrong, Settings › Tools, tray menu): builds a report – version,
+  Windows, layout, clients, monitors, each slot's status, action bar / UI Scale, hover setting, last 50 log lines –
+  with the Windows user folder and name, WoW account and character names hidden. You see and can edit it, add "What
+  happened?", and **Post in Discord** copies it as one Discord message (a code block, shortened to fit 2,000
+  characters by dropping the oldest log lines), saves the full report (plus a read-only Diagnose that moves no window)
+  as a .txt in the logs folder, and opens the invite to `#setup-help`: "Paste with Ctrl+V in #setup-help and press
+  Enter." Nothing is ever posted by the app.
+- About no longer links to the source code on GitHub (no GitHub links in the app); the README still does.
+- Unit tests for the links file (overrides, broken files, unsafe links), redaction (a fake user name, accounts,
+  characters, whole words only) and the Discord message size.
+
 ## v0.4.2 – The layout cards are back (2026-10-30)
 - **Pick a layout with the cards again** (owner's preference): Main + side, Overlays, Grid and Free for all side by
   side, each with its live preview for the current clients and monitors – one click switches. The dropdown from v0.4.0

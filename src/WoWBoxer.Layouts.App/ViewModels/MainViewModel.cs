@@ -35,7 +35,6 @@ public sealed class MainViewModel : ObservableObject
 {
     public const string WebsiteUrl = "https://wowboxer.com";
     public const string WebsiteGuideUrl = WebsiteUrl + "/guides/getting-started/";
-    public const string RepoUrl = "https://github.com/WoW-Multiboxing/wowboxer-layouts";
 
     private readonly ProfileStore _store = new(AppSettings.ProfilesFolder);
     private readonly AppSettings _settings;
@@ -67,7 +66,8 @@ public sealed class MainViewModel : ObservableObject
         _dialogs = dialogs;
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
         Hover = new HoverViewModel(settings, Status, OpenSwitchingGuide, OpenUrl);
-        Guide = new GuideViewModel(Hover);
+        ReportProblemCommand = new RelayCommand(() => ReportRequested?.Invoke());
+        Guide = new GuideViewModel(Hover, ReportProblemCommand);
 
         SetTabCommand = new RelayCommand(p => SelectedTab = Enum.Parse<AppTab>(p!.ToString()!));
         MoreClientsCommand = new RelayCommand(() => ClientCount++, () => ClientCount < Presets.MaxClients);
@@ -99,6 +99,9 @@ public sealed class MainViewModel : ObservableObject
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
         ShowFirstRunCommand = new RelayCommand(() => FirstRunRequested?.Invoke());
+        OpenDiscordCommand = new RelayCommand(() => OpenUrl(Community.Links.Discord));
+        OpenYouTubeCommand = new RelayCommand(() => OpenUrl(Community.Links.YouTube));
+        OpenWebsiteCommand = new RelayCommand(() => OpenUrl(Community.Links.Website));
 
         Status.Lines.CollectionChanged += (_, _) => LastStatus = Status.Lines.LastOrDefault();
         Layouts =
@@ -185,6 +188,9 @@ public sealed class MainViewModel : ObservableObject
     ];
 
     public event Action? FirstRunRequested;
+
+    /// <summary>"Report a problem" (Guide, Settings, tray): the window shows the report from <see cref="BuildReport"/>.</summary>
+    public event Action? ReportRequested;
 
     public static string AppVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
 
@@ -712,6 +718,10 @@ public sealed class MainViewModel : ObservableObject
     public ICommand FixUiScaleCommand { get; }
     public ICommand ResetUiScaleCommand { get; }
     public ICommand FlipSplitCommand { get; }
+    public ICommand ReportProblemCommand { get; }
+    public ICommand OpenDiscordCommand { get; }
+    public ICommand OpenYouTubeCommand { get; }
+    public ICommand OpenWebsiteCommand { get; }
 
     // =====================================================================================
     // Saved layouts
@@ -1770,6 +1780,79 @@ public sealed class MainViewModel : ObservableObject
         {
             lock (_text) _text.AppendLine((level == StatusLevel.Title ? Environment.NewLine : "") + message);
         }
+    }
+
+    // =====================================================================================
+    // Report a problem (Discord only; the user sees and pastes everything – nothing is sent)
+    // =====================================================================================
+
+    /// <summary>What must not be in a report: the Windows user folder and name, WoW account and character names.</summary>
+    public ProblemReport.Secrets ReportSecrets() => new(
+        [Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)],
+        [Environment.UserName],
+        [.. WowAccounts.Select(a => a.Name), .. _settings.Accounts.Where(a => a.Length > 0)],
+        [.. WowAccounts.SelectMany(a => a.Characters.Select(c => c.Name)), .. Current?.Slots.Select(s => s.Name ?? "") ?? [], .. Party.Select(p => p.Name)]);
+
+    /// <summary>The short report: version, Windows, layout, monitors, windows, action bar, hover, the last 50 log lines – redacted.</summary>
+    public string BuildReport()
+    {
+        RefreshWindows();
+        var hover = HoverActivation.Read();
+        var items = new List<(string, string)>
+        {
+            ("App", $"WoWBoxer Window Layouts {Version} · {(_paused ? "stopped" : "placing windows")}"),
+            ("Windows", $"{System.Runtime.InteropServices.RuntimeInformation.OSDescription} · {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} · admin: {ProcessInfo.CurrentElevation()}"),
+            ("Layout", Current is null ? "none"
+                : $"{(Current.Preset is { } p ? Presets.DisplayName(p) : "custom")} · {Current.Clients} clients · {ChosenScreens.Count} of {Monitors.Count} monitor(s)"
+                  + $"{(HasSplit ? " · " + SplitText.ToLowerInvariant() : "")}{(Current.Options.Borderless ? " · borderless" : "")}{(Current.Options.UseTaskbarArea ? " · covers taskbar" : "")}"),
+            ("Monitors", string.Join(" · ", Monitors.Select(m =>
+                $"{m.Bounds.Width}×{m.Bounds.Height} {m.ScalePercent} %{(m.IsPrimary ? " primary" : "")}{(ChosenScreens.Any(c => c.Index == m.Index) ? " (used)" : "")}"))),
+            ("Game", $"{SquadGameName} · {Windows.Count} window(s){(IgnoredText.Length > 0 ? " · " + IgnoredText : "")}{(ExtraText.Length > 0 ? " · " + ExtraText : "")}"),
+            ("Slots", string.Join(" · ", Party.Select((m, i) => $"{m.Number} {m.StateText.TrimEnd('…', '.')}{(LiveSlots.TryGetValue(i, out var l) ? $" {l.Width}×{l.Height}{(l.Topmost ? " top" : "")}" : "")}"))),
+            ("Action bar", $"UI Scale {UiScaleNow.Display} · auto-fit {(_settings.AutoFitActionBar ? "on" : "off")} · {LayoutAdvice}"),
+            ("Hover", hover.Describe()),
+        };
+        var report = ProblemReport.Lines(items) + "Last log lines:\n" + string.Join("\n", LastLogLines(50));
+        return ProblemReport.Redact(report, ReportSecrets());
+    }
+
+    private static IEnumerable<string> LastLogLines(int count)
+    {
+        try
+        {
+            using var stream = new FileStream(StatusLog.LogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            var lines = new Queue<string>();
+            while (reader.ReadLine() is { } line)
+            {
+                if (line.Length == 0) continue;
+                lines.Enqueue(line);
+                if (lines.Count > count) lines.Dequeue();
+            }
+            return lines;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return ["(no log yet)"];
+        }
+    }
+
+    /// <summary>
+    /// The full report for "Post in Discord": the (edited) short report, a read-only Diagnose (no window is moved) and
+    /// the last 300 log lines, redacted, saved in the logs folder. Returns the file's path.
+    /// </summary>
+    public string SaveFullReport(string shortReport)
+    {
+        var diagnose = new ReportSink();
+        if (Plan() is { } plan)
+            Diagnostics.RunAsync(plan, Windows.Select(w => w.Window).ToList(), diagnose, $"WoWBoxer Window Layouts {Version}", "per-monitor aware", tryPlacement: false)
+                .GetAwaiter().GetResult();
+        var text = shortReport.TrimEnd() + "\n\n===== Diagnose (read-only) =====\n" + diagnose.Text + "\n===== Log (last 300 lines) =====\n" + string.Join("\n", LastLogLines(300));
+        var path = Path.Combine(StatusLog.LogFolder, $"wowboxer-report-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+        Directory.CreateDirectory(StatusLog.LogFolder);
+        File.WriteAllText(path, ProblemReport.Redact(text, ReportSecrets()));
+        Status.Info($"Problem report saved: {Path.GetFileName(path)} (in the logs folder).");
+        return path;
     }
 
     /// <summary>The Guide chapter about switching windows (from the hover notice).</summary>

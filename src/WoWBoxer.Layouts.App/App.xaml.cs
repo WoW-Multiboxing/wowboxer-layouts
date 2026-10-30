@@ -87,6 +87,7 @@ public partial class App : Application
             settings.LastSeenVersion = version;
             settings.Save();
         }
+        _ = Community.RefreshAsync(settings.CheckForUpdates);   // community links, at most once a day
         if (settings.CheckForUpdates)
             _ = Updater.CheckAsync(_main.ViewModel.Status, startInTray ? null : version => PromptWindow.Confirm(_main, "Update available",
                 $"WoWBoxer {version} is ready (you have {ViewModels.MainViewModel.AppVersion}).\n\nUpdate now? The app closes and opens again in a few seconds. Later installs it when you quit.",
@@ -175,6 +176,11 @@ public partial class App : Application
             _hoverItem.Checked = _main.ViewModel.Hover.Enabled;
         };
         menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add("Report a problem…", null, (_, _) =>
+        {
+            ShowMain();
+            Run(_main!.ViewModel.ReportProblemCommand);
+        });
         menu.Items.Add("Quit", null, (_, _) => Shutdown());
         TrayMenuStyle.Apply(menu);
 

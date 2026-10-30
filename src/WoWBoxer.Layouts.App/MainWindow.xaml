@@ -133,6 +133,8 @@
                 <Border Grid.Row="2" Background="#CC07090E" BorderBrush="{StaticResource LineSoftBrush}" BorderThickness="0,1,0,0">
                     <DockPanel Margin="16,0">
                         <TextBlock DockPanel.Dock="Right" Text="{Binding MonitorSummary}" Foreground="{StaticResource MutedBrush}" FontSize="11.5" VerticalAlignment="Center" />
+                        <!-- community links: small and always there, never a pop-up -->
+                        <v:CommunityBar DockPanel.Dock="Right" Margin="0,0,18,0" IconSize="15" />
                         <!-- not clickable while open: a click outside closes the popup, and must not open it again at once -->
                         <ToggleButton x:Name="ActivityToggle" Cursor="Hand" Background="Transparent" BorderThickness="0" Focusable="True" HorizontalAlignment="Left"
                                       IsHitTestVisible="{Binding IsOpen, ElementName=ActivityPopup, Converter={x:Static app:InvertBool.Instance}}"
