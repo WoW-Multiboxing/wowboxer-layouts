@@ -10,7 +10,6 @@
                 <TextBlock HorizontalAlignment="Center" Margin="0,14,0,0" FontFamily="{StaticResource DisplayFont}" FontSize="34" Foreground="{StaticResource ParchmentBrush}" Effect="{StaticResource HardTextShadow}">
                     <Run Text="WoW" /><Run Text="Boxer" Foreground="{StaticResource GoldHiBrush}" />
                 </TextBlock>
-                <TextBlock HorizontalAlignment="Center" FontFamily="{StaticResource DisplaySemiFont}" FontSize="14" Foreground="{StaticResource GoldBrush}" Text="WINDOW LAYOUTS" />
                 <TextBlock HorizontalAlignment="Center" Margin="0,8,0,0" Foreground="{StaticResource MutedBrush}">
                     <Run Text="Version" /> <Run Text="{Binding Version, Mode=OneWay}" />
                 </TextBlock>

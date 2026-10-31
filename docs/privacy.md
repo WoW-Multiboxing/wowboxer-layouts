@@ -1,6 +1,6 @@
 # Privacy
 
-WoWBoxer Window Layouts collects **no telemetry**, shows no ads and has no accounts. Nothing about you, your PC or
+WoWBoxer (the app) collects **no telemetry**, shows no ads and has no accounts. Nothing about you, your PC or
 your characters is sent anywhere.
 
 ## Network calls (two, both behind one switch)

@@ -1,5 +1,5 @@
 ﻿<# Guarded drag for testing the app's own window with the real mouse.
-   Usage: tools\guarded-drag.ps1 -AppPid (Get-Process WoWBoxer.Layouts).Id -X1 .. -Y1 .. -X2 .. -Y2 .. [-StepMs 50 -Steps 30]
+   Usage: tools\guarded-drag.ps1 -AppPid (Get-Process WoWBoxer).Id -X1 .. -Y1 .. -X2 .. -Y2 .. [-StepMs 50 -Steps 30]
    Coordinates are physical screen pixels. #>
 # Drags with the real mouse INSIDE our own app only. Before every step the window under the cursor must belong
 # to the given process; otherwise it stops at once (so nothing can ever reach a WoW window).

@@ -51,7 +51,7 @@ PC. The script converts the pictures to WebP and writes `manifest.json`:
 - `build.yml` renders it on every push (artifact `site-screenshots`), so a break shows up before a release.
 - `release.yml` renders it again from the release's own build into `docs/screenshots/site/` and attaches
   `site-screenshots.zip`. If rendering ever fails on the runner, the committed set is attached instead (warning in the log).
-- `WoWBoxer.Layouts.exe --demo` opens the same demo for a look by hand; it runs next to an open WoWBoxer.
+- `WoWBoxer.exe --demo` opens the same demo for a look by hand; it runs next to an open WoWBoxer.
 - Text uses Segoe UI Variable where Windows has it (Windows 11) and Segoe UI otherwise, so runner pictures can differ
   from local ones by a pixel here and there.
 

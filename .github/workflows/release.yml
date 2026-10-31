@@ -81,7 +81,7 @@ jobs:
 
       - name: Start-up check (the published app opens its main window)
         shell: pwsh
-        run: ./tools/smoke-start.ps1 -Exe publish/app/WoWBoxer.Layouts.exe
+        run: ./tools/smoke-start.ps1 -Exe publish/app/WoWBoxer.exe
 
       # The website's screenshot set (docs/screenshots/site + manifest.json), rendered again from this release's own
       # build in demo mode, so it always shows this version. If rendering ever fails on the runner, the set committed in
@@ -90,7 +90,7 @@ jobs:
         shell: pwsh
         run: |
           try {
-            ./tools/make-screenshots.ps1 -Exe publish/app/WoWBoxer.Layouts.exe -Out docs/screenshots/site
+            ./tools/make-screenshots.ps1 -Exe publish/app/WoWBoxer.exe -Out docs/screenshots/site
           } catch {
             Write-Warning "Screenshots could not be rendered ($($_.Exception.Message)) - attaching the committed set."
           }
@@ -110,7 +110,7 @@ jobs:
         with:
           name: unsigned-app
           path: |
-            publish/app/WoWBoxer.Layouts*.exe
+            publish/app/WoWBoxer.exe
             publish/app/WoWBoxer.Layouts*.dll
             publish/app/wbx.exe
             publish/app/wbx.dll
@@ -136,7 +136,7 @@ jobs:
           $pre = if ('${{ steps.v.outputs.pre }}' -eq 'true') { '--pre' } else { $null }
           vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} --channel ${{ steps.v.outputs.channel }} $pre -o Releases
           vpk pack --packId WoWBoxer.Layouts --packVersion ${{ steps.v.outputs.version }} --packDir publish/app `
-            --mainExe WoWBoxer.Layouts.exe --packTitle "WoWBoxer Window Layouts" --packAuthors "WoWBoxer" `
+            --mainExe WoWBoxer.exe --packTitle "WoWBoxer" --packAuthors "WoWBoxer" `
             --icon src/WoWBoxer.Layouts.App/Assets/app.ico --splashImage src/WoWBoxer.Layouts.App/Assets/splash.png `
             --runtime win-x64 --framework net10.0-x64-desktop --channel ${{ steps.v.outputs.channel }} `
             --releaseNotes out/release-notes.md -o Releases
@@ -182,7 +182,7 @@ jobs:
           $pre = if ('${{ steps.v.outputs.pre }}' -eq 'true') { '--pre' } else { $null }
           vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} `
             -o Releases --channel ${{ steps.v.outputs.channel }} --tag ${{ steps.v.outputs.tag }} $pre `
-            --releaseName "WoWBoxer Window Layouts ${{ steps.v.outputs.version }}"
+            --releaseName "WoWBoxer ${{ steps.v.outputs.version }}"
           gh release upload ${{ steps.v.outputs.tag }} "Releases/${{ steps.v.outputs.setup }}" "Releases/${{ steps.v.outputs.portable }}" Releases/SHA256SUMS.txt out/site-screenshots.zip --clobber
           gh release edit ${{ steps.v.outputs.tag }} --notes-file out/release-notes.md
 

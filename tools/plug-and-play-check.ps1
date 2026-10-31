@@ -26,11 +26,11 @@ public static class T {
 }
 '@
 $A = [System.Windows.Automation.AutomationElement]; $Scope = [System.Windows.Automation.TreeScope]
-$exeApp = (Resolve-Path (Join-Path $PSScriptRoot '..\publish\app\WoWBoxer.Layouts.exe')).Path
+$exeApp = (Resolve-Path (Join-Path $PSScriptRoot '..\publish\app\WoWBoxer.exe')).Path
 $profiles = "$env:APPDATA\WoWBoxer\Layouts\profiles"; $settingsPath = "$env:APPDATA\WoWBoxer\Layouts\settings.json"
 $results = New-Object System.Collections.Generic.List[string]; $fails = 0
 function Check($what, [scriptblock]$t) { try { $ok = & $t } catch { $ok = $false; $what += " ($($_.Exception.Message))" }; if ($ok) { $results.Add("PASS  $what") } else { $results.Add("FAIL  $what"); $script:fails++ } }
-function Main { @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer Window Layouts*' } | Select-Object -First 1 }
+function Main { @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer [0-9]*' } | Select-Object -First 1 }
 function Find($name, $root = (Main)) { $root.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, $name))) }
 function FindId($id, $root = (Main)) { $root.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::AutomationIdProperty, $id))) }
 function Invoke($e) { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep -Milliseconds 500 }
@@ -66,7 +66,7 @@ function Layout($name, $slots) { [ordered]@{ format = 'wowboxer-layout/1'; name 
 Layout 'WBX test 3 (monitor 2)' @((Slot 1 'main' 0 0 60 100), (Slot 2 'follower' 60 0 40 50), (Slot 3 'follower' 60 50 40 50))
 Layout 'WBX test 5 (monitor 2)' @((Slot 1 'main' 0 0 40 100), (Slot 2 'follower' 40 0 60 25), (Slot 3 'follower' 40 25 60 25), (Slot 4 'follower' 40 50 60 25), (Slot 5 'follower' 40 75 60 25))
 if (@(Real).Count -ge 5) { throw "too many real clients for this test" }
-$app = Get-Process WoWBoxer.Layouts -ErrorAction SilentlyContinue; if ($app) { [void]$app.CloseMainWindow(); [void]$app.WaitForExit(10000) }
+$app = Get-Process WoWBoxer -ErrorAction SilentlyContinue; if ($app) { [void]$app.CloseMainWindow(); [void]$app.WaitForExit(10000) }
 Start-Process $exeApp -ArgumentList '--pause' -WindowStyle Normal; Start-Sleep 7
 Check "app starts paused: '$(Header)'" { (Header) -like 'Paused*' }
 

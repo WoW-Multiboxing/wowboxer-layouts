@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 – Now simply called WoWBoxer (2026-10-31)
+- **The app is now called "WoWBoxer"** everywhere you see it: title bar, About, welcome screen, What's new, the tray,
+  Diagnose and Report a problem, the installer, the Start menu and desktop shortcuts and Windows' Apps list. Where app
+  and addon need telling apart: "WoWBoxer" (the app) and "WoWBoxer AddOn".
+- **The exe is `WoWBoxer.exe`** (was `WoWBoxer.Layouts.exe`). Updating from 0.5.x moves everything along: Velopack
+  points every shortcut into the install folder at the new exe – the Start menu, desktop and taskbar ones and your own
+  layout shortcuts, with their `--start` arguments – and "Update now" opens the renamed app with the same arguments.
+  Tested with a throwaway package before release (title and exe renamed in one update).
+- Unchanged, so nothing breaks: the install folder and Velopack id (`WoWBoxer.Layouts`), settings, layouts and logs
+  folders, the `wbx` command line, the repository and the code's names. The old launcher
+  `WoWBoxer Window Layouts.exe` stays in the install folder; it still opens the app.
 - **Website screenshots, always current.** `--demo` opens the app with made-up monitors (2560×1440 + 1920×1080) and a
   made-up squad; nothing real on the PC is read or changed. `--screenshots FOLDER` renders every screen (Setup with 3
   clients, 2 monitors + Free for all, 10 clients in two parties, window details, Settings, Help, About, the tray menu,

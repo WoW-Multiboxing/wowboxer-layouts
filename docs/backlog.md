@@ -13,7 +13,7 @@ P1 = next, P2 = soon, P3 = later. Sources: design notes rounds 1–3 (project fo
    hands over in a small file next to the addon before the clients start). Proposed to workstream E (2026-10-27): the addon sets `MainMenuBar:SetScale(min(1, UIParent:GetWidth() / 1024))` per client (out of combat) and reports `WoWBoxerDB.bridge.barFit = true`; when the app sees that for the squad's accounts, Auto-fit leaves the shared UI Scale alone. WS-E agreed (keys `bridge.barFit` + `bridge.barScale`, their backlog 8e35f16): opt-in in the addon, never on by default, after the owner's go and a taint check – so Auto-fit must keep working when `barFit` is absent or false (the common case).
 2b. **"Make Forever windowed"**: write `GxMaximize "0"` while all Forever clients are closed (same guard and backup as
    UI Scale), because Forever starts in Windowed (Fullscreen) and cannot be placed then.
-3. **Addon bridge (with workstream E):** read character, class, level and realm from the WoWBoxer addon's
+3. **Addon bridge (with workstream E):** read character, class, level and realm from the WoWBoxer AddOn's
    SavedVariables per account → fill name and class automatically (`docs/classes-and-accounts.md`).
 4. **Release v0.2.4** (tag) and the SignPath application. (v0.2.4 = plug and play: always watching, one button, no game
    selector, compact rows.)

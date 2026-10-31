@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Now simply called WoWBoxer",
+            "The app's name is now just WoWBoxer – in the title bar, the tray, the Start menu, your shortcuts and Windows' Apps list. Your layouts and settings stay as they are. The in-game addon is the WoWBoxer AddOn."),
         ("New Help tab",
             "Everything for when something goes wrong, in one place: common problems with their fixes, Report a problem (a short report you see first, pasted by you in #setup-help), Diagnose, the logs and the Discord, YouTube and website links. F1 opens it."),
         ("Up to 10 clients – two parties",
@@ -73,7 +75,7 @@ internal static class WhatsNewWindow
             {
                 new Image { Source = new BitmapImage(new Uri("pack://application:,,,/Assets/app.png")), Width = 44, Height = 44, HorizontalAlignment = HorizontalAlignment.Center },
                 new TextBlock { Text = "What's new", Style = (Style)res.FindResource("H1"), FontSize = 24, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) },
-                new TextBlock { Text = $"WoWBoxer Window Layouts {version}", Foreground = R("GoldBrush"), FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) },
+                new TextBlock { Text = $"WoWBoxer {version}", Foreground = R("GoldBrush"), FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) },
                 new ContentControl { Style = (Style)res.FindResource("Divider"), Margin = new Thickness(100, 12, 100, 0) },
             },
         };
@@ -87,7 +89,7 @@ internal static class WhatsNewWindow
         content.Children.Add(scroll);
         var window = new Window
         {
-            Title = "What's new in WoWBoxer Window Layouts",
+            Title = "What's new in WoWBoxer",
             Owner = owner,
             Width = 620,
             SizeToContent = SizeToContent.Height,

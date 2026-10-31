@@ -45,7 +45,7 @@ Console.CancelKeyPress += (_, e) =>
 if (!options.Json)   // --json output stays clean for piping into a file
 {
     log.Line();
-    log.Line($"WoWBoxer Window Layouts {Commands.Version} - {options.Command}", ConsoleColor.Yellow);
+    log.Line($"WoWBoxer {Commands.Version} - {options.Command}", ConsoleColor.Yellow);
     log.Line("-----------------------------------------", ConsoleColor.DarkYellow);
 }
 

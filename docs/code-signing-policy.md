@@ -5,7 +5,7 @@ Free code signing provided by [SignPath.io](https://about.signpath.io/), certifi
 
 ## What is signed
 Only files built from this repository's source by the `release` workflow on GitHub Actions:
-- `WoWBoxer.Layouts.exe`, `WoWBoxer.Layouts.*.dll`, `wbx.exe`, `wbx.dll` (our own binaries, signed before packing),
+- `WoWBoxer.exe` (`WoWBoxer.Layouts.exe` before 0.6.0), `WoWBoxer.Layouts.*.dll`, `wbx.exe`, `wbx.dll` (our own binaries, signed before packing),
 - the Velopack installer `WoWBoxer.Layouts-win-Setup.exe` (copied as `WoWBoxer-Setup.exe`).
 
 Third-party files (the .NET runtime, Velopack, NuGet packages) are not re-signed by us.
@@ -41,7 +41,7 @@ Apply at <https://signpath.org/apply> (needs the owner's account; the repository
 
 | Field | Answer |
 |---|---|
-| Project name | WoWBoxer Window Layouts |
+| Project name | WoWBoxer (the app was called "WoWBoxer Window Layouts" until 0.6.0) |
 | Repository | https://github.com/WoW-Multiboxing/wowboxer-layouts |
 | Homepage | https://wowboxer.com/ |
 | Licence | MIT (OSI approved), `LICENSE` in the repository root, no proprietary parts |

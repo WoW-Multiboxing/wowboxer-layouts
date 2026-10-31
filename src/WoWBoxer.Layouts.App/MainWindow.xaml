@@ -62,7 +62,6 @@
                                 <TextBlock VerticalAlignment="Center" FontFamily="{StaticResource DisplayFont}" FontSize="21" Foreground="{StaticResource ParchmentBrush}" Effect="{StaticResource HardTextShadow}">
                                     <Run Text="WoW" /><Run Text="Boxer" Foreground="{StaticResource GoldHiBrush}" />
                                 </TextBlock>
-                                <TextBlock Text="WINDOW LAYOUTS" VerticalAlignment="Center" Margin="10,3,0,0" FontFamily="{StaticResource DisplaySemiFont}" FontSize="10.5" Foreground="{StaticResource MutedBrush}" />
                                 <TextBlock Text="{Binding Version, StringFormat=v{0}, Mode=OneWay}" VerticalAlignment="Center" Margin="8,3,0,0" FontSize="11" Foreground="{StaticResource GoldBrush}" Opacity="0.85"
                                            AutomationProperties.AutomationId="TitleVersion" ToolTip="Installed version – see About for what changed" />
                             </StackPanel>

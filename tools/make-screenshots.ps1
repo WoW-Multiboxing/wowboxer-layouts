@@ -7,14 +7,14 @@
   "Connected"; nothing real on the PC is read or changed, no network). The app renders each screen itself with WPF's
   renderer, off-screen and without focus, so the pictures do not depend on the screen size or scale - it works on a
   GitHub Actions runner too. This script converts the PNGs to WebP with Python + Pillow and writes manifest.json:
-    { "app": "WoWBoxer Window Layouts", "appVersion": "0.5.1", "images": [
+    { "app": "WoWBoxer", "appVersion": "0.5.1", "images": [
       { "file": "setup-main-side.webp", "small": "setup-main-side-720.webp", "title", "alt", "caption",
         "appVersion", "order": 1, "width": 1440, "height": 900, "smallWidth": 720, "smallHeight": 450 }, ... ] }
   "order" = the order they are best shown in. Same version + same Pillow = byte-identical files.
 
 .EXAMPLE
   ./tools/make-screenshots.ps1                                  # build Release, write docs/screenshots/site
-  ./tools/make-screenshots.ps1 -Exe publish/app/WoWBoxer.Layouts.exe -Out out/site-screenshots -Zip out/site-screenshots.zip
+  ./tools/make-screenshots.ps1 -Exe publish/app/WoWBoxer.exe -Out out/site-screenshots -Zip out/site-screenshots.zip
 #>
 param(
     [string]$Exe,
@@ -27,7 +27,7 @@ $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 if (-not $Exe) {
     dotnet build (Join-Path $root 'src\WoWBoxer.Layouts.App') -c Release --nologo -v q | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
-    $Exe = Join-Path $root 'src\WoWBoxer.Layouts.App\bin\Release\net10.0-windows\WoWBoxer.Layouts.exe'
+    $Exe = Join-Path $root 'src\WoWBoxer.Layouts.App\bin\Release\net10.0-windows\WoWBoxer.exe'
 }
 $Exe = (Resolve-Path $Exe).Path
 
@@ -64,7 +64,7 @@ for order, s in enumerate(shots["shots"], start=1):
     images.append({"file": full, "small": thumb, "title": s["title"], "alt": s["alt"], "caption": s["caption"],
                    "appVersion": shots["version"], "order": order,
                    "width": im.width, "height": im.height, "smallWidth": small.width, "smallHeight": small.height})
-manifest = {"app": "WoWBoxer Window Layouts", "appVersion": shots["version"], "images": images}
+manifest = {"app": "WoWBoxer", "appVersion": shots["version"], "images": images}
 with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8", newline="\n") as f:
     json.dump(manifest, f, ensure_ascii=False, indent=2)
     f.write("\n")

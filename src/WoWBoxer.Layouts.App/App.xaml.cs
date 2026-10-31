@@ -200,7 +200,7 @@ public partial class App : Application
         _tray = new Forms.NotifyIcon
         {
             Icon = new System.Drawing.Icon(stream),
-            Text = "WoWBoxer Window Layouts",
+            Text = "WoWBoxer",
             ContextMenuStrip = menu,
             Visible = true,
         };

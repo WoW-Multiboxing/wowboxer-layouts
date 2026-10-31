@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The WoWBoxer Window Layouts desktop app: monitor canvas, layout editor, profiles, squad flow, tray. -->
+  <!-- The WoWBoxer desktop app: monitor canvas, layout editor, profiles, squad flow, tray. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>WoWBoxer.Layouts.App</RootNamespace>
     <AssemblyName>WoWBoxer.Layouts</AssemblyName>
+    <!-- Task Manager and the file's properties show this name. -->
+    <AssemblyTitle>WoWBoxer</AssemblyTitle>
     <UseWPF>true</UseWPF>
     <!-- Only for the tray icon (NotifyIcon). -->
     <UseWindowsForms>true</UseWindowsForms>
@@ -33,6 +35,19 @@
     <Resource Include="Assets\app.png" />
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
+
+  <!-- The exe is WoWBoxer.exe (since 0.6.0); the assembly keeps its name, WoWBoxer.Layouts.dll. The .NET app host finds
+       the dll by the name built into it, not by its own file name, so renaming the host is all it takes. Installed copies
+       follow on update: Velopack points every shortcut into the install folder at the new main exe (tested 2026-10-31). -->
+  <PropertyGroup>
+    <AppExeName>WoWBoxer.exe</AppExeName>
+  </PropertyGroup>
+  <Target Name="RenameAppHostAfterBuild" AfterTargets="Build" Condition="Exists('$(OutDir)$(AssemblyName).exe')">
+    <Move SourceFiles="$(OutDir)$(AssemblyName).exe" DestinationFiles="$(OutDir)$(AppExeName)" />
+  </Target>
+  <Target Name="RenameAppHostAfterPublish" AfterTargets="Publish" Condition="Exists('$(PublishDir)$(AssemblyName).exe')">
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(PublishDir)$(AppExeName)" />
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\WoWBoxer.Layouts.Core\WoWBoxer.Layouts.Core.csproj" />

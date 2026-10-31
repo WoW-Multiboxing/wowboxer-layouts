@@ -84,7 +84,7 @@ internal static class FirstRunWindow
         var panel = new ContentControl { Style = (Style)res.FindResource("OrnatePanel"), Padding = new Thickness(40, 32, 40, 32), Content = content };
         var window = new Window
         {
-            Title = "Welcome to WoWBoxer Window Layouts",
+            Title = "Welcome to WoWBoxer",
             Owner = owner,
             Width = 820,
             SizeToContent = SizeToContent.Height,

@@ -1,7 +1,10 @@
-# CLAUDE.md – WoWBoxer Window Layouts
+# CLAUDE.md – WoWBoxer (the window app)
 
 Free, MIT-licensed Windows app (C# / .NET 10 / WPF) that starts Battle.net and places 2–N World of Warcraft
 windows in a chosen layout. Part of the WoWBoxer project (manual multiboxing: one key press = one action on one character).
+
+Product name: **"WoWBoxer"** (the app; "WoWBoxer Window Layouts" until 0.6.0), exe `WoWBoxer.exe`. The in-game addon is the
+"WoWBoxer AddOn". Internal ids stay `WoWBoxer.Layouts` (Velopack packId, settings folders, assemblies, namespaces, repo, `wbx`).
 
 ## Read first
 1. `docs/plan.md` – the plan: rules, stack, architecture, v1 scope, milestones M0–M6, test plan.

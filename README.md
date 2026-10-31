@@ -1,10 +1,10 @@
-# WoWBoxer Window Layouts
+# WoWBoxer
 
 Free, open-source (MIT) Windows app for **manual** World of Warcraft multiboxing.
 It opens your WoW clients and places 1–10 game windows (two parties) in a layout you choose, on one monitor or several, and keeps
 them there. Guides, the rules and the downloads are on **[wowboxer.com](https://wowboxer.com/)**.
 
-![The Setup tab: client count, layout cards, a to-scale map of the monitor and the squad list](docs/screenshots/setup-after-v0.2.4.png)
+![The Setup tab: client count, layout cards, a to-scale map of the monitor and the squad list](docs/screenshots/site/setup-main-side.webp)
 
 ## What it does, and what it never does
 

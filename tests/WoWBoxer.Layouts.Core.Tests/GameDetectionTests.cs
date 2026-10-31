@@ -7,6 +7,7 @@ public class GameDetectionTests
     [InlineData("Wow", true)]
     [InlineData("WowT", true)]
     [InlineData("WoWBoxer.Layouts", false)]   // our own app must never be arranged
+    [InlineData("WoWBoxer", false)]   // its exe since 0.6.0
     [InlineData("wbx", false)]
     [InlineData("WowVoiceProxy", false)]
     [InlineData("WowErrorReporter", false)]

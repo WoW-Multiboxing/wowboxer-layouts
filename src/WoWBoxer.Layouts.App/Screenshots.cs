@@ -61,7 +61,7 @@ internal static class Screenshots
         Use(vm, PresetKind.Side, monitors: 1);
         vm.SelectedTab = AppTab.Setup;
         vm.SelectedSlotIndex = -1;
-        await Snap("setup-main-side", "Setup: clients, layout and monitors", "WoWBoxer Window Layouts, Setup: three WoW windows in the Main + side layout on one monitor – the main window big on the left, two followers stacked on the right – and the squad list with every window connected.",
+        await Snap("setup-main-side", "Setup: clients, layout and monitors", "WoWBoxer, Setup: three WoW windows in the Main + side layout on one monitor – the main window big on the left, two followers stacked on the right – and the squad list with every window connected.",
             "Pick how many clients and a layout – every window goes to its place as it opens.");
 
         // 2) Setup: 2 monitors, Free for all

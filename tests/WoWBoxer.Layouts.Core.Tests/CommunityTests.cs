@@ -68,9 +68,9 @@ public class CommunityTests
     [Fact]
     public void A_character_named_like_the_app_does_not_hide_the_app_name()
     {
-        var redacted = ProblemReport.Redact("App: WoWBoxer Window Layouts 0.5.0 · slot 1 Main · Jaina", Fake with { CharacterNames = ["Wowboxer", "Main", "Jaina"] });
+        var redacted = ProblemReport.Redact("App: WoWBoxer 0.5.0 · slot 1 Main · Jaina", Fake with { CharacterNames = ["Wowboxer", "Main", "Jaina"] });
 
-        Assert.Equal("App: WoWBoxer Window Layouts 0.5.0 · slot 1 Main · <character>", redacted);
+        Assert.Equal("App: WoWBoxer 0.5.0 · slot 1 Main · <character>", redacted);
     }
 
     [Fact]

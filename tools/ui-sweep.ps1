@@ -1,7 +1,7 @@
 ﻿<#
-  UI sweep for WoWBoxer Window Layouts – drives ONLY the app's own window through UI Automation (no mouse, no keys,
+  UI sweep for WoWBoxer – drives ONLY the app's own window through UI Automation (no mouse, no keys,
   nothing reaches a game window) and checks the results in the saved layout files and the app log.
-  Usage: start the app PAUSED (WoWBoxer.Layouts.exe --pause, so open game windows are never moved), then
+  Usage: start the app PAUSED (WoWBoxer.exe --pause, so open game windows are never moved), then
   powershell -ExecutionPolicy Bypass -File tools\ui-sweep.ps1   – it refuses to run when the app is not paused.
 #>
 $ErrorActionPreference = 'Stop'
@@ -26,13 +26,13 @@ $log = Join-Path $env:LOCALAPPDATA 'WoWBoxer\Layouts\logs\app.log'
 $results = New-Object System.Collections.Generic.List[string]
 $fails = 0
 
-function Main { $w = @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer Window Layouts*' -and $_.Current.ClassName -notlike '*Wnd' } | Select-Object -First 1; if (-not $w) { throw 'App window not found' }; $w }   # title carries the version
+function Main { $w = @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer [0-9]*' -and $_.Current.ClassName -notlike '*Wnd' } | Select-Object -First 1; if (-not $w) { throw 'App window not found' }; $w }   # title carries the version
 function Find($name, $root = (Main)) { if ($env:WBX_TRACE) { Write-Host "  > $name" }; $root.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, $name))) }
 function FindId($id, $root = (Main)) { $root.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::AutomationIdProperty, $id))) }
 function Pattern($e, $p) { $o = $null; if ($e.TryGetCurrentPattern($p, [ref]$o)) { $o } else { $null } }
 function FindAnywhere($name) {
   $e = Find $name; if ($e) { return $e }
-  foreach ($h in [WbxWin]::Dialogs([uint32](Get-Process WoWBoxer.Layouts).Id, 'WoWBoxer Window Layouts')) {
+  foreach ($h in [WbxWin]::Dialogs([uint32](Get-Process WoWBoxer).Id, (Main).Current.Name)) {
     $e = Find $name ([System.Windows.Automation.AutomationElement]::FromHandle($h)); if ($e) { return $e }
   }
   $null
@@ -50,7 +50,7 @@ function Check($what, [scriptblock]$test) {
 function LogErrors { if (Test-Path $log) { @(Get-Content $log | Where-Object { $_ -match ' Error ' -and $_ -ge $script:startStamp }).Count } else { 0 } }
 function Dialog {
   for ($i = 0; $i -lt 20; $i++) {
-    $h = [WbxWin]::Dialogs([uint32](Get-Process WoWBoxer.Layouts).Id, 'WoWBoxer Window Layouts') | Select-Object -First 1
+    $h = [WbxWin]::Dialogs([uint32](Get-Process WoWBoxer).Id, (Main).Current.Name) | Select-Object -First 1
     if ($h) { return [System.Windows.Automation.AutomationElement]::FromHandle($h) }
     Start-Sleep -Milliseconds 150
   }
@@ -169,7 +169,7 @@ if ($wowRunning -gt 0 -and (Test-Path $eraCfg)) {
 Pick 'SETUP'
 
 # ---- version ----
-Check 'Title bar shows the version' { (FindId 'TitleVersion').Current.Name -match '^v\d+\.\d+\.\d+$' -and (Main).Current.Name -match 'WoWBoxer Window Layouts \d+\.\d+\.\d+' }
+Check 'Title bar shows the version' { (FindId 'TitleVersion').Current.Name -match '^v\d+\.\d+\.\d+$' -and (Main).Current.Name -match 'WoWBoxer \d+\.\d+\.\d+' }
 
 # ---- share codes ----
 Invoke 'More layout actions'; Invoke 'Copy layout code (WBX1:)'
@@ -189,7 +189,7 @@ Check 'Delete removes the layout' { -not (Test-Path (Join-Path $profiles 'UI swe
 # ---- other tabs ----
 Check 'No Squad tab any more (merged into Setup)' { -not (Find 'SQUAD') }
 (Pattern (FindAnywhere 'Activity') ([System.Windows.Automation.TogglePattern]::Pattern)).Toggle(); Start-Sleep -Milliseconds 500
-Check 'Activity opens from the status bar' { $pid0 = (Get-Process WoWBoxer.Layouts).Id; [bool]($A::RootElement.FindAll($Scope::Children, (New-Object System.Windows.Automation.PropertyCondition ($A::ProcessIdProperty, $pid0))) | ForEach-Object { $_.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Activity log'))) } | Where-Object { $_ }) }
+Check 'Activity opens from the status bar' { $pid0 = (Get-Process WoWBoxer).Id; [bool]($A::RootElement.FindAll($Scope::Children, (New-Object System.Windows.Automation.PropertyCondition ($A::ProcessIdProperty, $pid0))) | ForEach-Object { $_.FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, 'Activity log'))) } | Where-Object { $_ }) }
 Pick 'GUIDE'
 Start-Sleep -Milliseconds 600
 foreach ($ch in 'Prepare your WoW clients', 'Pick clients, a layout and your monitors', 'Open your clients', 'Switch between windows', 'If something looks wrong', 'What WoWBoxer never does') {
@@ -204,7 +204,7 @@ foreach ($t in 'Title WoW windows with the character names', 'Animations', 'Chec
 Check 'Settings keeps its tools' { [bool](Find 'Close clients I started') -and [bool](Find 'Fix action bar now') -and -not (Find 'Diagnose') }
 Pick 'HELP'
 Check 'Help tab: Report a problem, Diagnose, Open logs, links, common problems' { [bool](FindId 'ReportProblem') -and [bool](Find 'Diagnose') -and [bool](Find 'Open logs') -and [bool](FindId 'LinkDiscord') -and [bool](FindId 'HelpTopics') }
-Pick 'ABOUT'; Check 'About shows the version' { [bool](Find 'Version') -or [bool](Find 'WINDOW LAYOUTS') }
+Pick 'ABOUT'; Check 'About shows the version' { [bool](Find 'Version') }
 
 # ---- clean up ----
 # Never delete here: after a delete the app selects a neighbouring layout, which could be one of the user's.

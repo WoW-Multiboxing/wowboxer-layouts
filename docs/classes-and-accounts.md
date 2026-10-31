@@ -13,7 +13,7 @@ So in the app (Squad tab): the user picks the **WoW account per slot once** (sto
 sees "Last played here: Name – Realm" with a **Use** button, and sets the **class by hand**. Until then the slot shows
 **"Unknown class"** in a neutral colour – the app never guesses.
 
-## The automatic route: the WoWBoxer addon (workstream E builds the addon side)
+## The automatic route: the WoWBoxer AddOn (workstream E builds the addon side)
 The addon runs inside each client, so it knows the character for certain. It may only *write its own SavedVariables*;
 WoW saves them on logout and `/reload`.
 
@@ -35,7 +35,7 @@ WoWBoxerDB = {
 
 App side (planned):
 1. For each slot with a chosen account, read that account's `SavedVariables\WoWBoxer.lua` (tiny Lua-table parser, read-only).
-2. If `bridge.savedAt` is newer than the slot's last update: fill name and class, marked "from the WoWBoxer addon".
+2. If `bridge.savedAt` is newer than the slot's last update: fill name and class, marked "from the WoWBoxer AddOn".
 3. Refresh when the file changes (FileSystemWatcher) – i.e. after the player logs out, switches character or types `/reload`.
 4. The account → window link stays the user's choice (row order); the addon cannot see the OS window either.
 

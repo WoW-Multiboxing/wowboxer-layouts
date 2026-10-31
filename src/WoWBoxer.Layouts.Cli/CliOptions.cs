@@ -28,7 +28,7 @@ internal sealed class CliOptions
     public string? OutFolder { get; private set; }
 
     public const string Usage = """
-        wbx - WoWBoxer Window Layouts (command line)
+        wbx - WoWBoxer (command line)
         Moves and resizes World of Warcraft windows. Never sends keys or mouse clicks to the game.
 
         Commands:

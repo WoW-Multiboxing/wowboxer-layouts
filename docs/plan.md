@@ -1,4 +1,4 @@
-# WoWBoxer Window Layouts – plan for the Windows desktop app
+# WoWBoxer – plan for the Windows desktop app
 
 > 2026-10-27. Status: **M0–M4 done, M5 built (installer + auto-update; signing waits for SignPath), v0.2 UI done (game-client look after the app mockup). M6 field test with Forever from 4–5 Nov.** Builds on `01_Research/platform/03-window-program.md` (stack, signing, pitfalls) and on what the PowerShell launcher taught us (`03_Output/Multibox-Launcher/`).
 > Written in English because it goes to Claude Code and into a public (MIT) repo.
@@ -24,7 +24,7 @@ first-run screen, installer + auto-update. The CLI (`wbx`) is only the engine an
 | Installer and updates | **Velopack** + GitHub Releases | One installer with auto-update and delta packages |
 | Code signing | **SignPath Foundation** (free for OSI open source) | Azure Artifact Signing is not open to Danish individuals. Unsigned files trigger a strong SmartScreen warning. |
 | Licence | MIT | Agreed 2026-10-27 |
-| Name | "WoWBoxer Window Layouts" (exe `WoWBoxer.Layouts.exe`) | the owner's brand choice. Trademark risk is noted in LOG. |
+| Name | "WoWBoxer" (exe `WoWBoxer.exe`; "WoWBoxer Window Layouts" / `WoWBoxer.Layouts.exe` until 0.6.0). The in-game addon is the "WoWBoxer AddOn". Internal ids stay `WoWBoxer.Layouts` (Velopack packId, settings folders, assemblies, namespaces, repo). | the owner's brand choice. Trademark risk is noted in LOG. |
 | Where to build | **Claude Code on the owner's Windows PC** | Cowork has no Windows or .NET. Claude Code can build, test and run there. |
 
 ## 4. How it works
@@ -150,7 +150,7 @@ Total: about 10–13 working sessions. M0–M2 can start before launch; M4/M6 ne
 
 ## 11. Kickoff prompt for Claude Code (copy-paste)
 ```
-You are building "WoWBoxer Window Layouts", a free MIT-licensed Windows app (C#/.NET 10, WPF) that starts
+You are building "WoWBoxer" (then called "WoWBoxer Window Layouts"), a free MIT-licensed Windows app (C#/.NET 10, WPF) that starts
 Battle.net and places 2–N World of Warcraft windows in a chosen layout. It must NEVER send input to the game.
 Read first (paths in this repo): docs/plan.md (this plan),
 docs/research-window-program.md (research), and reference/ForeverLauncher.ps1

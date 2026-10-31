@@ -196,7 +196,7 @@ public sealed class MainViewModel : ObservableObject
 
     public string Version => AppVersion;
 
-    public string WindowTitle => $"WoWBoxer Window Layouts {Version}";
+    public string WindowTitle => $"WoWBoxer {Version}";
 
     public AppTab SelectedTab
     {
@@ -1751,7 +1751,7 @@ public sealed class MainViewModel : ObservableObject
         {
             Status.Title("Diagnose: writing a report and trying one placement per window …");
             var windows = Windows.Select(w => w.Window).ToList();
-            await Task.Run(() => Diagnostics.RunAsync(plan, windows, report, $"WoWBoxer Window Layouts {Version}", "per-monitor aware"));
+            await Task.Run(() => Diagnostics.RunAsync(plan, windows, report, $"WoWBoxer {Version}", "per-monitor aware"));
             Directory.CreateDirectory(StatusLog.LogFolder);
             File.WriteAllText(path, report.Text.Replace(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "%USERPROFILE%", StringComparison.OrdinalIgnoreCase));
             Status.Ok($"Diagnose report saved: {path}");
@@ -1800,7 +1800,7 @@ public sealed class MainViewModel : ObservableObject
         var hover = HoverActivation.Read();
         var items = new List<(string, string)>
         {
-            ("App", $"WoWBoxer Window Layouts {Version} · {(_paused ? "stopped" : "placing windows")}"),
+            ("App", $"WoWBoxer {Version} · {(_paused ? "stopped" : "placing windows")}"),
             ("Windows", $"{System.Runtime.InteropServices.RuntimeInformation.OSDescription} · {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} · admin: {ProcessInfo.CurrentElevation()}"),
             ("Layout", Current is null ? "none"
                 : $"{(Current.Preset is { } p ? Presets.DisplayName(p) : "custom")} · {Current.Clients} clients · {ChosenScreens.Count} of {Monitors.Count} monitor(s)"
@@ -1845,7 +1845,7 @@ public sealed class MainViewModel : ObservableObject
     {
         var diagnose = new ReportSink();
         if (Plan() is { } plan)
-            Diagnostics.RunAsync(plan, Windows.Select(w => w.Window).ToList(), diagnose, $"WoWBoxer Window Layouts {Version}", "per-monitor aware", tryPlacement: false)
+            Diagnostics.RunAsync(plan, Windows.Select(w => w.Window).ToList(), diagnose, $"WoWBoxer {Version}", "per-monitor aware", tryPlacement: false)
                 .GetAwaiter().GetResult();
         var text = shortReport.TrimEnd() + "\n\n===== Diagnose (read-only) =====\n" + diagnose.Text + "\n===== Log (last 300 lines) =====\n" + string.Join("\n", LastLogLines(300));
         var path = Path.Combine(StatusLog.LogFolder, $"wowboxer-report-{DateTime.Now:yyyyMMdd-HHmmss}.txt");

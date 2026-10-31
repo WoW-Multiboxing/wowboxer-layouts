@@ -22,7 +22,7 @@ public static class TopCheck {
 "@
 }
 $A = [System.Windows.Automation.AutomationElement]; $Scope = [System.Windows.Automation.TreeScope]
-function Main { @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer Window Layouts*' } | Select-Object -First 1 }
+function Main { @($A::RootElement.FindAll($Scope::Children, [System.Windows.Automation.Condition]::TrueCondition)) | Where-Object { $_.Current.Name -like 'WoWBoxer [0-9]*' } | Select-Object -First 1 }
 function ByName($name) { (Main).FindFirst($Scope::Descendants, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty, $name))) }
 function Pattern($e, $p) { $o = $null; if ($e.TryGetCurrentPattern($p, [ref]$o)) { $o } else { $null } }
 # selects squad row n and opens its details (▾), where "Always on top" lives
