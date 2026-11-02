@@ -415,7 +415,41 @@ public sealed partial class MainViewModel : ObservableObject
     public bool Borderless
     {
         get => Current?.Options.Borderless ?? false;
-        set => EditOptions(o => o with { Borderless = value });
+        set
+        {
+            if (Current is null || Current.Options.Borderless == value) return;
+            var options = Current.Options with { Borderless = value };
+            // Side/Grid/… column width depends on FrameSize. Rebuild the preset so followers keep full row
+            // height when title bars go away (otherwise Fit + TowardsMiddle leaves desktop gaps).
+            if (Current.Preset is { } kind)
+            {
+                try
+                {
+                    var screens = ChosenScreens.Count > 0 ? ChosenScreens : [Core.Monitors.Primary(Monitors)];
+                    var preset = Presets.ForScreens(kind, Current.Clients, screens, options with { Fit = FitMode.ShrinkAnchor },
+                        Current.Split, Current.FollowersOnSecond);
+                    var slots = preset.Slots
+                        .Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class } : s)
+                        .ToList();
+                    Update(Current with
+                    {
+                        Options = options,
+                        Slots = slots,
+                        Screens = preset.Screens,
+                        Split = preset.Split,
+                        FollowersOnSecond = preset.FollowersOnSecond,
+                    });
+                }
+                catch (Exception e) when (e is ArgumentException or InvalidOperationException)
+                {
+                    EditOptions(_ => options);
+                    Status.Warn(e.Message.Split(" (Parameter")[0]);
+                }
+            }
+            else
+                EditOptions(_ => options);
+            ApplyBorderlessChrome();
+        }
     }
 
     /// <summary>Use the whole monitor, including the taskbar's area.</summary>
@@ -1777,6 +1811,23 @@ public sealed partial class MainViewModel : ObservableObject
         var open = Windows.Select(w => w.Window).ToList();
         foreach (var w in open) WindowPlacer.RestoreFrame(w.Handle);
         Status.Info($"Gave {open.Count} WoW window(s) their title bars back.");
+    }
+
+    /// <summary>
+    /// Applies or restores window frames on mapped WoW windows right away (even while paused).
+    /// Later Start / Re-arrange keep using Profile.Options.Borderless.
+    /// </summary>
+    private void ApplyBorderlessChrome()
+    {
+        if (Current is null || Plan() is not { } plan) return;
+        RefreshWindows();
+        var placements = Placements();
+        if (placements.Count == 0) return;
+        foreach (var (window, slot) in placements)
+            plan.Place(window.Handle, slot);
+        Status.Info(Current.Options.Borderless
+            ? $"Removed title bars on {placements.Count} WoW window(s)."
+            : $"Restored title bars on {placements.Count} WoW window(s).");
     }
 
     /// <summary>Writes the Diagnose report (the same as "wbx diagnose") to the logs folder.</summary>
