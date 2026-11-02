@@ -58,7 +58,7 @@ $setup = Join-Path $releases 'WoWBoxer.Dev-win-Setup.exe'
 Write-Host "Setup: $setup"
 
 if ($Install) {
-    # Setup installs per user (no admin) into %LOCALAPPDATA%\WoWBoxer.Dev, or updates the dev build already there, then opens it.
+    # Setup installs per user (no admin) into %LOCALAPPDATA%\WoWBoxer.Dev, or updates the dev build already there.
     Get-Process WoWBoxer -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$env:LOCALAPPDATA\WoWBoxer.Dev\*" } | ForEach-Object {
         Write-Host 'Closing the running WoWBoxer Dev first.'
         $_.CloseMainWindow() | Out-Null
@@ -66,5 +66,7 @@ if ($Install) {
     }
     $p = Start-Process $setup -ArgumentList '--silent' -PassThru -Wait
     if ($p.ExitCode -ne 0) { throw "Setup failed ($($p.ExitCode)). Log: %LOCALAPPDATA%\WoWBoxer.Dev\velopack.log" }
-    Write-Host "Installed WoWBoxer Dev $version (Start menu: WoWBoxer Dev)."
+    # Setup --silent installs but does not open the app; open it from its own launcher (as the Start menu does).
+    Start-Process (Join-Path $env:LOCALAPPDATA 'WoWBoxer.Dev\WoWBoxer Dev.exe')
+    Write-Host "Installed and opened WoWBoxer Dev $version (Start menu: WoWBoxer Dev)."
 }
