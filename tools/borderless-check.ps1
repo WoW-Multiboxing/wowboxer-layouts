@@ -54,9 +54,15 @@ try {
         Check "borderless $w`: client area = window = visible ($($cl -join 'x') / $($win[2])x$($win[3]) / $($vis[2])x$($vis[3]))" (($cl[0] -eq $win[2]) -and ($cl[1] -eq $win[3]) -and ($vis[2] -eq $win[2]) -and ($vis[3] -eq $win[3]))
     }
     if ($n -ge 3) {
-        $f = @($h[1..($n - 1)] | ForEach-Object { [BC]::Visible($_) } | Sort-Object { $_[1] })
-        $gaps = 0; for ($i = 1; $i -lt $f.Count; $i++) { if ($f[$i][1] -ne $f[$i - 1][1] + $f[$i - 1][3]) { $gaps++ } }
-        Check "borderless: follower column has no gaps ($(@($f | ForEach-Object { "$($_[1])+$($_[3])" }) -join ', '))" ($gaps -eq 0 -and $f[0][1] -eq 0)
+        # the followers (every window but the biggest) stacked in one column, top to bottom, without gaps
+        # (objects, not nested arrays: PowerShell flattens arrays of arrays in a pipeline)
+        $rects = New-Object System.Collections.Generic.List[object]
+        foreach ($w in $h) { $v = [BC]::Visible($w); $rects.Add([pscustomobject]@{ X = $v[0]; Y = $v[1]; W = $v[2]; H = $v[3] }) }
+        $main = $rects | Sort-Object { $_.W * $_.H } -Descending | Select-Object -First 1
+        $f = @($rects | Where-Object { $_ -ne $main } | Sort-Object Y)
+        $gaps = 0
+        for ($i = 1; $i -lt $f.Count; $i++) { if ($f[$i].Y -ne $f[$i - 1].Y + $f[$i - 1].H) { $gaps++ } }
+        Check "borderless: follower column has no gaps ($(@($f | ForEach-Object { "y $($_.Y) h $($_.H)" }) -join ', '))" ($gaps -eq 0)
     }
     & $Wbx snap --game $Game --out "$Out\2-borderless" | Out-Null
 

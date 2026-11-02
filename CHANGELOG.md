@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.0-beta.2 – Remove title bars, fixed (thanks to Limerobin) (2026-11-02)
+**Beta channel only.** Everything from v0.7.0-beta.1 (window swap hotkeys), plus:
+- **Remove title bars works properly now – contributed by [Limerobin](https://github.com/Limerobin) (PR #1).** Borderless
+  windows get real popup chrome (`WS_POPUP`, the window is exactly the game area, a 1 px nudge so WoW rereads its mouse
+  bounds), and Main + side rebuilds its column for the new frame size, so the followers fill it without gaps. New
+  switch on Setup (Your squad, above Hover to activate), the same option as Settings › Window rules. Still **off by
+  default**. Tested on three Classic Era clients (character screen): client area = window, no gaps, title bars come
+  back when switched off and with "Give title bars back", nothing else changes. Please check the action bar, minimap
+  and mouse in game.
+- Our additions to it: while the app is stopped the switch leaves the windows alone (they change at Start); a layout
+  whose windows were moved by hand keeps them (only an unchanged preset is rebuilt); a swap goes back home first.
+- `tools/borderless-check.ps1`: the real-client test (exact window state saved and put back). Win32 unit tests
+  (`tests/WoWBoxer.Layouts.Win32.Tests`). CI's start-up check waits up to 30 s.
+
 ## v0.7.0-beta.1 – Window swap hotkeys (beta) (2026-11-02)
 **Beta channel only** (Settings › Updates › Update channel: Beta). Stable installs do not get this version.
 - **Window swap hotkeys** (Settings › Advanced, **off by default**). Hotkeys move a client's window into the main slot;
