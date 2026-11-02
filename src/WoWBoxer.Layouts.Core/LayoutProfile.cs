@@ -40,6 +40,12 @@ public sealed record LayoutProfile
     /// <summary>Overlays with up to 5 clients: the followers float on monitor 2 instead of over the main.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool FollowersOnSecond { get; init; }
+    /// <summary>
+    /// Window swap: the main slot of each party as 1-based slot numbers (at most one per party). Null = the default (the
+    /// large slot in Main + side and Overlays; none in Grid and Free for all, where the user picks one).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<int>? SwapMainSlots { get; init; }
 
     /// <summary>The game, with older files (no game) counted as Classic Era – the only game before Forever.</summary>
     [JsonIgnore]
@@ -49,6 +55,7 @@ public sealed record LayoutProfile
     public bool Equals(LayoutProfile? other) =>
         other is not null && Format == other.Format && Name == other.Name && Clients == other.Clients && Preset == other.Preset && Game == other.Game
         && Options == other.Options && Slots.SequenceEqual(other.Slots) && Split == other.Split && FollowersOnSecond == other.FollowersOnSecond
+        && (SwapMainSlots ?? []).SequenceEqual(other.SwapMainSlots ?? []) && (SwapMainSlots is null) == (other.SwapMainSlots is null)
         && (Screens ?? []).SequenceEqual(other.Screens ?? []) && (Screens is null) == (other.Screens is null);
 
     public override int GetHashCode() => HashCode.Combine(Format, Name, Clients, Options, Slots.Count);
@@ -65,6 +72,9 @@ public sealed record LayoutSlot
     /// <summary>Optional WoW class of the character in this slot ("paladin", "priest" …), used as colour accent.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Class { get; init; }
+    /// <summary>Optional role in the group (tank, healer, damage), used for ready-made window-swap orders.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CombatRole? CombatRole { get; init; }
     /// <summary>"primary", or a 1-based monitor index as Windows reports it.</summary>
     public string Monitor { get; init; } = "primary";
     public double X { get; init; }

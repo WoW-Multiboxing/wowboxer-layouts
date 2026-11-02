@@ -144,6 +144,32 @@ public sealed class PartyMember : ObservableObject
 
     private bool _onTop;
     private bool? _topNow;
+    private bool _inMainSlot;
+    private string _swapSlot = "";
+    private string _combatRole = "";
+
+    /// <summary>Window swap: this client sits in a main slot now (it was swapped there).</summary>
+    public bool InMainSlot { get => _inMainSlot; set => Set(ref _inMainSlot, value); }
+
+    /// <summary>Window swap: "in slot 1" while the client is out of its home slot, else "".</summary>
+    public string SwapSlot { get => _swapSlot; set => Set(ref _swapSlot, value); }
+
+    /// <summary>Choices for the optional role: "" (none), Tank, Healer, Damage.</summary>
+    public IReadOnlyList<string> CombatRoles { get; } = ["", "Tank", "Healer", "Damage"];
+    public Action<int, string>? CombatRoleChanged { get; init; }
+
+    /// <summary>Optional role in the group (Tank / Healer / Damage), used for ready-made window-swap orders.</summary>
+    public string CombatRole
+    {
+        get => _combatRole;
+        set
+        {
+            if (Set(ref _combatRole, value ?? "")) CombatRoleChanged?.Invoke(Index, _combatRole);
+        }
+    }
+
+    /// <summary>Sets the role without reporting it back (loading the row).</summary>
+    public void LoadCombatRole(string role) => Set(ref _combatRole, role, nameof(CombatRole));
 
     /// <summary>The slot wants "always on top".</summary>
     public bool OnTop
