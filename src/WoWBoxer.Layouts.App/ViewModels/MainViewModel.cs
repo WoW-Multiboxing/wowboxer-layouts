@@ -95,6 +95,7 @@ public sealed class MainViewModel : ObservableObject
         RestoreFramesCommand = new RelayCommand(RestoreFrames);
         OpenLogsCommand = new RelayCommand(() => Open(StatusLog.LogFolder));
         OpenLayoutsFolderCommand = new RelayCommand(() => Open(AppSettings.ProfilesFolder));
+        ExperimentalSwitches = [.. ExperimentalFeatures.All.Select(f => new ExperimentalSwitch(f, settings, Status))];
         DiagnoseCommand = new RelayCommand(() => _ = DiagnoseAsync(), () => !_busy);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
@@ -192,11 +193,17 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>"Report a problem" (Guide, Settings, tray): the window shows the report from <see cref="BuildReport"/>.</summary>
     public event Action? ReportRequested;
 
-    public static string AppVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+    /// <summary>The full version, pre-release part included ("0.7.0-beta.1"), without the build's commit id.</summary>
+    public static string AppVersion { get; } =
+        Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
 
     public string Version => AppVersion;
 
-    public string WindowTitle => $"WoWBoxer {Version}";
+    public string WindowTitle => $"{AppFlavor.Name} {Version}";
+
+    /// <summary>A local dev build (tools/dev-build.ps1): DEV badge in the title bar.</summary>
+    public bool IsDevBuild => AppFlavor.IsDev;
 
     public AppTab SelectedTab
     {
@@ -1136,6 +1143,27 @@ public sealed class MainViewModel : ObservableObject
         get => _settings.CheckForUpdates;
         set => SetSetting(() => _settings.CheckForUpdates = value);
     }
+
+    public IReadOnlyList<string> UpdateChannelChoices => UpdateChannels.Choices;
+
+    /// <summary>Settings › Updates: Stable or Beta. Counts from the next update check (the next start).</summary>
+    public string UpdateChannel
+    {
+        get => UpdateChannels.Effective(_settings.UpdateChannel, UpdateFinder.InstalledFeed);
+        set
+        {
+            if (value == UpdateChannel) return;
+            SetSetting(() => _settings.UpdateChannel = value);
+            Status.Ok(value == UpdateChannels.Beta
+                ? "Update channel: Beta. From the next start WoWBoxer also installs test versions (pre-releases)."
+                : "Update channel: Stable. From the next start only normal releases; you keep this version until a newer stable one is out.");
+        }
+    }
+
+    /// <summary>Settings › Experimental: one switch per risky feature, all off until the user turns them on.</summary>
+    public IReadOnlyList<ExperimentalSwitch> ExperimentalSwitches { get; }
+
+    public bool HasExperimental => ExperimentalSwitches.Count > 0;
 
     public string BattleNetExe
     {

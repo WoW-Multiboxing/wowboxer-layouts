@@ -157,6 +157,29 @@
                         <TextBlock Style="{StaticResource H2}" Text="Updates and privacy" />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding CheckForUpdates}"><TextBlock Text="Check for updates when the app starts" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="Asks GitHub for a new version (you choose Update now or Later) and, at most once a day, reads the community links from wowboxer.com. Both are plain web requests that send nothing about you. Off = no network at all. No telemetry, ever." />
+                        <TextBlock Style="{StaticResource Muted}" FontSize="11.5" Margin="0,14,0,4" Text="Update channel" />
+                        <ComboBox ItemsSource="{Binding UpdateChannelChoices}" SelectedItem="{Binding UpdateChannel}" HorizontalAlignment="Left" MinWidth="160"
+                                  AutomationProperties.AutomationId="UpdateChannel" AutomationProperties.Name="Update channel"
+                                  ToolTip="Stable: normal releases only. Beta: also test versions, a few days before everyone else." />
+                        <TextBlock Style="{StaticResource Explain}" Text="Stable (the default) gets normal releases only. Beta also gets test versions a few days before everyone else – they may still have bugs. A change counts from the next update check (the next start). Back to Stable keeps the version you have until a newer stable one is out." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0" AutomationProperties.AutomationId="ExperimentalPanel">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Experimental" />
+                        <TextBlock Style="{StaticResource Explain}" Text="New features that could still misbehave arrive here first, switched off. Turn one on to try it; if it causes trouble, turn it off again – no update needed." />
+                        <ItemsControl ItemsSource="{Binding ExperimentalSwitches}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding IsOn}" AutomationProperties.Name="{Binding Title}"><TextBlock Text="{Binding Title}" /></CheckBox>
+                                        <TextBlock Style="{StaticResource Explain}" Text="{Binding Description}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource Explain}" Margin="0,12,60,0" Text="Nothing to try right now." Visibility="{Binding HasExperimental, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
                     </StackPanel>
                 </ContentControl>
             </StackPanel>

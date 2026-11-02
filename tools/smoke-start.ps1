@@ -1,11 +1,12 @@
 # Starts the app (stopped, so no window is touched) and fails if it does not stay open with its main window.
 # Catches start-up crashes that unit tests miss, e.g. a XAML resource only one view defines (v0.3.2).
 # Used by CI (build and release); safe to run locally.
-param([Parameter(Mandatory)][string]$Exe, [int]$Seconds = 15)
+# -DataFolder Dev for the WoWBoxer Dev build (its settings live in %APPDATA%\WoWBoxer\Dev).
+param([Parameter(Mandatory)][string]$Exe, [int]$Seconds = 15, [string]$DataFolder = 'Layouts')
 $ErrorActionPreference = 'Stop'
 
 # Skip the first-run screen on a clean machine (CI); an existing settings file is left alone.
-$settings = Join-Path $env:APPDATA 'WoWBoxer\Layouts\settings.json'
+$settings = Join-Path $env:APPDATA "WoWBoxer\$DataFolder\settings.json"
 if (-not (Test-Path $settings)) {
     New-Item -ItemType Directory -Force (Split-Path $settings) | Out-Null
     '{ "firstRunDone": true, "checkForUpdates": false }' | Set-Content -Encoding utf8 $settings

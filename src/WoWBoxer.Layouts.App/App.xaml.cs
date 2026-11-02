@@ -11,7 +11,7 @@ namespace WoWBoxer.Layouts.App;
 /// </summary>
 public partial class App : Application
 {
-    private const string InstanceName = "WoWBoxer.Layouts.SingleInstance";
+    private static string InstanceName => AppFlavor.InstanceName;
     private Mutex? _mutex;
     private EventWaitHandle? _showSignal;
     private Forms.NotifyIcon? _tray;
@@ -94,9 +94,14 @@ public partial class App : Application
         }
         _ = Community.RefreshAsync(settings.CheckForUpdates);   // community links, at most once a day
         if (settings.CheckForUpdates)
-            _ = Updater.CheckAsync(_main.ViewModel.Status, startInTray ? null : version => PromptWindow.Confirm(_main, "Update available",
+            _ = Updater.CheckAsync(_main.ViewModel.Status, settings.UpdateChannel, startInTray ? null : version => PromptWindow.Confirm(_main, "Update available",
                 $"WoWBoxer {version} is ready (you have {ViewModels.MainViewModel.AppVersion}).\n\nUpdate now? The app closes and opens again in a few seconds. Later installs it when you quit.",
                 "Update now", "Later"), e.Args);
+
+        if (AppFlavor.OtherIsRunning())
+            _main.ViewModel.Status.Warn(AppFlavor.IsDev
+                ? "The normal WoWBoxer is open too. Both place the same WoW windows – stop or quit one of them before you press Start."
+                : "WoWBoxer Dev is open too. Both place the same WoW windows – stop or quit one of them before you press Start.");
 
         if (startProfile is not null) StartProfile(startProfile);
     }
@@ -183,7 +188,7 @@ public partial class App : Application
         if (_main is null) return;
         if (_main.ViewModel.SelectProfile(name))
         {
-            _tray?.ShowBalloonTip(4000, "WoWBoxer", $"\"{name}\": log in to each client – every window is placed as it opens.", Forms.ToolTipIcon.Info);
+            _tray?.ShowBalloonTip(4000, AppFlavor.Name, $"\"{name}\": log in to each client – every window is placed as it opens.", Forms.ToolTipIcon.Info);
             _main.ViewModel.StartLayout(name);
         }
         else
@@ -200,7 +205,7 @@ public partial class App : Application
         _tray = new Forms.NotifyIcon
         {
             Icon = new System.Drawing.Icon(stream),
-            Text = "WoWBoxer",
+            Text = AppFlavor.Name,
             ContextMenuStrip = menu,
             Visible = true,
         };
@@ -211,7 +216,7 @@ public partial class App : Application
     private Forms.ContextMenuStrip TrayMenu()
     {
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Open WoWBoxer", null, (_, _) => ShowMain());
+        menu.Items.Add($"Open {AppFlavor.Name}", null, (_, _) => ShowMain());
         menu.Items.Add("Open missing WoW clients", null, (_, _) => Run(_main!.ViewModel.OpenClientsCommand));
         menu.Items.Add("Re-arrange", null, (_, _) => Run(_main!.ViewModel.ArrangeCommand));
         menu.Items.Add("Identify windows", null, (_, _) => Run(_main!.ViewModel.IdentifyCommand));

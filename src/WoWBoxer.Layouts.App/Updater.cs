@@ -1,6 +1,3 @@
-using Velopack;
-using Velopack.Locators;
-using Velopack.Sources;
 using WoWBoxer.Layouts.Win32;
 
 namespace WoWBoxer.Layouts.App;
@@ -12,30 +9,34 @@ namespace WoWBoxer.Layouts.App;
 /// </summary>
 internal static class Updater
 {
-    public const string RepoUrl = "https://github.com/WoW-Multiboxing/wowboxer-layouts";
+    public const string RepoUrl = UpdateFinder.RepoUrl;
 
     /// <summary>True while the app quits only to install an update and open again (so quitting changes nothing else).</summary>
     public static bool RestartingForUpdate { get; private set; }
 
+    /// <param name="channelSetting">Settings › Updates ("Stable", "Beta" or null = the channel the copy was installed from).</param>
     /// <param name="ask">Asks the user "update now?" for the given version; null (a tray start, no window) = install on quit.</param>
     /// <param name="args">The app's own start arguments, passed on to the new version.</param>
-    public static async Task CheckAsync(IStatusSink status, Func<string, bool>? ask, string[] args)
+    public static async Task CheckAsync(IStatusSink status, string? channelSetting, Func<string, bool>? ask, string[] args)
     {
+        if (AppFlavor.IsDev)
+        {
+            status.Detail("WoWBoxer Dev does not update itself: run tools/dev-build.ps1 again for a newer dev build.");
+            return;
+        }
         try
         {
-            // Channels: stable builds use Velopack's default channel ("win") and only see full releases; a build
-            // packed with --channel beta is published as a GitHub prerelease, so it must look at prereleases too.
-            // Each install keeps following the channel it was installed from.
-            var channel = VelopackLocator.IsCurrentSet ? VelopackLocator.Current.Channel : null;
-            var beta = !string.IsNullOrEmpty(channel) && channel != "win";
-            var manager = new UpdateManager(new GithubSource(RepoUrl, null, beta));
-            if (!manager.IsInstalled) return;
-            var update = await manager.CheckForUpdatesAsync();
-            if (update is null)
+            // Channels (docs/release-process.md): Stable reads only normal releases; Beta reads pre-releases and normal
+            // releases and takes the newer. The setting is read at every check, so a switch counts from the next start.
+            var channel = Core.UpdateChannels.Effective(channelSetting, UpdateFinder.InstalledFeed);
+            var found = await UpdateFinder.FindAsync(channel);
+            if (found is null)
             {
-                status.Info($"You have the newest version ({ViewModels.MainViewModel.AppVersion}).");   // so a quiet start is not a mystery
+                if (UpdateFinder.InstalledFeed is not null)
+                    status.Info($"You have the newest version ({ViewModels.MainViewModel.AppVersion}, {channel.ToLowerInvariant()} channel).");   // so a quiet start is not a mystery
                 return;
             }
+            var (manager, update) = found.Value;
             var version = update.TargetFullRelease.Version;
             if (ask?.Invoke(version.ToString()) == true)
             {

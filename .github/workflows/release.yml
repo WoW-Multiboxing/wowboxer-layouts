@@ -2,8 +2,10 @@ name: release
 
 # Push a tag to build the installer and publish a GitHub Release (Velopack, with delta updates):
 #   vX.Y.Z           stable  -> normal release, becomes /releases/latest, channel "win" (Velopack's default)
-#   vX.Y.Z-beta.N    beta    -> GitHub prerelease, Velopack channel "beta" (only beta installs update to it)
-# Release notes are the "## vX.Y.Z" section of CHANGELOG.md. See docs/releasing.md.
+#   vX.Y.Z-beta.N    beta    -> GitHub prerelease, Velopack channel "beta" (only installs on the Beta channel get it)
+# Release notes are the "## vX.Y.Z" section of CHANGELOG.md (a beta may use its own "## vX.Y.Z-beta.N" section or the
+# "## vX.Y.Z" one, so the same commit can later be promoted to stable unchanged). Only commits on main are released.
+# See docs/release-process.md and docs/releasing.md.
 on:
   push:
     tags: ['v*']
@@ -29,6 +31,10 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # a manual re-run builds the tag it names, not the branch it was started from
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/v{0}', inputs.version) || github.ref }}
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -52,13 +58,31 @@ jobs:
           "setup=$setupName" >> $env:GITHUB_OUTPUT
           "portable=$portableName" >> $env:GITHUB_OUTPUT
 
+      # main = what users get: a release (stable or beta) is only built from a commit that is on main, i.e. merged with
+      # green CI. A stable tag on a commit that never had a beta is allowed (a fast fix), but says so in the log.
+      - name: Tag is on main
+        shell: pwsh
+        run: |
+          git fetch origin main --quiet
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw "${{ steps.v.outputs.tag }} is not on main. Merge the branch (green CI) first, then tag the merge commit." }
+          if ('${{ steps.v.outputs.pre }}' -ne 'true') {
+            $betas = git tag --points-at HEAD | Where-Object { $_ -like 'v${{ steps.v.outputs.version }}-beta.*' }
+            if ($betas) { Write-Host "Promoting $($betas -join ', ') to stable (same commit)." }
+            else { Write-Host "::notice::No beta of ${{ steps.v.outputs.version }} on this commit - a direct stable release (e.g. a fast fix)." }
+          }
+
       - name: Release notes from CHANGELOG.md
         shell: pwsh
         run: |
           $v = '${{ steps.v.outputs.version }}'
           $lines = Get-Content CHANGELOG.md -Encoding utf8
           $start = -1
-          for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match ('^## v?' + [regex]::Escape($v) + '(\s|$)')) { $start = $i; break } }
+          # exact section first; a beta (X.Y.Z-beta.N) may also use the "## vX.Y.Z" section it is a test of
+          foreach ($want in @($v, $v.Split('-')[0]) | Select-Object -Unique) {
+            for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match ('^## v?' + [regex]::Escape($want) + '(\s|$)')) { $start = $i; break } }
+            if ($start -ge 0) { break }
+          }
           if ($start -lt 0) { throw "CHANGELOG.md has no '## v$v' section. Add one before tagging." }
           $end = $lines.Count
           for ($i = $start + 1; $i -lt $lines.Count; $i++) { if ($lines[$i] -match '^## ') { $end = $i; break } }
@@ -193,6 +217,11 @@ jobs:
           if ('${{ steps.v.outputs.pre }}' -eq 'true') { $a += '--prerelease' } else { $a += '--latest' }
           gh @a
           gh release view ${{ steps.v.outputs.tag }} --json url,isPrerelease,assets --jq '{url, isPrerelease, assets: [.assets[].name]}'
+          # /releases/latest (the website's download button) must be the newest STABLE release, never a beta.
+          $latest = gh api repos/${{ github.repository }}/releases/latest --jq .tag_name
+          Write-Host "/releases/latest is now $latest"
+          if ('${{ steps.v.outputs.pre }}' -eq 'true' -and $latest -eq '${{ steps.v.outputs.tag }}') { throw "A beta became /releases/latest." }
+          if ('${{ steps.v.outputs.pre }}' -ne 'true' -and $latest -ne '${{ steps.v.outputs.tag }}') { throw "/releases/latest is $latest, not this release." }
 
       # Tells the website (WoW-Multiboxing/wowboxer-site) to refresh its download boxes at once instead of waiting
       # for its 3-hourly check. Needs the secret SITE_DISPATCH_TOKEN (fine-grained PAT, wowboxer-site only,

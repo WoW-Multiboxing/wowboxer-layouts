@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs the app's own update code (UpdateFinder) against the real GitHub releases for a pretend install, without
+       installing anything: "would a stable 0.6.0 be offered the beta?" See docs/release-process.md. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>channel-check</AssemblyName>
+    <RootNamespace>WoWBoxer.Layouts.Tools</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
+    <Compile Include="..\..\src\WoWBoxer.Layouts.App\UpdateFinder.cs" Link="UpdateFinder.cs" />
+    <Compile Include="..\..\src\WoWBoxer.Layouts.Core\UpdateChannels.cs" Link="UpdateChannels.cs" />
+  </ItemGroup>
+
+</Project>

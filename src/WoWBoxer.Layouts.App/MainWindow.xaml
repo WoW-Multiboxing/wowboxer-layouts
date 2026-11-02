@@ -64,6 +64,12 @@
                                 </TextBlock>
                                 <TextBlock Text="{Binding Version, StringFormat=v{0}, Mode=OneWay}" VerticalAlignment="Center" Margin="8,3,0,0" FontSize="11" Foreground="{StaticResource GoldBrush}" Opacity="0.85"
                                            AutomationProperties.AutomationId="TitleVersion" ToolTip="Installed version – see About for what changed" />
+                                <!-- local dev build (tools/dev-build.ps1): never mistaken for the normal app -->
+                                <Border Visibility="{Binding IsDevBuild, Mode=OneWay, Converter={x:Static app:BoolVisibility.Instance}}" Background="#2BB5A8" CornerRadius="3"
+                                        Padding="6,1,6,1" Margin="10,3,0,0" VerticalAlignment="Center" AutomationProperties.AutomationId="DevBadge"
+                                        ToolTip="WoWBoxer Dev – a local test build with its own settings and layouts. It does not update itself.">
+                                    <TextBlock Text="DEV" FontSize="11" FontWeight="Bold" Foreground="#0B0E14" />
+                                </Border>
                             </StackPanel>
 
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True">

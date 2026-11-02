@@ -30,9 +30,23 @@
     <Using Remove="System.Drawing" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!-- "WoWBoxer Dev" (tools/dev-build.ps1 builds with -p:WbxDev=true): own settings folder, single-instance lock, DEV badge,
+       no update check (AppFlavor.cs) and the teal icons from Assets\dev (tools/make-dev-icons.py) under the same names. -->
+  <PropertyGroup Condition="'$(WbxDev)' == 'true'">
+    <DefineConstants>$(DefineConstants);WBX_DEV</DefineConstants>
+    <AssemblyTitle>WoWBoxer Dev</AssemblyTitle>
+    <ApplicationIcon>Assets\dev\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(WbxDev)' != 'true'">
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\app.png" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(WbxDev)' == 'true'">
+    <Resource Include="Assets\dev\app.ico" Link="Assets\app.ico" />
+    <Resource Include="Assets\dev\app.png" Link="Assets\app.png" />
+  </ItemGroup>
+  <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 

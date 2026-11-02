@@ -30,7 +30,7 @@ public sealed class StatusLog : IStatusSink
 
     public ObservableCollection<StatusLine> Lines { get; } = [];
 
-    public static string LogFolder => Demo.On ? Path.Combine(Demo.Root, "logs") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WoWBoxer", "Layouts", "logs");
+    public static string LogFolder => Demo.On ? Path.Combine(Demo.Root, "logs") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WoWBoxer", AppFlavor.DataFolder, "logs");
     public static string LogFile => Path.Combine(LogFolder, "app.log");
 
     public void Report(StatusLevel level, string message)

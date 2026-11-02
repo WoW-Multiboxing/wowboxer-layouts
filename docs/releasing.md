@@ -1,14 +1,17 @@
 # Releasing
 
-Releases are built only by GitHub Actions (`.github/workflows/release.yml`) from a pushed tag. Nobody uploads files
-by hand.
+Releases are built only by GitHub Actions (`.github/workflows/release.yml`) from a pushed tag on a commit that is on
+main. Nobody uploads files by hand. The order of steps and the rules: [release-process.md](release-process.md).
 
 ## Stable release
+Usually a promotion of a beta (same commit, see [release-process.md](release-process.md) §5); these steps are what that
+commit must contain.
 1. Bump `<Version>` in `Directory.Build.props`.
 2. In `CHANGELOG.md`, add a section headed exactly `## vX.Y.Z – short title (YYYY-MM-DD)`. Its body becomes the
    GitHub release notes (and Velopack's package notes). The workflow stops if the section is missing. The in-app
    "What's new" window is separate: update `WhatsNewWindow.Changes` for changes a player notices.
-3. Commit, then `git tag vX.Y.Z && git push origin main vX.Y.Z`.
+3. On a branch → pull request → green CI → merge. Then tag the commit on main: `git tag vX.Y.Z <commit> && git push
+   origin vX.Y.Z` (for a promotion, `<commit>` is the beta's: `git rev-list -n 1 vX.Y.Z-beta.N`).
 4. Watch the run: `gh run watch` (about 4 minutes).
 
 The workflow tests, publishes app + `wbx` (framework-dependent, win-x64), packs with Velopack (delta against the
@@ -56,14 +59,21 @@ PC. The script converts the pictures to WebP and writes `manifest.json`:
   from local ones by a pixel here and there.
 
 ## Beta channel (prereleases)
-Tag `vX.Y.Z-beta.N` (any version with a `-`). The workflow then:
+The order of steps (feature branch → dev build → beta → stable on the same commit) is in
+[release-process.md](release-process.md). Mechanics: tag `vX.Y.Z-beta.N` (any version with a `-`) on a commit on main.
+The workflow then:
 - packs with `--channel beta` (files `WoWBoxer.Layouts-beta-Setup.exe` …, feed `releases.beta.json`), adds
   `WoWBoxer-Beta-Setup.exe` / `WoWBoxer-Beta-Portable.zip`, and publishes a GitHub **prerelease**;
-- never becomes `/releases/latest`, so stable users and the website's download button are unaffected.
+- never becomes `/releases/latest` (checked after publishing), so stable users and the website's download button are
+  unaffected;
+- takes its notes from `## vX.Y.Z-beta.N` in the CHANGELOG, or else from `## vX.Y.Z`, so the same commit can be tagged
+  `vX.Y.Z` later (promotion).
 
-An install made from a beta Setup follows the beta channel (the app reads its channel and includes prereleases when
-checking). Stable installs never see betas. To move a tester back to stable: uninstall, install `WoWBoxer-Setup.exe`.
-The CHANGELOG needs a `## vX.Y.Z-beta.N` section too.
+Who gets a beta: installs whose **Settings › Updates › Update channel** is **Beta** (default: the channel the copy was
+installed from – Stable, or Beta for `WoWBoxer-Beta-Setup.exe`). Beta reads the `beta` feed (pre-releases) and the
+stable `win` feed and takes the newer; Stable reads only `win`. Never a downgrade: back to Stable keeps the installed
+beta until a newer stable is out. Check without installing: `dotnet run --project tools/channel-check -- --installed
+0.6.0 --setting Beta`.
 
 ## Website notification
 After publishing, the workflow sends `repository_dispatch` (event type `release-published`, payload
@@ -79,7 +89,7 @@ expiry 1 year (set a reminder).
 ## Re-running or fixing a release
 - Failed before publishing: fix, delete the draft release and the tag (`gh release delete vX.Y.Z --cleanup-tag`),
   tag again.
-- Re-run for an existing tag: Actions → release → *Run workflow* with the version.
+- Re-run for an existing tag: Actions → release → *Run workflow* with the version (it builds that tag).
 - Never delete a published release that users may have updated to; publish a new patch version instead.
 
 ## Code signing

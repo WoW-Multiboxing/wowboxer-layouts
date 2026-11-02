@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Stable or Beta updates",
+            "Settings › Updates › Update channel: Stable (the default) gets normal releases; Beta also gets test versions a few days early. Back to Stable never installs an older version."),
+        ("Experimental switches",
+            "New features that could still misbehave will arrive in Settings › Experimental, switched off – turn one on to try it, off again if it causes trouble."),
         ("Now simply called WoWBoxer",
             "The app's name is now just WoWBoxer – in the title bar, the tray, the Start menu, your shortcuts and Windows' Apps list. Your layouts and settings stay as they are. The in-game addon is the WoWBoxer AddOn."),
         ("New Help tab",

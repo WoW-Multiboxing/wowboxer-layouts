@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6.1 – Update channels and a safer way to test (2026-11-02)
+First released as **v0.6.1-beta.1** on the new Beta channel (the proof that the pipeline works); promoted to stable on
+the same commit after a few quiet days.
+- **Settings › Updates › Update channel: Stable or Beta.** Stable (the default) gets normal releases only. Beta also
+  gets test versions (GitHub pre-releases, tags `vX.Y.Z-beta.N`) a few days early, and still gets every stable release.
+  A change counts from the next update check; back to Stable never installs an older version – you keep yours until a
+  newer stable one is out. Copies installed from `WoWBoxer-Beta-Setup.exe` start on Beta.
+- **Settings › Experimental:** new risky features arrive here switched off, so anyone can turn one off again without
+  waiting for an update. Empty for now ("Nothing to try right now").
+- **WoWBoxer Dev** (`tools/dev-build.ps1 -Install`): a test build from any branch that installs next to the normal app
+  – its own install folder, shortcuts, Apps entry, settings, layouts and logs, a DEV badge and a teal icon, no
+  auto-update. Each app warns when the other one is open (both would place the same windows).
+- The version in the title bar, About and reports now includes the pre-release part (`0.6.1-beta.1`).
+- Release pipeline (`docs/release-process.md`): main is stable; work happens on `feature/*` branches with CI on every
+  push and pull request; main is protected against force-push and deletion; releases are only built from commits on
+  main; a beta can be promoted to stable on the same commit; after publishing, the workflow checks that
+  `/releases/latest` is the newest stable release and never a beta. A manual re-run now builds the tag it names.
+- `tools/channel-check`: runs the app's own update code against the real GitHub releases for a pretend install
+  ("would a stable 0.6.0 get the beta?") without installing anything.
+
 ## v0.6.0 – Now simply called WoWBoxer (2026-10-31)
 - **The app is now called "WoWBoxer"** everywhere you see it: title bar, About, welcome screen, What's new, the tray,
   Diagnose and Report a problem, the installer, the Start menu and desktop shortcuts and Windows' Apps list. Where app

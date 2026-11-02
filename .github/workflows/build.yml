@@ -1,8 +1,10 @@
 name: build
 
+# Every push to any branch (feature/* included) and every pull request. main only takes green builds
+# (docs/release-process.md).
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -39,6 +41,19 @@ jobs:
       - name: Website screenshots (demo mode)
         shell: pwsh
         run: ./tools/make-screenshots.ps1 -Exe src/WoWBoxer.Layouts.App/bin/Release/net10.0-windows/WoWBoxer.exe -Out out/site-screenshots
+
+      # The "WoWBoxer Dev" flavour (tools/dev-build.ps1) must keep compiling and starting too.
+      - name: Dev build flavour compiles and starts
+        shell: pwsh
+        run: |
+          dotnet publish src/WoWBoxer.Layouts.App -c Release -r win-x64 --self-contained false --artifacts-path out/dev-build -o out/dev -p:WbxDev=true
+          if ($LASTEXITCODE -ne 0) { throw "dev publish failed" }
+          $d = (Get-Item out/dev/WoWBoxer.exe).VersionInfo.FileDescription
+          if ($d -ne 'WoWBoxer Dev') { throw "Expected FileDescription 'WoWBoxer Dev', got '$d'" }
+          ./tools/smoke-start.ps1 -Exe out/dev/WoWBoxer.exe -DataFolder Dev
+
+      - name: Update channel checker compiles
+        run: dotnet build tools/channel-check -c Release
 
       - name: Upload website screenshots
         uses: actions/upload-artifact@v4

@@ -59,7 +59,10 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 ## Working rules
 - Repo is **public (MIT) since v0.3.0**. Never commit personal data (real names, emails, account or character names,
   paths with user names, Diagnose reports). Commit as `WoW-Multiboxing <348792173+WoW-Multiboxing@users.noreply.github.com>`.
-- Releases: `docs/releasing.md` (tag `vX.Y.Z` → CI builds, Velopack, GitHub Release; `-beta.N` tags = beta channel).
+- Releases: `docs/release-process.md` (the order and rules) and `docs/releasing.md` (the mechanics). main = stable:
+  new work on `feature/*` branches (CI on every push/PR), merged only with green CI + the owner's checklist; dev build
+  `tools/dev-build.ps1 -Install`; beta tag `vX.Y.Z-beta.N` (pre-release, Beta channel) → N quiet days → `vX.Y.Z` on the
+  same commit. Risky features go behind Settings › Experimental (`ExperimentalFeatures`), off by default.
 - Owner's reference setup: one monitor, work area 2560×1392, 3 clients (main 1690×1392 left, two 870×696 stacked right).
 - Build and run on Windows (Claude Code on the owner's PC). CI on GitHub Actions (`windows-latest`) must stay green.
 - Keep `CHANGELOG.md` updated, small commits, clear messages. Code, UI and docs in English.

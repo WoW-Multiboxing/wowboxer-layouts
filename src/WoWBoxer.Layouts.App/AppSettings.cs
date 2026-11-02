@@ -7,7 +7,7 @@ namespace WoWBoxer.Layouts.App;
 /// <summary>Small per-user settings in %APPDATA%\WoWBoxer\Layouts\settings.json. Nothing leaves the PC.</summary>
 public sealed class AppSettings
 {
-    public static string Folder => Demo.On ? Path.Combine(Demo.Root, "roaming") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WoWBoxer", "Layouts");
+    public static string Folder => Demo.On ? Path.Combine(Demo.Root, "roaming") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WoWBoxer", AppFlavor.DataFolder);
     public static string ProfilesFolder => Path.Combine(Folder, "profiles");
     private static string FilePath => Path.Combine(Folder, "settings.json");
 
@@ -18,6 +18,10 @@ public sealed class AppSettings
     public bool RenameWindows { get; set; } = true;
     /// <summary>Look for a new version on GitHub at start (installed copies only).</summary>
     public bool CheckForUpdates { get; set; } = true;
+    /// <summary>"Stable" or "Beta" (Settings › Updates); null = the channel this copy was installed from. Read at each update check.</summary>
+    public string? UpdateChannel { get; set; }
+    /// <summary>Ids of the experimental features the user switched on (Settings › Experimental). Off unless listed.</summary>
+    public List<string> Experimental { get; set; } = [];
     /// <summary>Start placing windows when the app opens. Off: it opens stopped and leaves every window alone until Start.</summary>
     public bool StartPlacingOnOpen { get; set; }
     public bool Animations { get; set; } = true;
