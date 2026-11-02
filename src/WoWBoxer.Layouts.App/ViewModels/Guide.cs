@@ -37,9 +37,14 @@ public sealed class GuideViewModel : ObservableObject
     private GuideChapter _current;
 
     public const int SwitchingChapter = 4;
+    public const int SwapChapter = 5;
+
+    /// <summary>The note shown with window swap (Guide and Settings › Advanced). Facts only; the owner's wording (2026-11-02).</summary>
+    public const string SwapNote = "Moves windows only – nothing is sent to the game. Blizzard has not ruled on window-swap tools; use at your own judgement.";
 
     /// <param name="openHelp">Opens the Help tab (troubleshooting, Report a problem).</param>
-    public GuideViewModel(HoverViewModel hover, ICommand openHelp)
+    /// <param name="openAdvanced">Opens Settings (window swap lives in Settings › Advanced).</param>
+    public GuideViewModel(HoverViewModel hover, ICommand openHelp, ICommand openAdvanced)
     {
         Chapters =
         [
@@ -80,7 +85,17 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 "Hover to activate is a Windows setting. It sends nothing to the game; WoWBoxer never sends keys or clicks. It is off until you turn it on.",
                 hover: hover),
-            new(5, "If something looks wrong",
+            new(SwapChapter, "Swap windows (advanced)",
+                "Optional and off until you turn it on: hotkeys that move a character's window into the main slot – for example your healer's window into the big one. Only the windows move.",
+                [
+                    "Turn it on in Settings › Advanced › Window swap hotkeys. Main + side and Overlays use the large window as the main slot (one per party with 6–10 clients). In Grid and Free for all, click the crown on one window per party on the map first.",
+                    "Ctrl+Alt+Shift+Right / Left: the next / previous client into the main slot – closed windows are skipped, and after the last one it starts again. Ctrl+Alt+Shift+1 … 0: that client into the main slot. Ctrl+Alt+Shift+Backspace: everyone back home. Every hotkey can be changed or cleared in Settings.",
+                    "The client that was in the main slot takes the chosen client's old place. Numbers, names and classes stay with the characters; size, monitor and \"always on top\" belong to the slot. Your squad shows who is in the main slot.",
+                    "A swap never changes which window gets your keys: hover to activate or a click does that. Re-arrange, or Back to home layout in the tray, puts everyone back in their own slot.",
+                ],
+                SwapNote + " The hotkey itself goes to WoWBoxer, not to the game.",
+                "Open Settings", openAdvanced),
+            new(6, "If something looks wrong",
                 "Most problems have a simple cause. The app tells you what it sees.",
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
@@ -89,7 +104,7 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 "The Help tab lists the common problems with their fixes, and has Report a problem: a report with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
                 "Open Help", openHelp),
-            new(6, "What WoWBoxer never does",
+            new(7, "What WoWBoxer never does",
                 "WoWBoxer only places and sizes your game windows. That is the whole job.",
                 [
                     "Never sends keys or mouse clicks to the game – no broadcasting, no round robin.",

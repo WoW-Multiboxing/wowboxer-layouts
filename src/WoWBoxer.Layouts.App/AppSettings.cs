@@ -40,6 +40,19 @@ public sealed class AppSettings
     /// <summary>Turn hover to activate off when the app quits (on by default; the delay and bring-to-front stay).</summary>
     public bool TurnHoverOffOnExit { get; set; } = true;
 
+    /// <summary>Window swap hotkeys (Settings › Advanced). Off by default; only moves windows, never sends input.</summary>
+    public bool SwapHotkeys { get; set; }
+    /// <summary>Hotkey text per swap action ("Ctrl+Alt+Shift+Right"); missing = the default, "" = no hotkey.</summary>
+    public Dictionary<string, string> SwapKeys { get; set; } = [];
+    /// <summary>Which clients next / previous walk through.</summary>
+    public SwapCycleScope SwapScope { get; set; } = SwapCycleScope.Party1;
+    /// <summary>Custom next/previous order (1-based client numbers, may repeat); null = number order.</summary>
+    public List<int>? SwapOrder { get; set; }
+    /// <summary>Keep swapped positions after a restart (off: the app starts in the home layout).</summary>
+    public bool SwapRemember { get; set; }
+    /// <summary>The last placement per layout name (client → slot). Always kept, so swapped windows are recognised after a restart.</summary>
+    public Dictionary<string, int[]> SwapPositions { get; set; } = [];
+
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     public static AppSettings Load()

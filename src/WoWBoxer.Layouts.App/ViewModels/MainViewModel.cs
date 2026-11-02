@@ -31,7 +31,7 @@ public interface IUserDialogs
 /// button opens the missing clients or re-arranges. The current layout is always a saved profile (auto-saved); every
 /// edit can be undone and moves the open WoW windows right away.
 /// </summary>
-public sealed class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject
 {
     public const string WebsiteUrl = "https://wowboxer.com";
     public const string WebsiteGuideUrl = WebsiteUrl + "/guides/getting-started/";
@@ -67,7 +67,7 @@ public sealed class MainViewModel : ObservableObject
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
         Hover = new HoverViewModel(settings, Status, OpenSwitchingGuide, OpenUrl);
         ReportProblemCommand = new RelayCommand(() => ReportRequested?.Invoke());
-        Guide = new GuideViewModel(Hover, new RelayCommand(() => SelectedTab = AppTab.Help));
+        Guide = new GuideViewModel(Hover, new RelayCommand(() => SelectedTab = AppTab.Help), new RelayCommand(() => SelectedTab = AppTab.Settings));
 
         SetTabCommand = new RelayCommand(p => SelectedTab = Enum.Parse<AppTab>(p!.ToString()!));
         MoreClientsCommand = new RelayCommand(() => ClientCount++, () => ClientCount < Presets.MaxClients);
@@ -139,6 +139,7 @@ public sealed class MainViewModel : ObservableObject
         _guard = new ZOrderGuard(WantedZOrder, OnZCorrected);
         _lastRunning = RunningClientsNow();
         _loaded = true;
+        ApplyHotkeys();   // window swap (Settings › Advanced): registers its hotkeys only when switched on
         if (_lastRunning == 0) AutoFitUiScale("no clients are running");
     }
 
@@ -149,8 +150,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The open WoW windows with the z-order of the slot each one is in. Nothing while paused.</summary>
     private IReadOnlyList<(nint Handle, ZOrder Z)> WantedZOrder()
     {
-        if (Current is null || _paused) return [];
-        return Windows.Where(w => w.Slot - 1 < Current.Slots.Count).Select(w => (w.Window.Handle, Current.Slots[w.Slot - 1].Z)).ToList();
+        if (Placed is not { } placed || _paused) return [];
+        return Windows.Where(w => w.Slot - 1 < placed.Slots.Count).Select(w => (w.Window.Handle, placed.Slots[w.Slot - 1].Z)).ToList();
     }
 
     private void OnZCorrected(nint handle, ZOrder z)
@@ -228,6 +229,7 @@ public sealed class MainViewModel : ObservableObject
         private set
         {
             if (!Set(ref _current, value)) return;
+            SyncSwapToLayout();
             foreach (var name in new[] { nameof(Borderless), nameof(CoverTaskbar), nameof(SelectedAspect), nameof(ClientCount), nameof(LayoutTitle), nameof(SavedText) })
                 OnPropertyChanged(name);
             RefreshScreens();
@@ -373,7 +375,8 @@ public sealed class MainViewModel : ObservableObject
     private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null)
     {
         if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond)) return;
-        var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class } : s).ToList();
+        ResetSwap(quiet: true);   // a new layout starts at home
+        var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class, CombatRole = Current.Slots[i].CombatRole } : s).ToList();
         Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond });
         SelectedSlotIndex = 0;
     }
@@ -445,7 +448,7 @@ public sealed class MainViewModel : ObservableObject
     // Selected window (inspector)
     // =====================================================================================
 
-    private LayoutSlot? Slot => Current is not null && SelectedSlotIndex >= 0 && SelectedSlotIndex < Current.Slots.Count ? Current.Slots[SelectedSlotIndex] : null;
+    private LayoutSlot? Slot => Placed is { } placed && SelectedSlotIndex >= 0 && SelectedSlotIndex < placed.Slots.Count ? placed.Slots[SelectedSlotIndex] : null;
 
     private PixelRect SlotRect => Slot is { } s && Monitors.Count > 0
         ? SlotEditing.Raw(s, Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors), Current!.Options)
@@ -589,7 +592,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(LayoutAdvice));
         for (var i = 0; i < Party.Count; i++)
         {
-            Party[i].OnTop = Current?.Slots.ElementAtOrDefault(i)?.Z == ZOrder.Top;
+            Party[i].OnTop = Placed?.Slots.ElementAtOrDefault(i)?.Z == ZOrder.Top;
             Party[i].TopNow = measured.TryGetValue(i, out var live) ? live.Topmost : null;
         }
         RaiseSlotProperties();
@@ -1005,12 +1008,14 @@ public sealed class MainViewModel : ObservableObject
         if (_loaded && _settings.AutoFitActionBar && RunningClientsNow() == 0) AutoFitUiScale("the layout changed");
     }
 
+    /// <summary>
+    /// A slot edited as the user sees it (canvas, details, squad rows): client <paramref name="index"/> as placed now.
+    /// With windows swapped, the place change goes to the slot the client sits in and the name/class stay with the client.
+    /// </summary>
     public void OnSlotEdited(int index, LayoutSlot slot)
     {
         if (Current is null || index < 0 || index >= Current.Slots.Count) return;
-        var slots = Current.Slots.ToList();
-        slots[index] = slot;
-        Update(Current with { Slots = slots });
+        Update(WindowSwap.Unapply(Current, _swapPos, index, slot));
         RaiseSlotProperties();
     }
 
@@ -1294,6 +1299,7 @@ public sealed class MainViewModel : ObservableObject
             foreach (var (_, slot) in added)
                 Status.Ok($"New WoW window → window {slot + 1} ({Party.ElementAtOrDefault(slot)?.Title ?? $"slot {slot + 1}"}).");
         }
+        if (_firstSync) AfterFirstSwapSync();
         _firstSync = false;
         var extra = squad.Where(w => !_keeper.Slots.ContainsKey(w.Handle)).ToList();
         ExtraText = extra.Count == 0 ? ""
@@ -1317,8 +1323,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The slot a window already sits in exactly (so windows arranged earlier keep their places), or -1.</summary>
     private int SitsIn(nint h)
     {
-        if (Current is null || Monitors.Count == 0) return -1;
-        var placed = LayoutEngine.Resolve(Current, Monitors);
+        if (Placed is not { } layout || Monitors.Count == 0) return -1;
+        var placed = LayoutEngine.Resolve(layout, Monitors);
         return Enumerable.Range(0, placed.Count).FirstOrDefault(i => WindowPlacer.IsAt(h, placed[i].Rect), -1);
     }
 
@@ -1481,6 +1487,7 @@ public sealed class MainViewModel : ObservableObject
                     NameChanged = (k, name) => EditSlotAt(k, s => s with { Name = name.Length == 0 ? null : name }),
                     ClassChanged = (k, c) => EditSlotAt(k, s => s with { Class = c == WowClasses.Automatic ? null : c.Id }),
                     AccountChanged = SaveAccount,
+                    CombatRoleChanged = (k, r) => EditSlotAt(k, s => s with { CombatRole = Enum.TryParse<CombatRole>(r, out var cr) ? cr : null }),
                     IsExpanded = index == ExpandedIndex,
                 });
             }
@@ -1490,6 +1497,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var slot = Current.Slots[i];
             Party[i].Load(slot.Name ?? "", WowClasses.Find(slot.Class) ?? WowClasses.Automatic, i < _settings.Accounts.Count ? _settings.Accounts[i] : "");
+            Party[i].LoadCombatRole(slot.CombatRole?.ToString() ?? "");
         }
         UpdatePartyWindows();
     }
@@ -1514,7 +1522,7 @@ public sealed class MainViewModel : ObservableObject
     private void EditSlotAt(int index, Func<LayoutSlot, LayoutSlot> change)
     {
         if (Current is null || index < 0 || index >= Current.Slots.Count) return;
-        OnSlotEdited(index, change(Current.Slots[index]));
+        OnSlotEdited(index, change(Placed!.Slots[index]));
     }
 
     /// <summary>
@@ -1525,12 +1533,13 @@ public sealed class MainViewModel : ObservableObject
     public void MoveCharacter(int from, int to)
     {
         if (Current is null || from == to || from < 0 || to < 0 || from >= Current.Slots.Count || to >= Current.Slots.Count) return;
+        ResetSwap(quiet: true);   // rows are reordered at home, never while swapped
         var before = new UndoStep(Current, new Dictionary<nint, int>(_keeper.Slots), _settings.Accounts.ToList());
-        var people = Current.Slots.Select(s => (s.Name, s.Class)).ToList();
+        var people = Current.Slots.Select(s => (s.Name, s.Class, s.CombatRole)).ToList();
         var person = people[from];
         people.RemoveAt(from);
         people.Insert(to, person);
-        var slots = Current.Slots.Select((s, i) => s with { Name = people[i].Name, Class = people[i].Class }).ToList();
+        var slots = Current.Slots.Select((s, i) => s with { Name = people[i].Name, Class = people[i].Class, CombatRole = people[i].CombatRole }).ToList();
 
         while (_settings.Accounts.Count < Current.Slots.Count) _settings.Accounts.Add("");
         var account = _settings.Accounts[from];
@@ -1556,6 +1565,7 @@ public sealed class MainViewModel : ObservableObject
     public void SwapSlots(int a, int b)
     {
         if (Current is null || a == b || a < 0 || b < 0 || a >= Current.Slots.Count || b >= Current.Slots.Count) return;
+        ResetSwap(quiet: true);   // the canvas swap edits the home layout
         LayoutSlot sa = Current.Slots[a], sb = Current.Slots[b];
         var slots = Current.Slots.ToList();
         slots[a] = sa with { Monitor = sb.Monitor, X = sb.X, Y = sb.Y, W = sb.W, H = sb.H, Z = sb.Z, Anchor = sb.Anchor, Fit = sb.Fit };
@@ -1568,8 +1578,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Row statuses from the open windows: Awaiting → Placing → Connected (or Moved when it left its slot).</summary>
     private void UpdatePartyWindows()
     {
-        if (Current is null || Monitors.Count == 0) return;
-        var placed = LayoutEngine.Resolve(Current, Monitors);
+        if (Placed is not { } layout || Monitors.Count == 0) return;
+        var placed = LayoutEngine.Resolve(layout, Monitors);
+        UpdateSwapBadges();
         for (var i = 0; i < Party.Count; i++)
         {
             var w = WindowAt(i);
@@ -1659,9 +1670,9 @@ public sealed class MainViewModel : ObservableObject
 
     private SquadPlan? Plan()
     {
-        if (Current is null) return null;
+        if (Placed is not { } placed) return null;
         RefreshMonitors();
-        return new SquadPlan(Current, Monitors, RenameWindows && Current.Slots.Any(s => s.Name is { Length: > 0 }));
+        return new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
     }
 
     /// <summary>The open squad windows with their slot index (slots without a window are left out).</summary>
@@ -1671,6 +1682,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>"Re-arrange": snaps every open squad window back into its slot.</summary>
     private async Task ArrangeAsync()
     {
+        ResetSwap(quiet: true);   // Re-arrange = every client back in its home slot
         if (Plan() is not { } plan) return;
         RefreshWindows();
         var placements = Placements();
@@ -1884,6 +1896,15 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>The Guide chapter about switching windows (from the hover notice).</summary>
+    /// <summary>Settings › Advanced's link: the Guide chapter "Swap windows (advanced)".</summary>
+    public ICommand OpenSwapGuideCommand => new RelayCommand(() =>
+    {
+        Guide.Current = Guide.Chapters.First(c => c.Number == GuideViewModel.SwapChapter);
+        SelectedTab = AppTab.Guide;
+    });
+
+    public string SwapNote => GuideViewModel.SwapNote;
+
     private void OpenSwitchingGuide()
     {
         Guide.Current = Guide.Chapters.First(c => c.Number == GuideViewModel.SwitchingChapter);
