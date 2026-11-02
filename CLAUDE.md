@@ -56,7 +56,9 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
 - **Removing the title bar breaks WoW's UI** (action bars/minimap drawn at the wrong size). Field-tested
   2026-10-27 with 3 Classic Era clients: the 2 px resize nudge does NOT fix it; keeping title bars does.
   So borderless is opt-in (`--borderless`) and framed windows are placed by their visible edges
-  (DWM extended frame bounds), so there are no gaps. Aspect was not the cause: 805×664 (1.21) renders fine.
+  (DWM extended frame bounds), so there are no gaps. Since v0.7.0-beta.2 borderless uses popup chrome (`WS_POPUP`,
+  window = game area, 1 px nudge; contributed by Limerobin, PR #1): character screen checked on 3 Classic Era clients
+  2026-11-02 (`tools/borderless-check.ps1`); in-game action bar/minimap/mouse still to be confirmed. Keep it opt-in. Aspect was not the cause: 805×664 (1.21) renders fine.
 - `wbx capture` saves any hand-made arrangement (Windows Snap etc.) as a layout file – the escape hatch
   when a preset does not suit a setup.
 - Per-Monitor-V2 DPI. Detect admin mismatch (UIPI) and tell the user instead of silently elevating.

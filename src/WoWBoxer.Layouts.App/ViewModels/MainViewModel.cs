@@ -390,11 +390,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>The preset for the chosen monitors (or <paramref name="screens"/>); split and overlay rows as the current layout has them.</summary>
     private bool TryPreset(PresetKind kind, int clients, out LayoutProfile profile, bool quiet, IReadOnlyList<MonitorInfo>? screens = null,
-        PartySplit? split = null, bool? followersOnSecond = null)
+        PartySplit? split = null, bool? followersOnSecond = null, LayoutOptions? options = null)
     {
         try
         {
-            var options = Current?.Options ?? new LayoutOptions { MinAspect = 4.0 / 3 };
+            options ??= Current?.Options ?? new LayoutOptions { MinAspect = 4.0 / 3 };
             screens ??= ChosenScreens.Count > 0 ? ChosenScreens : [Core.Monitors.Primary(Monitors)];
             profile = Presets.ForScreens(kind, clients, screens, options with { Fit = FitMode.ShrinkAnchor },
                 split ?? Current?.Split, followersOnSecond ?? Current?.FollowersOnSecond ?? false);
@@ -412,10 +412,46 @@ public sealed partial class MainViewModel : ObservableObject
     // Window rules
     // =====================================================================================
 
+    /// <summary>
+    /// Remove title bars (Setup and Settings › Window rules; contributed by Limerobin, PR #1). A layout that is still its
+    /// preset is rebuilt for the new frame size, so Main + side followers fill their column; a layout whose windows were
+    /// moved by hand keeps them (only the option changes). Open windows get the new frame at once – unless the app is
+    /// stopped: then nothing is touched until Start.
+    /// </summary>
     public bool Borderless
     {
         get => Current?.Options.Borderless ?? false;
-        set => EditOptions(o => o with { Borderless = value });
+        set
+        {
+            if (Current is null || Current.Options.Borderless == value) return;
+            ResetSwap(quiet: true);   // the layout changes at home
+            var options = Current.Options with { Borderless = value };
+            if (Current.Preset is { } kind && IsUntouchedPreset(kind) && TryPreset(kind, Current.Clients, out var preset, quiet: false, options: options))
+            {
+                var slots = preset.Slots
+                    .Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class, CombatRole = Current.Slots[i].CombatRole } : s)
+                    .ToList();
+                Update(Current with { Options = options, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond });
+            }
+            else
+                EditOptions(_ => options);
+            if (_paused)
+                Status.Info(value ? "Remove title bars: on. The windows change when you press Start (stopped = every window is left alone)."
+                    : "Remove title bars: off. The windows get their title bars back when you press Start.");
+            else
+                ApplyBorderlessChrome();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>True when every slot still sits exactly where the preset puts it (nothing dragged or resized by hand).</summary>
+    private bool IsUntouchedPreset(PresetKind kind)
+    {
+        if (Current is null || !TryPreset(kind, Current.Clients, out var preset, quiet: true)) return false;
+        return preset.Slots.Count == Current.Slots.Count && preset.Slots.Zip(Current.Slots).All(p =>
+            p.First.Monitor == p.Second.Monitor && Math.Abs(p.First.X - p.Second.X) < 0.001 && Math.Abs(p.First.Y - p.Second.Y) < 0.001
+            && Math.Abs(p.First.W - p.Second.W) < 0.001 && Math.Abs(p.First.H - p.Second.H) < 0.001 && p.First.Z == p.Second.Z
+            && p.First.Anchor == p.Second.Anchor && p.First.Fit == p.Second.Fit);
     }
 
     /// <summary>Use the whole monitor, including the taskbar's area.</summary>
@@ -1777,6 +1813,23 @@ public sealed partial class MainViewModel : ObservableObject
         var open = Windows.Select(w => w.Window).ToList();
         foreach (var w in open) WindowPlacer.RestoreFrame(w.Handle);
         Status.Info($"Gave {open.Count} WoW window(s) their title bars back.");
+    }
+
+    /// <summary>
+    /// Applies or restores window frames on mapped WoW windows right away (even while paused).
+    /// Later Start / Re-arrange keep using Profile.Options.Borderless.
+    /// </summary>
+    private void ApplyBorderlessChrome()
+    {
+        if (Current is null || Plan() is not { } plan) return;
+        RefreshWindows();
+        var placements = Placements();
+        if (placements.Count == 0) return;
+        foreach (var (window, slot) in placements)
+            plan.Place(window.Handle, slot);
+        Status.Info(Current.Options.Borderless
+            ? $"Removed title bars on {placements.Count} WoW window(s)."
+            : $"Restored title bars on {placements.Count} WoW window(s).");
     }
 
     /// <summary>Writes the Diagnose report (the same as "wbx diagnose") to the logs folder.</summary>
