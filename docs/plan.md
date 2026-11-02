@@ -16,6 +16,8 @@ first-run screen, installer + auto-update. The CLI (`wbx`) is only the engine an
 - No reading of game memory, no injection, no login automation. The player presses Play themselves, once per account.
 - The app shows a short "what it does / never does" screen on first run and links to the WoWBoxer rules page.
 - Optional later features (e.g. a "swap main window" hotkey) are off by default and clearly labelled.
+  Window swap hotkeys arrived in v0.7.0 (beta first): Settings › Advanced, off by default, RegisterHotKey only, windows
+  are only moved (owner's decision 2026-11-02, see CLAUDE.md).
 
 ## 3. Decisions (from research)
 | Topic | Decision | Why |

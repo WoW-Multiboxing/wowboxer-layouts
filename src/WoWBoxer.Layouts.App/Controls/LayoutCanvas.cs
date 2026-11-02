@@ -44,6 +44,8 @@ public sealed class LayoutCanvas : FrameworkElement
     public static readonly DependencyProperty SlotStatesProperty = DependencyProperty.Register(
         nameof(SlotStates), typeof(IReadOnlyList<ViewModels.PartyState>), typeof(LayoutCanvas),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((LayoutCanvas)d).UpdatePulse()));
+    public static readonly DependencyProperty MainSlotMarksProperty = DependencyProperty.Register(
+        nameof(MainSlotMarks), typeof(IReadOnlyList<bool>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
         nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
@@ -61,6 +63,15 @@ public sealed class LayoutCanvas : FrameworkElement
 
     /// <summary>Per slot: Awaiting (pulsing ring), Placing / Moved (amber), Connected (green). Null: no status drawn.</summary>
     public IReadOnlyList<ViewModels.PartyState>? SlotStates { get => (IReadOnlyList<ViewModels.PartyState>?)GetValue(SlotStatesProperty); set => SetValue(SlotStatesProperty, value); }
+
+    /// <summary>
+    /// Window swap: per window, does it sit in a main slot? Each window then shows a crown chip ("MAIN SLOT" when it is
+    /// one); clicking it raises <see cref="MainSlotClicked"/>. Null = no crowns (swap is off).
+    /// </summary>
+    public IReadOnlyList<bool>? MainSlotMarks { get => (IReadOnlyList<bool>?)GetValue(MainSlotMarksProperty); set => SetValue(MainSlotMarksProperty, value); }
+
+    /// <summary>The crown chip of a window was clicked (window index).</summary>
+    public event EventHandler<int>? MainSlotClicked;
 
     /// <summary>Raised when a drag or nudge has finished with the slot's new position.</summary>
     public event EventHandler<SlotEditedEventArgs>? SlotEdited;
@@ -352,6 +363,9 @@ public sealed class LayoutCanvas : FrameworkElement
                 Draw(dc, Text(pinLabel, 9, new SolidColorBrush(pinColor), ppd, display: true), new Point(r.X + 17, r.Y + edge + 3));
             }
 
+            if (MainSlotMarks is { } marks && item.Index < marks.Count && CrownChip(r) is { } chip)
+                DrawCrown(dc, chip, marks[item.Index], item.Index == _hoverIndex && _hoverCrown, ppd);
+
             if (item.Index == _swapTarget)
             {
                 var t = r;
@@ -366,6 +380,55 @@ public sealed class LayoutCanvas : FrameworkElement
                     dc.DrawRectangle(new SolidColorBrush(GoldHi), new Pen(Brushes.Black, 1), handle);
         }
         _shown = shown;
+    }
+
+    // ---------- window swap: main slot crowns ----------
+
+    private bool _hoverCrown;
+
+    /// <summary>Where a window's crown chip goes: bottom left, inside the window (null if the window is drawn too small).</summary>
+    /// <remarks>Small windows (overlay followers) get the crown alone, without the label.</remarks>
+    private static Rect? CrownChip(Rect r) =>
+        r.Width < 34 || r.Height < 30 ? null
+        : r.Width < 150 || r.Height < 110 ? new Rect(r.X + 4, r.Bottom - 20, 22, 16)
+        : new Rect(r.X + 6, r.Bottom - 24, Math.Min(96, r.Width - 12), 18);
+
+    /// <summary>The window whose crown chip is under the pointer, or null.</summary>
+    private int? CrownAt(Point p)
+    {
+        if (MainSlotMarks is null || Compact) return null;
+        foreach (var item in Enumerable.Reverse(Items()))
+        {
+            var r = _shown.TryGetValue(item.Index, out var shown) ? shown : ToCanvas(item.Fitted);
+            if (CrownChip(r) is { } chip && chip.Contains(p)) return item.Index;
+            if (r.Contains(p)) return null;   // covered by this window
+        }
+        return null;
+    }
+
+    private static void DrawCrown(DrawingContext dc, Rect chip, bool main, bool hover, double ppd)
+    {
+        var fill = main ? Brush(0xE0, GoldHi) : Brush(hover ? (byte)0x50 : (byte)0x28, Gold);
+        var ink = main ? new SolidColorBrush(Color.FromRgb(0x14, 0x10, 0x06)) : Brush(hover ? (byte)0xF0 : (byte)0xA0, GoldHi);
+        dc.DrawRoundedRectangle(fill, new Pen(Brush(main ? (byte)0xFF : (byte)0x90, GoldHi), 1), chip, 3, 3);
+        // a small three-point crown
+        double x = chip.X + 5, y = chip.Y + (chip.Height - 10) / 2, w = 12, h = 10;
+        var g = new StreamGeometry();
+        using (var c = g.Open())
+        {
+            c.BeginFigure(new Point(x, y + h), true, true);
+            c.LineTo(new Point(x, y + 2), true, false);
+            c.LineTo(new Point(x + w * 0.28, y + h * 0.55), true, false);
+            c.LineTo(new Point(x + w / 2, y), true, false);
+            c.LineTo(new Point(x + w * 0.72, y + h * 0.55), true, false);
+            c.LineTo(new Point(x + w, y + 2), true, false);
+            c.LineTo(new Point(x + w, y + h), true, false);
+        }
+        g.Freeze();
+        dc.DrawGeometry(ink, null, g);
+        if (chip.Width < 40) return;
+        var label = Text(main ? "MAIN SLOT" : "MAIN SLOT?", 9, ink, ppd, display: true);
+        if (label.Width < chip.Width - 22) Draw(dc, label, new Point(x + w + 5, chip.Y + (chip.Height - label.Height) / 2));
     }
 
     /// <summary>The parts of the monitor outside its work area (where the taskbar is).</summary>
@@ -414,6 +477,12 @@ public sealed class LayoutCanvas : FrameworkElement
     {
         if (Compact) return;
         Focus();
+        if (CrownAt(e.GetPosition(this)) is { } crown)
+        {
+            MainSlotClicked?.Invoke(this, crown);
+            e.Handled = true;
+            return;
+        }
         var (index, edges) = HitTest(e.GetPosition(this));
         SelectedIndex = index;
         if (index < 0 || Profile is null) return;
@@ -433,10 +502,17 @@ public sealed class LayoutCanvas : FrameworkElement
         if (_dragIndex < 0)
         {
             var (index, edges) = HitTest(p);
-            if (index != _hoverIndex)
+            var overCrown = CrownAt(p) is not null;
+            if (index != _hoverIndex || overCrown != _hoverCrown)
             {
                 _hoverIndex = index;
+                _hoverCrown = overCrown;
                 InvalidateVisual();
+            }
+            if (overCrown)
+            {
+                Cursor = Cursors.Hand;
+                return;
             }
             Cursor = edges switch
             {

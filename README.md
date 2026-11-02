@@ -18,6 +18,10 @@ them there. Guides, the rules and the downloads are on **[wowboxer.com](https://
 | Open the login screens of the clients you are missing (you press Play) | Log in for you or store passwords |
 | Optionally set WoW's UI Scale in `Config.wtf` so the action bar fits (with a backup) | Send telemetry. The update check is its only network call |
 | Turn Windows' "activate a window by hovering over it" on or off for you, with a delay – the WoWBoxer way to switch windows. Off by default, your own values kept | Change any Windows setting without your click |
+| Optional, off by default (from v0.7.0, beta first): **window swap hotkeys** that move a client's window into the main slot and the one there into its old place. The hotkey goes to WoWBoxer, not to the game; focus never changes | Send the hotkey, or any other key, to the game |
+
+Window swap: moves windows only – nothing is sent to the game. Blizzard has not ruled on window-swap tools; use at your
+own judgement.
 
 **Compliance.** Blizzard allows multiboxing as long as every action in the game comes from one key press or click
 of yours on one character. Since 2022 it no longer allows software that broadcasts input to several clients. This
@@ -55,7 +59,7 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
 - **Help** – common problems with their fixes, **Report a problem** (a report you see first, names hidden, pasted by
   you into `#setup-help` on the [WoWBoxer Discord](https://discord.gg/Q5xwbqhKzQ)), Diagnose and the logs.
 - **Settings** – window rules, action bar (UI Scale), titles, tools (Identify, Diagnose, title bars back), shortcut,
-  updates.
+  updates (Stable / Beta channel), Experimental, and Advanced (window swap hotkeys, off by default).
 - **Start / Stop placing windows** (main screen and tray). The app opens stopped, so it never touches the windows of
   another game until you press Start. A desktop shortcut starts a layout in one click.
 

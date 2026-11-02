@@ -124,6 +124,17 @@
                         </ComboBox>
                     </StackPanel>
                 </Grid>
+                <DockPanel Margin="0,8,0,0" DataContext="{Binding SelectedMember}">
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Role (optional)" Width="132" VerticalAlignment="Center" Margin="0" />
+                    <ComboBox ItemsSource="{Binding CombatRoles}" SelectedItem="{Binding CombatRole}" FontSize="12" Width="132" HorizontalAlignment="Left"
+                              AutomationProperties.Name="Role" ToolTip="Tank, healer or damage – only used for ready-made window-swap orders (Settings › Advanced)">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={x:Static app:EmptyAs.Instance}, ConverterParameter=Not set}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </DockPanel>
                 <DockPanel Margin="2,5,0,0" DataContext="{Binding SelectedMember}">
                     <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Use name" Command="{Binding UseHint}" FontSize="11"
                             ToolTip="Use this character's name for the slot" />
@@ -376,8 +387,13 @@
                 </DockPanel>
 
                 <Grid Grid.Row="1" Margin="0,8,0,0">
-                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Current}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
+                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
                                     SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}" />
+                    <!-- window swap is on but a party has no main slot yet -->
+                    <Border Style="{StaticResource TipBox}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" MaxWidth="520"
+                            Visibility="{Binding MainSlotHint, Converter={x:Static app:BoolVisibility.Instance}}">
+                        <TextBlock Text="{Binding MainSlotHint}" Foreground="{StaticResource GoldHiBrush}" FontSize="12" TextWrapping="Wrap" AutomationProperties.AutomationId="MainSlotHint" />
+                    </Border>
                     <!-- a monitor of the layout went away -->
                     <Border Style="{StaticResource TipBox}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" MaxWidth="460"
                             Visibility="{Binding MonitorNotice, Converter={x:Static app:BoolVisibility.Instance}}">
@@ -497,6 +513,22 @@
                                     <TextBlock Text="{Binding Title}" IsHitTestVisible="False" Margin="9,0,0,0" VerticalAlignment="Center" Foreground="#80A79F8A"
                                                FontFamily="{StaticResource DisplayFont}"
                                                Visibility="{Binding Text, ElementName=NameBox, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
+                                    <!-- window swap: this client sits in the main slot (or another slot) right now -->
+                                    <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0" CornerRadius="3" Padding="5,0,5,1" IsHitTestVisible="False"
+                                            Background="{StaticResource GoldHiBrush}" Visibility="{Binding InMainSlot, Converter={x:Static app:BoolVisibility.Instance}}"
+                                            AutomationProperties.AutomationId="InMainSlot">
+                                        <TextBlock Text="IN MAIN SLOT" FontSize="9.5" FontFamily="{StaticResource DisplayFont}" Foreground="#141006" />
+                                    </Border>
+                                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,7,0" FontSize="10.5" Foreground="{StaticResource GoldBrush}" IsHitTestVisible="False"
+                                               Text="{Binding SwapSlot}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding InMainSlot}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
                                 <!-- pin: always on top (gold = as wanted, red = being put right) -->
                                 <Viewbox Grid.Column="3" Width="13" Height="13" Margin="6,0,0,0" ToolTip="{Binding PinText}" VerticalAlignment="Center"

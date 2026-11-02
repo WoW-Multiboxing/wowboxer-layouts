@@ -151,6 +151,16 @@ public partial class App : Application
         : args.Any(a => a.Equals("--resume", StringComparison.OrdinalIgnoreCase)) ? false
         : null;
 
+    /// <summary>"--swap next|previous|home|1…10": a window-swap action for the running copy (scripts, tests). Null if absent or unknown.</summary>
+    private static string? SwapArg(string[] args)
+    {
+        var i = Array.FindIndex(args, a => a.Equals("--swap", StringComparison.OrdinalIgnoreCase));
+        if (i < 0 || i + 1 >= args.Length) return null;
+        var v = args[i + 1].ToLowerInvariant();
+        if (int.TryParse(v, out var n)) return n is >= 1 and <= Core.Presets.MaxClients ? Core.SwapActions.Client(n) : null;
+        return v is Core.SwapActions.Next or Core.SwapActions.Previous or Core.SwapActions.Home ? v : null;
+    }
+
     private static (bool Tray, string? Start) ParseArgs(string[] args)
     {
         var tray = args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
@@ -174,6 +184,11 @@ public partial class App : Application
         {
         }
         var (tray, start) = ParseArgs(args);
+        if (SwapArg(args) is { } swap && _main is not null)
+        {
+            _main.ViewModel.RunSwapAction(swap);   // the same as the hotkey; the window stays as it is
+            return;
+        }
         if (PauseArg(args) is { } pause && _main is not null)
         {
             _main.ViewModel.Paused = pause;   // a pause/resume request only: the window stays as it is
@@ -231,12 +246,21 @@ public partial class App : Application
             hover.Enabled = !hover.Enabled;
         });
         menu.Items.Add(_hoverItem);
-        menu.Opening += (_, _) =>
+        // Window swap (Settings › Advanced): only shown while its hotkeys are on
+        var homeItem = new Forms.ToolStripMenuItem("Back to home layout", null, (_, _) => _main!.ViewModel.RunSwapAction(Core.SwapActions.Home));
+        var swapOffItem = new Forms.ToolStripMenuItem("Disable swap hotkeys", null, (_, _) => _main!.ViewModel.SwapHotkeysEnabled = false);
+        menu.Items.Add(homeItem);
+        menu.Items.Add(swapOffItem);
+        void UpdateItems()
         {
             _pauseItem.Text = _main!.ViewModel.Paused ? "Start placing windows" : "Stop placing windows";
             _main.ViewModel.Hover.Refresh();
             _hoverItem.Checked = _main.ViewModel.Hover.Enabled;
-        };
+            homeItem.Visible = swapOffItem.Visible = _main.ViewModel.SwapHotkeysEnabled;
+            homeItem.Enabled = _main.ViewModel.IsSwapped;
+        }
+        menu.Opening += (_, _) => UpdateItems();
+        if (_main is not null) UpdateItems();
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Report a problem…", null, (_, _) =>
         {
@@ -265,6 +289,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         if (!Updater.RestartingForUpdate) _main?.ViewModel.Hover.OnAppExit();   // hover off (or the user's own values) on quit
+        _main?.ViewModel.DisposeHotkeys();
         if (_tray is not null)
         {
             _tray.Visible = false;

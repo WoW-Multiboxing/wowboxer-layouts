@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Window swap hotkeys (beta, advanced)",
+            "Settings › Advanced, off by default: hotkeys move a client's window into the main slot (Ctrl+Alt+Shift+Right/Left, +1…0, +Backspace for home). Only windows move – nothing is sent to the game. Blizzard has not ruled on window-swap tools; use at your own judgement."),
         ("Stable or Beta updates",
             "Settings › Updates › Update channel: Stable (the default) gets normal releases; Beta also gets test versions a few days early. Back to Stable never installs an older version."),
         ("Experimental switches",

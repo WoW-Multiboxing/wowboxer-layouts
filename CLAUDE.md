@@ -40,6 +40,12 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
   Since 2026-10-29 it is THE WoWBoxer way to switch windows: no warning notice, no advice about other ways to switch.
   State facts only ("a Windows setting; it sends nothing to the game; WoWBoxer never sends keys or clicks").
   Never write "approved", "allowed by Blizzard" or "100% safe".
+- Second exception, by the owner's decision (2026-11-02): **window swap hotkeys** (Settings › Advanced, off by default,
+  beta channel first). Global hotkeys via `RegisterHotKey` (MOD_NOREPEAT) – not an input hook: Windows hands only the
+  registered combination to the app, and that key press never reaches the game. A swap only moves/resizes windows
+  (client into the main slot, the client there into its old slot); it never changes focus, never activates a window and
+  never sends input. The UI shows the owner's note: "Moves windows only – nothing is sent to the game. Blizzard has not
+  ruled on window-swap tools; use at your own judgement." No other hotkeys, no focus switching, no round robin.
 - No telemetry. Logs stay local.
 
 ## Lessons from the prototype (keep them)

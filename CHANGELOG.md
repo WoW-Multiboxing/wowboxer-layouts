@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.7.0-beta.1 – Window swap hotkeys (beta) (2026-11-02)
+**Beta channel only** (Settings › Updates › Update channel: Beta). Stable installs do not get this version.
+- **Window swap hotkeys** (Settings › Advanced, **off by default**). Hotkeys move a client's window into the main slot;
+  the client that sat there takes the chosen client's old slot. Clients keep their number, name and class; position,
+  size, monitor and "always on top" belong to the slot. A swap only moves windows with the same placement code as
+  always: it never changes which window has the keys (hover to activate or a click does that) and sends nothing to
+  the game. Note in the app: "Moves windows only – nothing is sent to the game. Blizzard has not ruled on window-swap
+  tools; use at your own judgement."
+- Hotkeys (global, `RegisterHotKey` with no auto-repeat; the key press goes to WoWBoxer, never to the game), all
+  editable or clearable: next / previous client to main **Ctrl+Alt+Shift+Right / Left**, client 1…10 to main
+  **Ctrl+Alt+Shift+1…0**, back to home layout **Ctrl+Alt+Shift+Backspace**. The editor captures a combination
+  ("press the keys"), shows clashes (another action, or another program has it) and warns about fewer than two
+  modifiers and combinations Windows uses (Alt+Tab, Win+…, Alt+Shift language switch …). Changes are marked "not
+  applied yet" and only take effect with **Apply hotkeys** (Discard keeps the ones in use). Settings shows how many
+  are active.
+- **Main slot:** the large slot in Main + side and Overlays (one per party with 6–10 clients). In Grid and Free for all
+  you pick it: with swap on, every window on the map has a crown – click it ("MAIN SLOT"); a hint stays above the map
+  until each party has one. Stored in the layout (`swapMainSlots`).
+- Next / previous go through party 1 by default (or the party of the active window, or all clients), in number
+  order, skipping clients whose window is closed and wrapping around. Your own order: ready-made "All in number
+  order", "Leader ↔ each follower" and "Leader ↔ healer" (shown when a healer is known: a row's new optional
+  **Role** – Tank / Healer / Damage – or a priest), or build one from client chips (click to add, drag to move).
+- Your squad shows "IN MAIN SLOT" / "in slot N"; the tray has **Back to home layout** and **Disable swap hotkeys**.
+  Re-arrange, another layout or turning swap off puts everyone home. "Remember swapped positions after restart" is
+  off by default (the app starts in the home layout; windows are still recognised where they sit).
+- `WoWBoxer.exe --swap next|previous|home|1…10` runs a swap in the open app (scripts, tests).
+- Guide: new chapter **Swap windows (advanced)**. CLAUDE.md: the owner's decision (2026-11-02) recorded as the second
+  exception to the hard rules.
+- Tests: cycle logic (skip closed, wrap, previous, custom orders with repeats, parties), main slots per layout, hotkey
+  parsing / validation / clashes, swap and reset round trips (52 new). `tools/swap-check.ps1`: end to end with the
+  Dev build and three fake WoW windows (every swap lands exactly, "on top" follows the slot, the active window never
+  changes, hover on and off; with `-Keys` the real hotkeys, and the fake's key log proves the main key never arrives).
+
 ## v0.6.1 – Update channels and a safer way to test (2026-11-02)
 First released as **v0.6.1-beta.1** on the new Beta channel (the proof that the pipeline works); promoted to stable on
 the same commit after a few quiet days.

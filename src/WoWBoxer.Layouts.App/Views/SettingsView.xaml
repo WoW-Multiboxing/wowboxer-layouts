@@ -86,6 +86,100 @@
                         <TextBlock Style="{StaticResource Explain}" Text="&quot;Open Battle.net instead&quot; starts it if it is not running. Start it normally – not as administrator." />
                     </StackPanel>
                 </ContentControl>
+
+                <!-- Window swap (advanced, off by default). Only moves windows; the hotkeys go to WoWBoxer, never to the game. -->
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0" AutomationProperties.AutomationId="AdvancedPanel">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Advanced" />
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding SwapHotkeysEnabled}" AutomationProperties.AutomationId="SwapHotkeys" AutomationProperties.Name="Window swap hotkeys">
+                            <TextBlock Text="Window swap hotkeys" />
+                        </CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="Hotkeys that move a client's window into the main slot; the client that was there takes its old place. Off by default." />
+                        <Border Style="{StaticResource TipBox}" Margin="0,12,60,0">
+                            <TextBlock TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="#E4E4E4">
+                                <Run Text="{Binding SwapNote, Mode=OneWay}" />
+                                <LineBreak />
+                                <Hyperlink Command="{Binding OpenSwapGuideCommand}" Foreground="{StaticResource GoldHiBrush}">Guide: Swap windows (advanced)</Hyperlink>
+                            </TextBlock>
+                        </Border>
+
+                        <StackPanel Visibility="{Binding SwapHotkeysEnabled, Converter={x:Static app:BoolVisibility.Instance}}">
+                            <TextBlock Text="{Binding SwapStatusText}" Foreground="{StaticResource OkBrush}" FontSize="12" Margin="0,12,0,0" AutomationProperties.AutomationId="SwapStatus" />
+                            <TextBlock Style="{StaticResource Explain}" Text="Click a box and press the keys (Esc cancels). Two or more of Ctrl, Alt and Shift keep them away from your game keys. The key press goes to WoWBoxer, not to the game." />
+                            <ItemsControl ItemsSource="{Binding HotkeyRows}" Margin="0,8,0,0" AutomationProperties.AutomationId="HotkeyRows">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,4">
+                                            <DockPanel>
+                                                <TextBlock Text="{Binding Title}" Width="170" VerticalAlignment="Center" FontSize="12.5" />
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Clear" Command="{Binding ClearCommand}" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        ToolTip="No hotkey for this action" />
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Default" Command="{Binding DefaultCommand}" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        ToolTip="The recommended hotkey" />
+                                                <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" IsReadOnlyCaretVisible="False" Cursor="Hand" FontSize="12" Padding="6,2"
+                                                         AutomationProperties.Name="{Binding Title}" ToolTip="Click, then press the keys"
+                                                         GotKeyboardFocus="OnHotkeyBoxFocus" LostKeyboardFocus="OnHotkeyBoxBlur" PreviewKeyDown="OnHotkeyBoxKey" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Notes}" Foreground="{StaticResource WarnBrush}" FontSize="11" TextWrapping="Wrap" Margin="170,1,0,0"
+                                                       Visibility="{Binding HasNotes, Converter={x:Static app:BoolVisibility.Instance}}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Style="{StaticResource LinkButton}" Content="All back to the recommended hotkeys" Command="{Binding ResetAllHotkeysCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" FontSize="11.5" />
+                            <!-- edits only take effect with Apply (the owner's wish, 2026-11-02) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding HasPendingHotkeys, Converter={x:Static app:BoolVisibility.Instance}}">
+                                <Button Content="Apply hotkeys" Command="{Binding ApplyHotkeyChangesCommand}" Padding="14,4" AutomationProperties.AutomationId="ApplyHotkeys"
+                                        ToolTip="Start using the hotkeys above (until then the old ones keep working)" />
+                                <Button Content="Discard" Command="{Binding DiscardHotkeyChangesCommand}" Padding="12,4" Margin="8,0,0,0" AutomationProperties.AutomationId="DiscardHotkeys"
+                                        ToolTip="Forget the changes and keep the hotkeys in use" />
+                                <TextBlock Text="Changes are not in use until you apply them." Foreground="{StaticResource WarnBrush}" FontSize="11.5" VerticalAlignment="Center" Margin="10,0,0,0" />
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11.5" Margin="0,16,0,4" Text="Next / previous go through" />
+                            <ComboBox ItemsSource="{Binding SwapScopeChoices}" SelectedItem="{Binding SwapScope}" HorizontalAlignment="Left" MinWidth="300" AutomationProperties.Name="Next and previous go through" />
+                            <TextBlock Style="{StaticResource Explain}" Text="With 6–10 clients each party has its own main slot. &quot;The party of the active window&quot; cycles the party whose window has your keys." />
+
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11.5" Margin="0,14,0,4" Text="Order" />
+                            <ItemsControl ItemsSource="{Binding SwapOrderPresets}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding Name}" Command="{Binding DataContext.UseSwapOrderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Margin="0,0,8,8" Padding="10,3" FontSize="11.5" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding SwapOrderText}" FontSize="12" Foreground="{StaticResource ParchmentBrush}" TextWrapping="Wrap" AutomationProperties.AutomationId="SwapOrder" />
+                            <TextBlock Style="{StaticResource Explain}" Text="Your own order: click the clients below in the order you want (a client can come back, e.g. 1, 3, 1, 4). Drag a chip in your order to move it; click it to remove it." />
+                            <ItemsControl ItemsSource="{Binding SwapOrderChips}" Margin="0,6,0,0">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#33E8C66A" BorderBrush="{StaticResource GoldBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="0,0,6,6" Cursor="Hand"
+                                                Tag="{Binding}" ToolTip="Drag to move · click to remove" AllowDrop="True"
+                                                PreviewMouseLeftButtonDown="OnChipDown" PreviewMouseMove="OnChipMove" PreviewMouseLeftButtonUp="OnChipUp" Drop="OnChipDrop">
+                                            <TextBlock Text="{Binding Label}" FontSize="11.5" Foreground="{StaticResource GoldHiBrush}" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding SwapOrderSource}" Margin="0,2,0,0">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding Label}" Command="{Binding DataContext.AddToSwapOrderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Margin="0,0,6,6" Padding="8,2" FontSize="11" ToolTip="Add to your order" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Style="{StaticResource LinkButton}" Content="Clear my order (number order)" Command="{Binding ClearSwapOrderCommand}" HorizontalAlignment="Left" FontSize="11.5" />
+
+                            <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding SwapRemember}" AutomationProperties.AutomationId="SwapRemember"><TextBlock Text="Remember swapped positions after a restart" /></CheckBox>
+                            <TextBlock Style="{StaticResource Explain}" Text="Off: WoWBoxer always starts in the home layout." />
+                        </StackPanel>
+                    </StackPanel>
+                </ContentControl>
             </StackPanel>
 
             <StackPanel Grid.Column="2">
