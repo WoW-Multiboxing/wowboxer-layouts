@@ -104,8 +104,11 @@ Release tags are final: the ruleset "release tags are final" blocks moving or de
   `signpath/github-action-submit-signing-request` may run. Fork PRs run `pull_request`, never `pull_request_target`.
 - Secret scanning with push protection, Dependabot alerts and security updates are on. No secrets are stored yet
   (`SITE_DISPATCH_TOKEN` and the SignPath token are added only when needed).
-- Merge with `gh pr merge N --squash --author-email 348792173+WoW-Multiboxing@users.noreply.github.com`, so no personal
-  e-mail lands in the history (GitHub otherwise uses the account's e-mail).
+- Merging: GitHub's merge button (and `gh pr merge`) writes the account's personal e-mail into the merge commit, and
+  `--author-email` only takes verified addresses. So: make the branch one commit (squash locally) with the noreply
+  identity, push it, wait for green CI, then fast-forward `main` to it:
+  `git push origin <pr-head-sha>:refs/heads/main` – GitHub counts that as merging the PR (the ruleset allows it,
+  because the commit is the open PR's head and its checks passed).
 
 ## Code signing
 Off until SignPath Foundation approves the project. See [code-signing-policy.md](code-signing-policy.md) for how to
