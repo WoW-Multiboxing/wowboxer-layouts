@@ -13,9 +13,16 @@ if (-not (Test-Path $settings)) {
 }
 
 $p = Start-Process $Exe -ArgumentList '--pause' -PassThru
+# Look for the main window during the whole wait, not only at its end: on a slow runner a dialog that opens over it
+# (What's new) can hide it from Process.MainWindowTitle at one moment (flaky v0.6.1-beta.1 release run).
 $deadline = (Get-Date).AddSeconds($Seconds)
-while ((Get-Date) -lt $deadline -and -not $p.HasExited) { Start-Sleep -Milliseconds 500; $p.Refresh() }
+$title = $null
+while ((Get-Date) -lt $deadline -and -not $p.HasExited) {
+    Start-Sleep -Milliseconds 500
+    $p.Refresh()
+    if (-not $title -and $p.MainWindowTitle -like 'WoWBoxer*') { $title = $p.MainWindowTitle }
+}
 if ($p.HasExited) { throw "The app exited during start-up (exit code $($p.ExitCode)). See the Application event log." }
-if (-not $p.MainWindowTitle) { Stop-Process $p -Force; throw 'The app is running but shows no main window.' }
-Write-Host "Started fine: '$($p.MainWindowTitle)'"
+if (-not $title) { Stop-Process $p -Force; throw 'The app is running but showed no main window.' }
+Write-Host "Started fine: '$title'"
 Stop-Process $p -Force

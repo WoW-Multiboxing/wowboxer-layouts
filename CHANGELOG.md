@@ -19,6 +19,8 @@ the same commit after a few quiet days.
   `/releases/latest` is the newest stable release and never a beta. A manual re-run now builds the tag it names.
 - `tools/channel-check`: runs the app's own update code against the real GitHub releases for a pretend install
   ("would a stable 0.6.0 get the beta?") without installing anything.
+- The start-up check (`tools/smoke-start.ps1`, CI) watches for the main window during its whole wait; it failed once
+  on the runner when the What's new dialog hid it at the final moment.
 
 ## v0.6.0 – Now simply called WoWBoxer (2026-10-31)
 - **The app is now called "WoWBoxer"** everywhere you see it: title bar, About, welcome screen, What's new, the tray,
