@@ -56,6 +56,11 @@ Risky features ship behind a switch in **Settings › Experimental** (see 6) and
    `dotnet run --project tools/channel-check -- --installed 0.6.0 --setting Beta --expect 0.6.1-beta.1`
    (runs the app's own update code against the real GitHub releases for a pretend install).
 
+> **Opting in needs a stable release first.** Installs only see the Update channel setting from v0.6.1 on. Anything a
+> stable user needs in order to take part (a new setting, a switch) must reach stable before it can be used: v0.6.0
+> users could not choose Beta until v0.6.1 was promoted (2026-11-02). Testers on an older stable can always install
+> `WoWBoxer-Beta-Setup.exe` from the pre-release instead (same install, settings kept).
+
 ## 5. Stable
 After **N days without issues** (default 3; 1 for a tiny change) on the beta:
 1. Tag the **same commit** as the beta: `git tag vX.Y.Z <beta-commit> && git push origin vX.Y.Z`
