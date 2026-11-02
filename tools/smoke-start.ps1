@@ -2,7 +2,7 @@
 # Catches start-up crashes that unit tests miss, e.g. a XAML resource only one view defines (v0.3.2).
 # Used by CI (build and release); safe to run locally.
 # -DataFolder Dev for the WoWBoxer Dev build (its settings live in %APPDATA%\WoWBoxer\Dev).
-param([Parameter(Mandatory)][string]$Exe, [int]$Seconds = 15, [string]$DataFolder = 'Layouts')
+param([Parameter(Mandatory)][string]$Exe, [int]$Seconds = 30, [string]$DataFolder = 'Layouts')
 $ErrorActionPreference = 'Stop'
 
 # Skip the first-run screen on a clean machine (CI); an existing settings file is left alone.
