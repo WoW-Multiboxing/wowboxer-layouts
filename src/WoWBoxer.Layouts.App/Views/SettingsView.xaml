@@ -127,6 +127,14 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <Button Style="{StaticResource LinkButton}" Content="All back to the recommended hotkeys" Command="{Binding ResetAllHotkeysCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" FontSize="11.5" />
+                            <!-- edits only take effect with Apply (the owner's wish, 2026-11-02) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding HasPendingHotkeys, Converter={x:Static app:BoolVisibility.Instance}}">
+                                <Button Content="Apply hotkeys" Command="{Binding ApplyHotkeyChangesCommand}" Padding="14,4" AutomationProperties.AutomationId="ApplyHotkeys"
+                                        ToolTip="Start using the hotkeys above (until then the old ones keep working)" />
+                                <Button Content="Discard" Command="{Binding DiscardHotkeyChangesCommand}" Padding="12,4" Margin="8,0,0,0" AutomationProperties.AutomationId="DiscardHotkeys"
+                                        ToolTip="Forget the changes and keep the hotkeys in use" />
+                                <TextBlock Text="Changes are not in use until you apply them." Foreground="{StaticResource WarnBrush}" FontSize="11.5" VerticalAlignment="Center" Margin="10,0,0,0" />
+                            </StackPanel>
 
                             <TextBlock Style="{StaticResource Muted}" FontSize="11.5" Margin="0,16,0,4" Text="Next / previous go through" />
                             <ComboBox ItemsSource="{Binding SwapScopeChoices}" SelectedItem="{Binding SwapScope}" HorizontalAlignment="Left" MinWidth="300" AutomationProperties.Name="Next and previous go through" />

@@ -19,6 +19,8 @@ public sealed partial class MainViewModel
     private int _swapCursor = -1;
     private SwapHotkeyHost? _hotkeys;
     private IReadOnlyDictionary<string, string> _hotkeyFailures = new Dictionary<string, string>();
+    /// <summary>Hotkey edits not applied yet (null = none). Only <see cref="ApplyHotkeyChangesCommand"/> makes them work.</summary>
+    private Dictionary<string, string>? _pendingKeys;
 
     /// <summary>The layout as the windows are placed now: <see cref="Current"/> with any swaps applied.</summary>
     public LayoutProfile? Placed => Current is null ? null
@@ -36,7 +38,11 @@ public sealed partial class MainViewModel
         {
             if (value == _settings.SwapHotkeys) return;
             SetSetting(() => _settings.SwapHotkeys = value);
-            if (!value) ResetSwap(quiet: false);   // off = every window back home
+            if (!value)
+            {
+                ResetSwap(quiet: false);   // off = every window back home
+                _pendingKeys = null;       // and unapplied hotkey edits are dropped
+            }
             ApplyHotkeys();
             Status.Info(value
                 ? "Window swap hotkeys are on. They only move windows – nothing is sent to the game."
@@ -391,7 +397,8 @@ public sealed partial class MainViewModel
 
     private void RefreshHotkeyRows()
     {
-        var keys = Hotkeys.Effective(_settings.SwapKeys);
+        var saved = Hotkeys.Effective(_settings.SwapKeys);
+        var keys = Hotkeys.Effective(_pendingKeys ?? _settings.SwapKeys);
         var dups = Hotkeys.Duplicates(keys);
         if (HotkeyRows.Count != SwapActions.All.Count)
         {
@@ -402,31 +409,52 @@ public sealed partial class MainViewModel
         {
             var key = keys.GetValueOrDefault(row.Action);
             var notes = new List<string>();
+            var changed = saved.GetValueOrDefault(row.Action) != key;
+            if (changed) notes.Add($"Not applied yet (in use now: {saved.GetValueOrDefault(row.Action)?.ToString() ?? "none"}).");
             if (dups.TryGetValue(row.Action, out var first)) notes.Add($"Already used for \"{SwapActions.Describe(first)}\" – not active.");
-            if (_hotkeyFailures.TryGetValue(row.Action, out var why)) notes.Add($"Not available: {why}.");
+            if (!changed && _hotkeyFailures.TryGetValue(row.Action, out var why)) notes.Add($"Not available: {why}.");
             if (key is not null) notes.AddRange(Hotkeys.Warnings(key));
             row.Update(key?.ToString() ?? "", string.Join(" ", notes), Hotkeys.Defaults.TryGetValue(row.Action, out var d) && d == key);
         }
+        OnPropertyChanged(nameof(HasPendingHotkeys));
     }
 
-    /// <summary>The editor set a hotkey ("" = cleared, null = back to the default).</summary>
-    private void SetHotkey(string action, string? text)
+    /// <summary>Hotkey edits waiting for Apply.</summary>
+    public bool HasPendingHotkeys => _pendingKeys is not null
+        && !Hotkeys.Effective(_pendingKeys).OrderBy(kv => kv.Key).SequenceEqual(Hotkeys.Effective(_settings.SwapKeys).OrderBy(kv => kv.Key));
+
+    /// <summary>"Apply hotkeys": the edited hotkeys are saved and registered; until then the old ones keep working.</summary>
+    public ICommand ApplyHotkeyChangesCommand => new RelayCommand(() =>
     {
-        if (text is null) _settings.SwapKeys.Remove(action);
-        else _settings.SwapKeys[action] = text;
+        if (_pendingKeys is null) return;
+        _settings.SwapKeys = _pendingKeys;
+        _pendingKeys = null;
         _settings.Save();
         ApplyHotkeys();
-        Status.Info(text is null ? $"\"{SwapActions.Describe(action)}\": back to the default."
-            : text.Length == 0 ? $"\"{SwapActions.Describe(action)}\" has no hotkey now."
-            : $"\"{SwapActions.Describe(action)}\": {text}.");
+        Status.Ok("Swap hotkeys applied: " + SwapStatusText + ".");
+    });
+
+    /// <summary>"Discard": back to the hotkeys in use.</summary>
+    public ICommand DiscardHotkeyChangesCommand => new RelayCommand(() =>
+    {
+        _pendingKeys = null;
+        RefreshHotkeyRows();
+        Status.Info("Swap hotkey changes discarded.");
+    });
+
+    /// <summary>The editor changed a hotkey ("" = cleared, null = back to the default). Not in use until Apply.</summary>
+    private void SetHotkey(string action, string? text)
+    {
+        _pendingKeys ??= new Dictionary<string, string>(_settings.SwapKeys);
+        if (text is null) _pendingKeys.Remove(action);
+        else _pendingKeys[action] = text;
+        RefreshHotkeyRows();
     }
 
     public ICommand ResetAllHotkeysCommand => new RelayCommand(() =>
     {
-        _settings.SwapKeys.Clear();
-        _settings.Save();
-        ApplyHotkeys();
-        Status.Info("Swap hotkeys: back to the recommended defaults.");
+        _pendingKeys = [];
+        RefreshHotkeyRows();
     });
 
     /// <summary>A hotkey box is waiting for keys: let go of the hotkeys meanwhile, so pressing one reaches the box.</summary>

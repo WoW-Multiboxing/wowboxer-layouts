@@ -12,8 +12,9 @@
   editable or clearable: next / previous client to main **Ctrl+Alt+Shift+Right / Left**, client 1…10 to main
   **Ctrl+Alt+Shift+1…0**, back to home layout **Ctrl+Alt+Shift+Backspace**. The editor captures a combination
   ("press the keys"), shows clashes (another action, or another program has it) and warns about fewer than two
-  modifiers and combinations Windows uses (Alt+Tab, Win+…, Alt+Shift language switch …). Settings shows how many are
-  active.
+  modifiers and combinations Windows uses (Alt+Tab, Win+…, Alt+Shift language switch …). Changes are marked "not
+  applied yet" and only take effect with **Apply hotkeys** (Discard keeps the ones in use). Settings shows how many
+  are active.
 - **Main slot:** the large slot in Main + side and Overlays (one per party with 6–10 clients). In Grid and Free for all
   you pick it: with swap on, every window on the map has a crown – click it ("MAIN SLOT"); a hint stays above the map
   until each party has one. Stored in the layout (`swapMainSlots`).
