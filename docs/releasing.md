@@ -87,10 +87,25 @@ token, owner `WoW-Multiboxing`, repository access *Only select repositories* →
 expiry 1 year (set a reminder).
 
 ## Re-running or fixing a release
-- Failed before publishing: fix, delete the draft release and the tag (`gh release delete vX.Y.Z --cleanup-tag`),
-  tag again.
+Release tags are final: the ruleset "release tags are final" blocks moving or deleting any `v*` tag (no bypass).
+- Failed before publishing: fix on a branch → PR → merge, then Actions → release → *Run workflow* with the same
+  version only if the tag's commit is still right; otherwise tag the next number (e.g. `-beta.3` or the next patch).
+  Delete the draft release by hand if one was left.
 - Re-run for an existing tag: Actions → release → *Run workflow* with the version (it builds that tag).
 - Never delete a published release that users may have updated to; publish a new patch version instead.
+
+## Repository security (checked 2026-11-02)
+- Only the owner account has access (no collaborators, deploy keys or webhooks). Contributions come as pull requests
+  from forks and are never given write access. The owner account uses two-factor authentication.
+- `main`: ruleset "main is stable" – pull request + green `build` required, no force-push, no deletion, no bypass.
+  Tags `v*`: ruleset "release tags are final" – no update, no deletion.
+- Actions: workflow token read-only by default (only `release.yml` asks for `contents: write`, and it runs only for
+  tags); workflows from forks need approval for every outside contributor; only GitHub's own actions and
+  `signpath/github-action-submit-signing-request` may run. Fork PRs run `pull_request`, never `pull_request_target`.
+- Secret scanning with push protection, Dependabot alerts and security updates are on. No secrets are stored yet
+  (`SITE_DISPATCH_TOKEN` and the SignPath token are added only when needed).
+- Merge with `gh pr merge N --squash --author-email 348792173+WoW-Multiboxing@users.noreply.github.com`, so no personal
+  e-mail lands in the history (GitHub otherwise uses the account's e-mail).
 
 ## Code signing
 Off until SignPath Foundation approves the project. See [code-signing-policy.md](code-signing-policy.md) for how to
