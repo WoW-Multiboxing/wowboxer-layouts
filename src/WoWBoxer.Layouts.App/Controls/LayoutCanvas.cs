@@ -46,6 +46,19 @@ public sealed class LayoutCanvas : FrameworkElement
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((LayoutCanvas)d).UpdatePulse()));
     public static readonly DependencyProperty MainSlotMarksProperty = DependencyProperty.Register(
         nameof(MainSlotMarks), typeof(IReadOnlyList<bool>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty AdvancedEditingProperty = DependencyProperty.Register(
+        nameof(AdvancedEditing), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty SwapOnDropProperty = DependencyProperty.Register(
+        nameof(SwapOnDrop), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
+    public static readonly DependencyProperty SnapEnabledProperty = DependencyProperty.Register(
+        nameof(SnapEnabled), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
+    public static readonly DependencyProperty ShowGridProperty = DependencyProperty.Register(
+        nameof(ShowGrid), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty LockAspectProperty = DependencyProperty.Register(
+        nameof(LockAspect), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(false));
+    public static readonly DependencyProperty SelectedIndicesProperty = DependencyProperty.Register(
+        nameof(SelectedIndices), typeof(IReadOnlyList<int>), typeof(LayoutCanvas),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((LayoutCanvas)d).OnSelectedIndicesChanged()));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
         nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
@@ -69,6 +82,22 @@ public sealed class LayoutCanvas : FrameworkElement
     /// one); clicking it raises <see cref="MainSlotClicked"/>. Null = no crowns (swap is off).
     /// </summary>
     public IReadOnlyList<bool>? MainSlotMarks { get => (IReadOnlyList<bool>?)GetValue(MainSlotMarksProperty); set => SetValue(MainSlotMarksProperty, value); }
+
+    /// <summary>Advanced editing: multi-selection (Ctrl/Shift+click, rubber band, Ctrl+A), group moves, grid, locked aspect.</summary>
+    public bool AdvancedEditing { get => (bool)GetValue(AdvancedEditingProperty); set => SetValue(AdvancedEditingProperty, value); }
+    /// <summary>Dropping a window onto another swaps them (always on outside Advanced editing).</summary>
+    public bool SwapOnDrop { get => (bool)GetValue(SwapOnDropProperty); set => SetValue(SwapOnDropProperty, value); }
+    public bool SnapEnabled { get => (bool)GetValue(SnapEnabledProperty); set => SetValue(SnapEnabledProperty, value); }
+    public bool ShowGrid { get => (bool)GetValue(ShowGridProperty); set => SetValue(ShowGridProperty, value); }
+    public bool LockAspect { get => (bool)GetValue(LockAspectProperty); set => SetValue(LockAspectProperty, value); }
+    /// <summary>The selected windows in Advanced editing, the reference (gold outline) first.</summary>
+    public IReadOnlyList<int>? SelectedIndices { get => (IReadOnlyList<int>?)GetValue(SelectedIndicesProperty); set => SetValue(SelectedIndicesProperty, value); }
+
+    /// <summary>Advanced editing: the selection changed (reference first).</summary>
+    public event EventHandler<IReadOnlyList<int>>? SelectionChanged;
+
+    /// <summary>Several windows got new places at once (a group drag or a nudge), in pixels.</summary>
+    public event EventHandler<IReadOnlyList<(int Index, PixelRect Rect)>>? SlotsEdited;
 
     /// <summary>The crown chip of a window was clicked (window index).</summary>
     public event EventHandler<int>? MainSlotClicked;
@@ -132,7 +161,7 @@ public sealed class LayoutCanvas : FrameworkElement
         {
             var slot = Profile.Slots[i];
             var monitor = Core.Monitors.Find(monitors, slot.Monitor) ?? Core.Monitors.Primary(monitors);
-            var raw = i == _dragIndex ? _dragRect : SlotEditing.Raw(slot, monitor, Options);
+            var raw = i == _dragIndex ? _dragRect : _groupRects.TryGetValue(i, out var moved) ? moved : SlotEditing.Raw(slot, monitor, Options);
             list.Add(new Item(i, slot, monitor, raw, LayoutEngine.Fit(raw, slot.Fit ?? Options.Fit, slot.Anchor, Options.MinAspect, LayoutEngine.FrameSize(Options, monitor.Dpi))));
         }
         // overlays (always on top) are drawn last and hit first
@@ -260,6 +289,12 @@ public sealed class LayoutCanvas : FrameworkElement
             }
         }
 
+        if (!Compact && AdvancedEditing && ShowGrid)
+        {
+            var gridPen = new Pen(Brush(0x2C, Parchment), 1);
+            foreach (var (x0, y0, x1, y1) in GridLines())
+                dc.DrawLine(gridPen, ToCanvasPoint(x0, y0), ToCanvasPoint(x1, y1));
+        }
         var items = Items();
         if (!Compact)
             foreach (var m in screens.Where(m => items.All(i => i.Monitor.Index != m.Index)))
@@ -274,7 +309,8 @@ public sealed class LayoutCanvas : FrameworkElement
         foreach (var item in items)
         {
             var color = WowClasses.ColorFor(item.Slot.Class);
-            var selected = item.Index == SelectedIndex && !Compact;
+            var selected = !Compact && (AdvancedEditing ? _selection.Contains(item.Index) : item.Index == SelectedIndex);
+            var reference = selected && AdvancedEditing && item.Index == _selection.Reference && _selection.Items.Count > 1;
             var hovered = item.Index == _hoverIndex && !Compact && _dragIndex < 0;
             var target = ToCanvas(item.Fitted);
             var r = Shown(item.Index, target);
@@ -295,7 +331,9 @@ public sealed class LayoutCanvas : FrameworkElement
             Brush body = item.Slot.Role == SlotRole.Main
                 ? new RadialGradientBrush(Color.FromRgb(0x26, 0x33, 0x4D), Color.FromRgb(0x0E, 0x13, 0x1D)) { Center = new Point(0.5, 0.4), GradientOrigin = new Point(0.5, 0.4), RadiusX = 0.8, RadiusY = 0.9 }
                 : new LinearGradientBrush(Color.FromRgb(0x22, 0x2A, 0x3E), Color.FromRgb(0x12, 0x17, 0x22), 70);
-            var frame = selected ? new Pen(new SolidColorBrush(GoldHi), 2) : new Pen(hovered ? Brush(0xB0, Gold) : new SolidColorBrush(Color.FromRgb(0x2E, 0x38, 0x50)), hovered ? 1.5 : 1);
+            var frame = reference ? new Pen(new SolidColorBrush(GoldHi), 3)
+                : selected && AdvancedEditing && _selection.Items.Count > 1 ? new Pen(Brush(0xD0, Parchment), 1.6) { DashStyle = DashStyles.Dash }
+                : selected ? new Pen(new SolidColorBrush(GoldHi), 2) : new Pen(hovered ? Brush(0xB0, Gold) : new SolidColorBrush(Color.FromRgb(0x2E, 0x38, 0x50)), hovered ? 1.5 : 1);
             if (selected)
             {
                 var glow = r;
@@ -375,12 +413,19 @@ public sealed class LayoutCanvas : FrameworkElement
                 Draw(dc, swap, new Point(t.X + (t.Width - swap.Width) / 2, t.Y + 8), shadow: true);
             }
 
-            if (selected && !_animating)
+            if (reference && r.Width > 60)
+                Draw(dc, Text("REFERENCE", 9, new SolidColorBrush(GoldHi), ppd, display: true), new Point(r.X + 8, r.Bottom - 16), shadow: true);
+
+            if (selected && !_animating && (!AdvancedEditing || _selection.Items.Count <= 1))
                 foreach (var (handle, _) in Handles(ToCanvas(item.Raw)))
                     dc.DrawRectangle(new SolidColorBrush(GoldHi), new Pen(Brushes.Black, 1), handle);
         }
         _shown = shown;
+        if (_band is { } rubber)
+            dc.DrawRectangle(Brush(0x22, GoldHi), new Pen(new SolidColorBrush(GoldHi), 1.2) { DashStyle = DashStyles.Dash }, ToCanvas(rubber));
     }
+
+    private Point ToCanvasPoint(int x, int y) => new((x - _originX) * _scale + _offset.X, (y - _originY) * _scale + _offset.Y);
 
     // ---------- window swap: main slot crowns ----------
 
@@ -460,7 +505,9 @@ public sealed class LayoutCanvas : FrameworkElement
     private (int Index, ResizeEdges Edges) HitTest(Point p)
     {
         var items = Items();
-        var sel = items.FirstOrDefault(i => i.Index == SelectedIndex);
+        // resize handles: the selected window – in Advanced editing only while it is the one selected window
+        var handlesOn = !AdvancedEditing || _selection.Items.Count <= 1;
+        var sel = handlesOn ? items.FirstOrDefault(i => i.Index == SelectedIndex) : null;
         if (sel is not null)
             foreach (var (handle, edges) in Handles(ToCanvas(sel.Raw)))
             {
@@ -473,24 +520,59 @@ public sealed class LayoutCanvas : FrameworkElement
         return (-1, ResizeEdges.None);
     }
 
+    private static bool AddModifier => Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+    private static bool AltDown => Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
+
+    /// <summary>Snapping: always (Alt turns it off) outside Advanced editing; inside, the toolbar's Snap switch (Alt inverts it).</summary>
+    private bool SnapNow => (AdvancedEditing ? SnapEnabled : true) != AltDown;
+
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         if (Compact) return;
         Focus();
-        if (CrownAt(e.GetPosition(this)) is { } crown)
+        var p = e.GetPosition(this);
+        if (CrownAt(p) is { } crown)
         {
             MainSlotClicked?.Invoke(this, crown);
             e.Handled = true;
             return;
         }
-        var (index, edges) = HitTest(e.GetPosition(this));
-        SelectedIndex = index;
+        var (index, edges) = HitTest(p);
+        if (AdvancedEditing)
+        {
+            if (index < 0)
+            {
+                // rubber band on the empty map (Ctrl/Shift adds to the selection)
+                _bandStart = p;
+                _bandAdd = AddModifier;
+                _band = null;
+                if (!_bandAdd) SetSelection([]);
+                CaptureMouse();
+                e.Handled = true;
+                return;
+            }
+            if (AddModifier)
+            {
+                _selection.Toggle(index);
+                RaiseSelectionChanged();
+                e.Handled = true;
+                return;
+            }
+            _selection.Click(index, keepGroupIfSelected: edges == ResizeEdges.All);
+            RaiseSelectionChanged();
+        }
+        else SelectedIndex = index;
         if (index < 0 || Profile is null) return;
         var item = Items().First(i => i.Index == index);
         _dragIndex = index;
         _dragEdges = edges;
         _dragStart = _dragRect = item.Raw;
-        _dragMouse = e.GetPosition(this);
+        _dragMouse = p;
+        _groupStart.Clear();
+        _groupRects.Clear();
+        if (AdvancedEditing && edges == ResizeEdges.All && _selection.Items.Count > 1)
+            foreach (var other in Items().Where(i => _selection.Contains(i.Index) && i.Index != index))
+                _groupStart[other.Index] = other.Raw;
         CaptureMouse();
         e.Handled = true;
     }
@@ -499,6 +581,14 @@ public sealed class LayoutCanvas : FrameworkElement
     {
         if (Compact) return;
         var p = e.GetPosition(this);
+        if (_bandStart is { } start && e.LeftButton == MouseButtonState.Pressed)
+        {
+            var a = FromCanvas(start);
+            var b = FromCanvas(p);
+            _band = SlotArrange.Band(a.X, a.Y, b.X, b.Y);
+            InvalidateVisual();
+            return;
+        }
         if (_dragIndex < 0)
         {
             var (index, edges) = HitTest(p);
@@ -520,25 +610,31 @@ public sealed class LayoutCanvas : FrameworkElement
                 ResizeEdges.Left or ResizeEdges.Right => Cursors.SizeWE,
                 ResizeEdges.Top or ResizeEdges.Bottom => Cursors.SizeNS,
                 ResizeEdges.Left | ResizeEdges.Top or ResizeEdges.Right | ResizeEdges.Bottom => Cursors.SizeNWSE,
-                ResizeEdges.None => Cursors.Arrow,
+                ResizeEdges.None => AdvancedEditing ? Cursors.Cross : Cursors.Arrow,
                 _ => Cursors.SizeNESW,
             };
             return;
         }
         var dx = (int)Math.Round((p.X - _dragMouse.X) / _scale);
         var dy = (int)Math.Round((p.Y - _dragMouse.Y) / _scale);
-        var rect = SlotEditing.Drag(_dragStart, _dragEdges, dx, dy);
-        if (!Keyboard.IsKeyDown(Key.LeftAlt) && !Keyboard.IsKeyDown(Key.RightAlt))
+        var locked = AdvancedEditing && LockAspect && _dragEdges != ResizeEdges.All;
+        var rect = locked ? SlotArrange.ResizeLocked(_dragStart, _dragEdges, dx, dy) : SlotEditing.Drag(_dragStart, _dragEdges, dx, dy);
+        if (SnapNow && !locked)
         {
-            var others = Items().Where(i => i.Index != _dragIndex).Select(i => i.Raw);
+            var moving = _groupStart.Keys.Append(_dragIndex).ToHashSet();
+            var others = Items().Where(i => !moving.Contains(i.Index)).Select(i => i.Raw);
             var (xs, ys) = SlotEditing.SnapLines(others, Shown(), Options.UseTaskbarArea);
+            if (AdvancedEditing && ShowGrid) AddGridLines(xs, ys);
             rect = SlotEditing.Snap(rect, _dragEdges, xs, ys, (int)Math.Ceiling(SnapScreenPixels / _scale));
         }
-        // a moved window lands on the chosen monitor that holds its centre, inside it (across monitor borders too)
-        if (_dragEdges == ResizeEdges.All && Shown() is { Count: > 0 } screens)
+        // a moved window lands on the chosen monitor that holds its centre, inside it (across monitor borders too);
+        // a moved group keeps its shape (each window is kept inside its monitor when it is stored)
+        if (_dragEdges == ResizeEdges.All && _groupStart.Count == 0 && Shown() is { Count: > 0 } screens)
             rect = SlotEditing.ClampInto(rect, ProfileCapture.MonitorOf(rect, screens).Area(Options.UseTaskbarArea));
         _dragRect = rect;
-        _swapTarget = _dragEdges == ResizeEdges.All ? SwapTargetAt(p) : -1;
+        int mx = rect.X - _dragStart.X, my = rect.Y - _dragStart.Y;
+        foreach (var (i, r) in _groupStart) _groupRects[i] = r with { X = r.X + mx, Y = r.Y + my };
+        _swapTarget = _dragEdges == ResizeEdges.All && _groupStart.Count == 0 && SwapOnDrop ? SwapTargetAt(p) : -1;
         InvalidateVisual();
     }
 
@@ -565,44 +661,95 @@ public sealed class LayoutCanvas : FrameworkElement
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
+        if (_bandStart is not null)
+        {
+            var band = _band;
+            _bandStart = null;
+            _band = null;
+            ReleaseMouseCapture();
+            if (band is { Width: > 2, Height: > 2 } b)
+            {
+                var items = Items().OrderBy(i => i.Index).ToList();
+                var hit = SlotArrange.InBand(items.Select(i => i.Raw).ToList(), b).Select(k => items[k].Index);
+                _selection.Band(hit, _bandAdd);
+                RaiseSelectionChanged();
+            }
+            InvalidateVisual();
+            return;
+        }
         if (_dragIndex < 0) return;
         var index = _dragIndex;
         var rect = _dragRect;
         var changed = rect != _dragStart;
         var target = _swapTarget;
+        var group = _groupRects.ToDictionary();
         _dragIndex = -1;
         _swapTarget = -1;
+        _groupStart.Clear();
+        _groupRects.Clear();
         ReleaseMouseCapture();
         if (target >= 0) SlotsSwapped?.Invoke(this, new SlotsSwappedEventArgs(index, target));
+        else if (changed && group.Count > 0)
+        {
+            // the whole selection moved: one edit, the real windows follow now
+            _from.Clear();
+            group[index] = rect;
+            SlotsEdited?.Invoke(this, group.Select(kv => (kv.Key, kv.Value)).ToList());
+        }
         else if (changed) Commit(index, rect);
         InvalidateVisual();
     }
 
     protected override void OnLostMouseCapture(MouseEventArgs e)
     {
+        if (_bandStart is not null)
+        {
+            _bandStart = null;
+            _band = null;
+            InvalidateVisual();
+        }
         if (_dragIndex < 0) return;
         _dragIndex = -1;   // e.g. Escape or focus loss: cancel the drag
         _swapTarget = -1;
+        _groupStart.Clear();
+        _groupRects.Clear();
         InvalidateVisual();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         if (Compact || Profile is null || Monitors is null) return;
-        if (e.Key == Key.Escape && _dragIndex >= 0)
+        if (e.Key == Key.Escape && (_dragIndex >= 0 || _bandStart is not null))
         {
             ReleaseMouseCapture();
             e.Handled = true;
             return;
         }
+        if (AdvancedEditing)
+        {
+            if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                _selection.All(Profile.Slots.Count);
+                RaiseSelectionChanged();
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.Escape)
+            {
+                SetSelection([]);
+                e.Handled = true;
+                return;
+            }
+        }
         if (e.Key == Key.Tab && Profile.Slots.Count > 0)
         {
             var back = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-            SelectedIndex = ((SelectedIndex < 0 ? (back ? 0 : -1) : SelectedIndex) + (back ? -1 : 1) + Profile.Slots.Count) % Profile.Slots.Count;
+            var next = ((SelectedIndex < 0 ? (back ? 0 : -1) : SelectedIndex) + (back ? -1 : 1) + Profile.Slots.Count) % Profile.Slots.Count;
+            if (AdvancedEditing) SetSelection([next]);
+            else SelectedIndex = next;
             e.Handled = true;
             return;
         }
-        if (SelectedIndex < 0 || SelectedIndex >= Profile.Slots.Count) return;
         int dx = 0, dy = 0;
         switch (e.Key)
         {
@@ -613,8 +760,19 @@ public sealed class LayoutCanvas : FrameworkElement
             default: return;
         }
         var step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1;
+        var resize = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        if (AdvancedEditing && _selection.Items.Count > 1 && !resize)
+        {
+            // nudge the whole selection: 1 px, Shift = 10 px
+            _from.Clear();
+            SlotsEdited?.Invoke(this, Items().Where(i => _selection.Contains(i.Index))
+                .Select(i => (i.Index, SlotEditing.Drag(i.Raw, ResizeEdges.All, dx * step, dy * step))).ToList());
+            e.Handled = true;
+            return;
+        }
+        if (SelectedIndex < 0 || SelectedIndex >= Profile.Slots.Count) return;
         var item = Items().First(i => i.Index == SelectedIndex);
-        var rect = Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
+        var rect = resize
             ? SlotEditing.Drag(item.Raw, ResizeEdges.Right | ResizeEdges.Bottom, dx * step, dy * step)   // Ctrl+arrows: resize
             : SlotEditing.Drag(item.Raw, ResizeEdges.All, dx * step, dy * step);
         Commit(SelectedIndex, rect);
@@ -627,6 +785,75 @@ public sealed class LayoutCanvas : FrameworkElement
         _from.Clear();   // the user put it there – no glide
         var screens = Shown();
         SlotEdited?.Invoke(this, new SlotEditedEventArgs(index, SlotEditing.WithRect(Profile.Slots[index], rect, screens.Count > 0 ? screens : Monitors, Options)));
+    }
+
+    // ---------- Advanced editing: selection, rubber band, grid ----------
+
+    private readonly SlotSelection _selection = new();
+    private readonly Dictionary<int, PixelRect> _groupStart = [], _groupRects = [];
+    private Point? _bandStart;
+    private PixelRect? _band;
+    private bool _bandAdd;
+    private bool _syncingSelection;
+
+    private void SetSelection(IReadOnlyList<int> indices)
+    {
+        _selection.Set(indices);
+        RaiseSelectionChanged();
+    }
+
+    private void RaiseSelectionChanged()
+    {
+        _syncingSelection = true;
+        try
+        {
+            SelectedIndices = _selection.Items.ToList();
+            if (_selection.Reference >= 0) SelectedIndex = _selection.Reference;
+        }
+        finally
+        {
+            _syncingSelection = false;
+        }
+        SelectionChanged?.Invoke(this, _selection.Items.ToList());
+        InvalidateVisual();
+    }
+
+    private void OnSelectedIndicesChanged()
+    {
+        if (_syncingSelection) return;
+        _selection.Set(SelectedIndices ?? []);
+        InvalidateVisual();
+    }
+
+    /// <summary>Canvas point → physical pixel (virtual-screen coordinates).</summary>
+    private (int X, int Y) FromCanvas(Point p) =>
+        ((int)Math.Round((p.X - _offset.X) / _scale + _originX), (int)Math.Round((p.Y - _offset.Y) / _scale + _originY));
+
+    /// <summary>The grid: every monitor's usable area in twelfths (halves, thirds, quarters and sixths all fall on it).</summary>
+    private IEnumerable<(int X0, int Y0, int X1, int Y1)> GridLines()
+    {
+        foreach (var m in Shown())
+        {
+            var a = m.Area(Options.UseTaskbarArea);
+            for (var k = 1; k < GridSteps; k++)
+            {
+                var x = a.X + (int)Math.Round((double)a.Width * k / GridSteps);
+                var y = a.Y + (int)Math.Round((double)a.Height * k / GridSteps);
+                yield return (x, a.Y, x, a.Bottom);
+                yield return (a.X, y, a.Right, y);
+            }
+        }
+    }
+
+    private const int GridSteps = 12;
+
+    private void AddGridLines(List<int> xs, List<int> ys)
+    {
+        foreach (var (x0, y0, x1, y1) in GridLines())
+        {
+            if (x0 == x1) xs.Add(x0);
+            else ys.Add(y0);
+        }
     }
 
     // ---------- text ----------

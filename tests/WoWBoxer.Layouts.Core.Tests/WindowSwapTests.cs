@@ -33,7 +33,7 @@ public class WindowSwapTests
 
     [Theory]
     [InlineData(PresetKind.Grid)]
-    [InlineData(PresetKind.Free)]
+    [InlineData(PresetKind.Custom)]
     public void Equal_slot_layouts_need_a_choice(PresetKind kind)
     {
         var l = Layout(kind, 4);

@@ -117,6 +117,7 @@ public partial class App : Application
     /// <summary>Demo mode: its own temporary settings, no single-instance lock, tray, update check or network.</summary>
     private async void StartDemo(string? shots)
     {
+        Demo.Rendering = shots is not null;
         _main = new MainWindow(Demo.Start());
         _main.Closed += (_, _) => Shutdown();
         if (shots is null)

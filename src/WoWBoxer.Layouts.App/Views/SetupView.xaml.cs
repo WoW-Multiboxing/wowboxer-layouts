@@ -20,6 +20,7 @@ public partial class SetupView : UserControl
         Canvas.SlotEdited += (_, e) => (DataContext as MainViewModel)?.OnSlotEdited(e.Index, e.Slot);
         Canvas.SlotsSwapped += (_, e) => (DataContext as MainViewModel)?.SwapSlots(e.A, e.B);
         Canvas.MainSlotClicked += (_, i) => (DataContext as MainViewModel)?.ToggleMainSlot(i);
+        Canvas.SlotsEdited += (_, edits) => (DataContext as MainViewModel)?.ApplyRects(edits, -1);
         // rows grouped as "Party 1" / "Party 2" (one unnamed group, so no header, up to 5 clients)
         DataContextChanged += (_, _) =>
         {

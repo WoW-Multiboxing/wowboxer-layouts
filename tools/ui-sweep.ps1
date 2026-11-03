@@ -81,8 +81,8 @@ if ((FindId 'HeaderStatus').Current.Name -notlike 'Stopped*') { throw 'Start the
 $original = (Settings).lastProfile
 
 # ---- layouts × monitors × client counts ----
-$layouts = 'Main + side', 'Overlays', 'Grid', 'Free for all'
-$kinds = @{ 'Main + side' = 'side'; 'Overlays' = 'overlay'; 'Grid' = 'grid'; 'Free for all' = 'free' }
+$layouts = 'Main + side', 'Overlays', 'Grid', 'Custom'
+$kinds = @{ 'Main + side' = 'side'; 'Overlays' = 'overlay'; 'Grid' = 'grid'; 'Custom' = 'custom' }
 $screens = [System.Windows.Forms.Screen]::AllScreens.Count
 Invoke 'Save as…'; Prompt 'UI sweep'
 $sweepName = (Settings).lastProfile

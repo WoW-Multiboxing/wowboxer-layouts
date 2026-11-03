@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.7.0-beta.3 – Advanced editing and Custom layouts (2026-11-03)
+**Beta channel only.** Everything from v0.7.0-beta.2, plus:
+- **Advanced editing** on "Your screens": a toggle on the map's header opens a slim toolbar above the map (icons with
+  tooltips and shortcuts). Click selects a window, Ctrl/Shift+click adds or removes, dragging on the empty map draws
+  a box that selects across monitors, Ctrl+A selects all, Esc clears. Dragging any selected window moves the whole
+  group; arrow keys nudge it 1 px (Shift: 10 px). The first window picked is the **reference** (gold outline):
+  - **Match size:** same width, same height, same size (**Alt+Z**) – every window keeps its top-left corner.
+  - **Align** left, centre, right, top, middle, bottom – to the reference, or to the monitor with one window.
+  - **Distribute** horizontally / vertically with equal gaps; **Fill row / Fill column** makes the windows the same
+    size and fills the monitor's usable width or height edge to edge in their order (optional gap, 0 by default).
+  - **Fit 4:3**, **Swap when dropped on another window** (off inside Advanced editing, so windows can sit next to or
+    over each other; always on outside it), **Snap**, **Show grid** (twelfths of each monitor), **Lock aspect ratio**.
+  - X / Y / W / H for the selection (blank where they differ). **Undo / Redo** (Ctrl+Z / Ctrl+Y) for every step.
+  - The real windows follow when a drag or an operation ends, not on every mouse move. Shortcuts work only inside the app.
+- **"Free for all" is now "Custom"** – a sandbox. Choosing Custom keeps what is on the map (or brings this layout's
+  last custom draft back); moving or resizing a window of any preset switches to Custom from exactly that
+  arrangement; every change is kept as a draft (survives restarts). Leaving Custom with unsaved changes asks once:
+  **Save as…** / **Keep as draft** / **Discard** – the only question. Old layouts and share codes saying "free" are
+  read as Custom and saved again in the new form.
+- **Fixed: Paste a layout code.** Long codes no longer push OK and Cancel off the screen: fixed width, the code wraps
+  in a box that scrolls, a **Paste** button, a live check ("Valid WBX1 code · 3 clients · Main + side" or a clear
+  error), Enter = OK when the code is valid.
+- Guide: new chapter **Build your own layout (Custom)**. Website screenshots: a new "Advanced editing" picture.
+- Tests: selection, match size, align, distribute, fill (1–3 monitors, mixed DPI, taskbar on/off), Custom drafts,
+  the leave question, migration and code checking. `tools/edit-sweep.ps1` (UI Automation of the toolbar, Custom and
+  the import dialog in demo mode) and `tools/edit-real-check.ps1` (Fill row and Undo on real Classic Era clients).
+
 ## v0.7.0-beta.2 – Remove title bars, fixed (thanks to Limerobin) (2026-11-02)
 **Beta channel only.** Everything from v0.7.0-beta.1 (window swap hotkeys), plus:
 - **Remove title bars works properly now – contributed by [Limerobin](https://github.com/Limerobin) (PR #1).** Borderless

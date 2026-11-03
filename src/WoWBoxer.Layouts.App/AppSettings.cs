@@ -40,6 +40,16 @@ public sealed class AppSettings
     /// <summary>Turn hover to activate off when the app quits (on by default; the delay and bring-to-front stay).</summary>
     public bool TurnHoverOffOnExit { get; set; } = true;
 
+    /// <summary>Advanced editing on the "Your screens" map (toolbar, multi-selection).</summary>
+    public bool AdvancedEditing { get; set; }
+    /// <summary>In Advanced editing: dropping a window on another swaps them (off by default there; always on outside).</summary>
+    public bool SwapOnDropAdvanced { get; set; }
+    public bool SnapEnabled { get; set; } = true;
+    public bool ShowGrid { get; set; }
+    public bool LockAspect { get; set; }
+    /// <summary>Pixels between windows for Fill row / column.</summary>
+    public int FillGap { get; set; }
+
     /// <summary>Window swap hotkeys (Settings › Advanced). Off by default; only moves windows, never sends input.</summary>
     public bool SwapHotkeys { get; set; }
     /// <summary>Hotkey text per swap action ("Ctrl+Alt+Shift+Right"); missing = the default, "" = no hotkey.</summary>

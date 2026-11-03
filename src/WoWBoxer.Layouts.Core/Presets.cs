@@ -13,8 +13,11 @@ public enum PresetKind
     Grid,
     /// <summary>Older layouts only (the "2 monitors" card): now <see cref="Side"/> on two monitors.</summary>
     Dual,
-    /// <summary>A loose start spread over the chosen monitors; the user drags every window where they want it.</summary>
-    Free,
+    /// <summary>
+    /// Custom (was "Free for all" until 0.7.0; saved as "free" before): the user's own arrangement. Choosing it keeps what
+    /// is on screen; <see cref="Presets.ForScreens"/> only makes a loose start for windows that have no place yet.
+    /// </summary>
+    Custom,
 }
 
 /// <summary>How the two parties (6–10 clients) share one monitor: one half each.</summary>
@@ -40,14 +43,14 @@ public static class Presets
     private const double GridMaxUsefulAspect = 16.0 / 9;
 
     /// <summary>The layouts the app offers, in its order.</summary>
-    public static IReadOnlyList<PresetKind> Offered { get; } = [PresetKind.Side, PresetKind.Overlay, PresetKind.Grid, PresetKind.Free];
+    public static IReadOnlyList<PresetKind> Offered { get; } = [PresetKind.Side, PresetKind.Overlay, PresetKind.Grid, PresetKind.Custom];
 
     public static string DisplayName(PresetKind kind) => kind switch
     {
         PresetKind.Side or PresetKind.Dual => "Main + side",
         PresetKind.Overlay => "Overlays",
         PresetKind.Grid => "Grid",
-        PresetKind.Free => "Free for all",
+        PresetKind.Custom => "Custom",
         _ => kind.ToString(),
     };
 
@@ -90,7 +93,7 @@ public static class Presets
                 PresetKind.Side => Side(clients, screens, options, split),
                 PresetKind.Overlay => Overlay(clients, screens, options, followersOnSecond),
                 PresetKind.Grid => Spread(Enumerable.Range(1, clients).ToArray(), screens, options, clients).ToList(),
-                PresetKind.Free => Free(clients, screens, options),
+                PresetKind.Custom => CustomStart(clients, screens, options),
                 _ => throw new ArgumentOutOfRangeException(nameof(kind)),
             };
         return new LayoutProfile
@@ -324,11 +327,11 @@ public static class Presets
         return cells;
     }
 
-    // ---------- Free for all ----------
+    // ---------- Custom: a loose start ----------
 
     // Spread over the monitors like the grid. Monitor 1: the main at 55 % with a staircase of 5:4 windows down the right;
     // the others: a staircase across the screen. Everything stays inside its monitor.
-    private static List<LayoutSlot> Free(int clients, IReadOnlyList<MonitorInfo> screens, LayoutOptions o)
+    private static List<LayoutSlot> CustomStart(int clients, IReadOnlyList<MonitorInfo> screens, LayoutOptions o)
     {
         var counts = Counts(clients, screens.Count);
         var slots = new List<LayoutSlot>();

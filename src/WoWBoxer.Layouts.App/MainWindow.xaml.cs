@@ -93,6 +93,10 @@ public partial class MainWindow : Window, IUserDialogs
 
     public bool Confirm(string title, string message) => PromptWindow.Confirm(this, title, message);
 
+    public int Choose(string title, string message, IReadOnlyList<string> buttons) => PromptWindow.Choose(this, title, message, buttons);
+
+    public string? AskShareCode(Func<string, (bool Ok, string Message)> check) => PromptWindow.AskShareCode(this, check);
+
     public string? OpenFile(string filter)
     {
         var dialog = new OpenFileDialog { Filter = filter };

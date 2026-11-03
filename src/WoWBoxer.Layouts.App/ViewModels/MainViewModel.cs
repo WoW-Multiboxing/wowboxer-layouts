@@ -19,6 +19,10 @@ public interface IUserDialogs
 {
     string? Prompt(string title, string message, string initial);
     bool Confirm(string title, string message);
+    /// <summary>A question with several answers; returns the index of the button, or -1 when the dialog was closed (Esc).</summary>
+    int Choose(string title, string message, IReadOnlyList<string> buttons);
+    /// <summary>The import dialog: returns the code when it is valid and the user pressed OK (live check with <paramref name="check"/>).</summary>
+    string? AskShareCode(Func<string, (bool Ok, string Message)> check);
     string? OpenFile(string filter);
     string? SaveFile(string filter, string fileName);
     void CopyToClipboard(string text);
@@ -110,7 +114,7 @@ public sealed partial class MainViewModel : ObservableObject
             Card(PresetKind.Side, "Main + side", "Main big, followers stacked beside it. 2+ monitors: the main fills monitor 1, followers go on the others. 6–10 clients: one block per party."),
             Card(PresetKind.Overlay, "Overlays", "Main fills the screen; followers float in a row along the bottom – one row per party."),
             Card(PresetKind.Grid, "Grid", "Every client the same size, spread evenly over your monitors."),
-            Card(PresetKind.Free, "Free for all", "A loose start over your monitors – drag every window anywhere, across monitors too."),
+            Card(PresetKind.Custom, "Custom", "Your own arrangement: keeps what is on the map – drag, resize and line up windows anywhere, across monitors too. Saved as a draft on every change."),
         ];
         FlipSplitCommand = new RelayCommand(FlipSplit, () => HasSplit);
         _monitorCheck.Tick += (_, _) =>
@@ -179,7 +183,20 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The layout cards, each with a live mini preview for the current clients and monitors.</summary>
     public IReadOnlyList<LayoutCard> Layouts { get; }
 
-    private LayoutCard Card(PresetKind kind, string title, string blurb) => new(kind, title, blurb) { Apply = new RelayCommand(() => ApplyKind(kind)) };
+    private LayoutCard Card(PresetKind kind, string title, string blurb) => new(kind, title, blurb) { Apply = new RelayCommand(() => PickLayout(kind)) };
+
+    /// <summary>A layout card: Custom keeps what is on the map; any other card asks first when leaving unsaved Custom changes.</summary>
+    private void PickLayout(PresetKind kind)
+    {
+        if (Current is null || kind == Current.Preset) return;
+        if (kind == PresetKind.Custom)
+        {
+            ChooseCustom();   // keeps what is on the map – never fixed positions
+            return;
+        }
+        LeaveCustom(switchingLayout: false);
+        ApplyKind(kind);
+    }
     public IReadOnlyList<int> ClientCounts { get; } = Enumerable.Range(Presets.MinClients, Presets.MaxClients - Presets.MinClients + 1).ToList();
     public IReadOnlyList<WowClass> Classes { get; } = [WowClasses.Automatic, .. WowClasses.All];
     public IReadOnlyList<AspectChoice> AspectChoices { get; } =
@@ -245,17 +262,23 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     public string LayoutTitle => Current is null ? "No layout" : Current.Name;
-    public string SavedText => Current is null ? "" : $"Saved automatically as “{Current.Name}”";
+    public string SavedText => CustomSavedText;
 
     public ProfileItem? SelectedProfile
     {
         get => _selectedProfile;
         set
         {
-            if (value is null || !Set(ref _selectedProfile, value)) return;
+            if (value is null || value == _selectedProfile) return;
+            LeaveCustom(switchingLayout: true);   // asks only for an unsaved custom arrangement
+            if (!Set(ref _selectedProfile, value)) return;
             _undo.Clear();
+            _redo.Clear();
             MonitorNotice = "";
             Current = value.Profile;
+            LoadDraft();
+            _selection.Clear();
+            RaiseSelection();
             CheckScreens();   // its monitors may be numbered differently now, or not connected
             SelectedSlotIndex = 0;
             LastProfileName = value.Name;
@@ -351,7 +374,7 @@ public sealed partial class MainViewModel : ObservableObject
         get => Layouts.FirstOrDefault(c => c.Kind == Current?.Preset);
         set
         {
-            if (value is not null && value.Kind != Current?.Preset) ApplyKind(value.Kind);
+            if (value is not null) PickLayout(value.Kind);
         }
     }
 
@@ -363,7 +386,10 @@ public sealed partial class MainViewModel : ObservableObject
             card.IsSelected = Current?.Preset == card.Kind;
             card.Monitors = Monitors;
             card.Screens = ChosenScreens;
-            card.Preview = TryPreset(card.Kind, n, out var preview, quiet: true) ? preview : null;
+            // the Custom card shows what choosing it gives: this layout's draft, or the arrangement on the map now
+            card.Preview = card.Kind == PresetKind.Custom && Current is not null
+                ? (Current.Preset == PresetKind.Custom ? Current : _draft is { } d && d.Custom.Slots.Count == Current.Slots.Count ? d.Custom : Current)
+                : TryPreset(card.Kind, n, out var preview, quiet: true) ? preview : null;
         }
         OnPropertyChanged(nameof(SelectedLayout));
     }
@@ -377,6 +403,8 @@ public sealed partial class MainViewModel : ObservableObject
         if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond)) return;
         ResetSwap(quiet: true);   // a new layout starts at home
         var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class, CombatRole = Current.Slots[i].CombatRole } : s).ToList();
+        // Custom with another number of clients: the windows that exist keep their places
+        if (kind == PresetKind.Custom && Current.Preset == PresetKind.Custom && screens is null) slots = [.. CustomLayouts.WithCount(Current.Slots, preset)];
         Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond });
         SelectedSlotIndex = 0;
     }
@@ -384,8 +412,23 @@ public sealed partial class MainViewModel : ObservableObject
     private void ResetToPreset()
     {
         if (Current is null) return;
-        ApplyKind(Current.Preset ?? PresetKind.Side);
-        Status.Info($"Reset to {Presets.DisplayName(Current.Preset ?? PresetKind.Side)}. Ctrl+Z brings your changes back.");
+        if (Current.Preset is PresetKind.Custom or null)
+        {
+            // Custom has no fixed positions: back to the layout it was made from (or Main + side)
+            if (_draft?.Before is { } before)
+            {
+                Update(before with { Name = Current.Name });
+                Status.Info($"Back to {Presets.DisplayName(before.Preset ?? PresetKind.Side)} as it was before Custom. Your custom arrangement stays as a draft; Ctrl+Z brings it back.");
+            }
+            else
+            {
+                ApplyKind(PresetKind.Side);
+                Status.Info("Reset to Main + side. Ctrl+Z brings your custom arrangement back.");
+            }
+            return;
+        }
+        ApplyKind(Current.Preset.Value);
+        Status.Info($"Reset to {Presets.DisplayName(Current.Preset.Value)}. Ctrl+Z brings your changes back.");
     }
 
     /// <summary>The preset for the chosen monitors (or <paramref name="screens"/>); split and overlay rows as the current layout has them.</summary>
@@ -865,13 +908,13 @@ public sealed partial class MainViewModel : ObservableObject
             OnPropertyChanged(name);
     }
 
-    /// <summary>Uses these monitors (a hand-made layout starts again as Free for all on them).</summary>
+    /// <summary>Uses these monitors (a hand-made layout starts again as Custom on them).</summary>
     private void ApplyScreens(IReadOnlyList<MonitorInfo> screens)
     {
         if (Current is null) return;
         MonitorNotice = "";
-        if (Current.Preset is null) Status.Info("This layout was made by hand: it starts again as Free for all on the chosen monitors. Ctrl+Z brings it back.");
-        ApplyKind(Current.Preset ?? PresetKind.Free, screens: screens);
+        if (Current.Preset is null) Status.Info("This layout was made by hand: it starts again as Custom on the chosen monitors. Ctrl+Z brings it back.");
+        ApplyKind(Current.Preset ?? PresetKind.Custom, screens: screens);
     }
 
     /// <summary>
@@ -884,7 +927,7 @@ public sealed partial class MainViewModel : ObservableObject
         // older layouts remember no screens: a slot on a monitor that is not there counts as missing too
         if (ScreenSet.Resolve(Current, Monitors).Missing || Current.Slots.Any(s => Core.Monitors.Find(Monitors, s.Monitor) is null))
         {
-            ApplyKind(Current.Preset ?? PresetKind.Free, screens: [Core.Monitors.Primary(Monitors)]);
+            ApplyKind(Current.Preset ?? PresetKind.Custom, screens: [Core.Monitors.Primary(Monitors)]);
             MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor now. Choose the monitors again when it is back (or Ctrl+Z).";
             Status.Warn(MonitorNotice);
             return;
@@ -1014,6 +1057,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (_selectedProfile is null || Profiles.Count <= 1) return;
         if (!_dialogs.Confirm("Delete layout", $"Delete \"{_selectedProfile.Name}\"? This cannot be undone.")) return;
         _store.Delete(_selectedProfile.Path);
+        _drafts.Save(_selectedProfile.Name, null);
         var index = Profiles.IndexOf(_selectedProfile);
         Profiles.Remove(_selectedProfile);
         _selectedProfile = null;
@@ -1024,7 +1068,11 @@ public sealed partial class MainViewModel : ObservableObject
     private void Update(LayoutProfile profile, bool pushUndo = true)
     {
         if (_selectedProfile is null || Current is null || profile == Current) return;
-        if (pushUndo) _undo.Push(new UndoStep(Current));
+        if (pushUndo)
+        {
+            _undo.Push(new UndoStep(Current));
+            _redo.Clear();
+        }
         // only a change of the windows' places moves them (a name, class or "on top" change does not)
         var moved = Monitors.Count == 0 || !LayoutEngine.Resolve(Current, Monitors).Select(p => p.Rect).SequenceEqual(LayoutEngine.Resolve(profile, Monitors).Select(p => p.Rect));
         try
@@ -1037,7 +1085,9 @@ public sealed partial class MainViewModel : ObservableObject
         }
         _selectedProfile.Profile = profile;
         _selectedProfile.Refresh();
+        if (profile.Name != Current.Name) _drafts.Rename(Current.Name, profile.Name);
         Current = profile;
+        if (profile.Preset == PresetKind.Custom && _draft is { } draft) SaveDraft(draft with { Custom = profile });   // the draft follows every change
         LastProfileName = profile.Name;
         ApplyOnTop();
         if (moved) ScheduleLive();
@@ -1051,7 +1101,9 @@ public sealed partial class MainViewModel : ObservableObject
     public void OnSlotEdited(int index, LayoutSlot slot)
     {
         if (Current is null || index < 0 || index >= Current.Slots.Count) return;
-        Update(WindowSwap.Unapply(Current, _swapPos, index, slot));
+        var home = WindowSwap.Unapply(Current, _swapPos, index, slot);
+        if (CustomLayouts.SameGeometry(Current, home)) Update(home);   // a name, class, on top …
+        else UserGeometryEdit(home);                                   // moved or resized: a preset becomes Custom
         RaiseSlotProperties();
     }
 
@@ -1074,6 +1126,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (_undo.Count == 0) return;
         var step = _undo.Pop();
+        if (Current is not null) _redo.Push(new UndoStep(Current, step.WindowSlots is null ? null : new Dictionary<nint, int>(_keeper.Slots), step.Accounts is null ? null : _settings.Accounts.ToList()));
         if (step.WindowSlots is { } map)
         {
             // a squad reorder: put the windows and accounts back in their rows too, not only names and classes
@@ -1104,7 +1157,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void ImportCode()
     {
-        var code = _dialogs.Prompt("Paste a layout code", "Paste a WBX1: code from a friend or the website:", "");
+        var code = _dialogs.AskShareCode(text =>
+        {
+            var (ok, message, _) = ProfileJson.CheckShareCode(text);
+            return (ok, message);
+        });
         if (string.IsNullOrWhiteSpace(code)) return;
         try
         {
@@ -1585,6 +1642,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         _keeper.Move(from, to, Current.Slots.Count);
         _undo.Push(before);   // also when the names did not change (unnamed rows): the windows did
+        _redo.Clear();
         Update(Current with { Slots = slots }, pushUndo: false);
         // The window order changed even when names did not (unnamed rows): always refresh and move the windows.
         RefreshWindows();
@@ -1606,7 +1664,7 @@ public sealed partial class MainViewModel : ObservableObject
         var slots = Current.Slots.ToList();
         slots[a] = sa with { Monitor = sb.Monitor, X = sb.X, Y = sb.Y, W = sb.W, H = sb.H, Z = sb.Z, Anchor = sb.Anchor, Fit = sb.Fit };
         slots[b] = sb with { Monitor = sa.Monitor, X = sa.X, Y = sa.Y, W = sa.W, H = sa.H, Z = sa.Z, Anchor = sa.Anchor, Fit = sa.Fit };
-        Update(Current with { Slots = slots });
+        UserGeometryEdit(Current with { Slots = slots });
         SelectedSlotIndex = a;
         Status.Info($"Swapped the places of window {a + 1} and window {b + 1}. Ctrl+Z undoes it.");
     }

@@ -17,7 +17,10 @@ public sealed class ProfileStore(string folder)
         {
             try
             {
-                list.Add(new StoredProfile(path, ProfileJson.Deserialize(File.ReadAllText(path))));
+                var text = File.ReadAllText(path);
+                var profile = ProfileJson.Deserialize(text);
+                // written before 0.7.0 ("free" is "custom" now): saved again in the current form
+                list.Add(new StoredProfile(ProfileJson.IsLegacy(text) ? Save(profile, path) : path, profile));
             }
             catch (Exception e) when (e is FormatException or IOException or UnauthorizedAccessException)
             {

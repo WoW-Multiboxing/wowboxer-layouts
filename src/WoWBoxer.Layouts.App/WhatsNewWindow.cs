@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Custom layouts and Advanced editing",
+            "Free for all is now Custom: drag any window of a preset and it becomes your own layout, kept as a draft on every change. ADVANCED EDITING on the map selects several windows and lines them up – same size, align, distribute, fill a row – with undo and redo."),
+        ("Paste a layout code, fixed",
+            "Long codes stay inside the dialog now, with a Paste button and a live check (\"Valid WBX1 code · 3 clients · Main + side\")."),
         ("Remove title bars, fixed",
             "Thanks to Limerobin: borderless windows are now exactly the game area, and Main + side fills its column without gaps. New switch on Setup (Your squad); still off by default."),
         ("Window swap hotkeys (beta, advanced)",
@@ -27,7 +31,7 @@ internal static class WhatsNewWindow
         ("Up to 10 clients – two parties",
             "Pick 1–10 clients. Clients 1–5 are party 1, 6–10 party 2 (client 6 is its main); Your squad groups the rows by party."),
         ("Layout and monitors: two clear choices",
-            "Under the layout cards, Monitors picks 1, 2 or 3 monitors (and which ones). Every layout works across them: Main + side puts the main on monitor 1 and the followers on the others; Free for all lets you drag windows across monitors."),
+            "Under the layout cards, Monitors picks 1, 2 or 3 monitors (and which ones). Every layout works across them: Main + side puts the main on monitor 1 and the followers on the others; Custom lets you drag windows across monitors."),
         ("Hover to activate starts at 30 ms",
             "Turning hover to activate on now sets the delay to 30 ms, the default. Move the slider for faster or slower; Reset to default next to it puts 30 ms back. Closing WoWBoxer turns it off again (Settings can keep it on)."),
         ("Asks to update when it opens",

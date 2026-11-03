@@ -36,8 +36,9 @@ public sealed class GuideViewModel : ObservableObject
 {
     private GuideChapter _current;
 
-    public const int SwitchingChapter = 4;
-    public const int SwapChapter = 5;
+    public const int CustomChapter = 3;
+    public const int SwitchingChapter = 5;
+    public const int SwapChapter = 6;
 
     /// <summary>The note shown with window swap (Guide and Settings › Advanced). Facts only; the owner's wording (2026-11-02).</summary>
     public const string SwapNote = "Moves windows only – nothing is sent to the game. Blizzard has not ruled on window-swap tools; use at your own judgement.";
@@ -60,13 +61,23 @@ public sealed class GuideViewModel : ObservableObject
                 "On the Setup tab, choose how many clients you run, pick a layout and, with two or more monitors, how many of them to use. Your screens update instantly.",
                 [
                     "Choose 2–10 clients with the number buttons – or 1 for a normal single window when you play one character (no need to close the app). Clients 1–5 are party 1, 6–10 party 2, with client 6 as party 2's main.",
-                    "Click a layout card: Main + side, Overlays, Grid or Free for all. Each card shows a live preview for your clients and monitors.",
+                    "Click a layout card: Main + side, Overlays, Grid or Custom. Each card shows a live preview for your clients and monitors.",
                     "Monitors (right below, with 2+ monitors): 1 monitor, 2 monitors … The map shows exactly the chosen ones, numbered 1, 2 …; the main goes on 1. With fewer than all, \"Which ones\" picks them.",
-                    "Main + side on 2+ monitors: the main fills monitor 1, the followers go on the others. With 6–10 clients each party gets its own block – one per monitor, or two halves of one monitor (Flip turns the halves). Free for all: drag windows anywhere, also across monitors.",
+                    "Main + side on 2+ monitors: the main fills monitor 1, the followers go on the others. With 6–10 clients each party gets its own block – one per monitor, or two halves of one monitor (Flip turns the halves). Custom: drag windows anywhere, also across monitors.",
                     "Fine-tune by dragging windows on the map. A green dot means the whole action bar fits; a solid dot is measured on the open game window, a ring is the plan.",
                 ],
                 "Everything is saved automatically – clients, layout and monitors – and the app opens with your last setup next time. If a monitor of the layout is unplugged, it goes back to 1 monitor and tells you. Layouts work with every WoW install."),
-            new(3, "Open your clients",
+            new(CustomChapter, "Build your own layout (Custom)",
+                "Custom is your sandbox: start from any layout and change it until it is exactly right. Nothing is ever lost – every change is kept as a draft, also when you close the app.",
+                [
+                    "Drag or resize any window on the map: the layout becomes Custom from exactly that arrangement (nothing jumps). Or click the Custom card – it keeps what is on the map, or brings your last custom draft back.",
+                    "ADVANCED EDITING (the button on the map's header) opens a toolbar. Click a window to select it, Ctrl or Shift+click for more, or drag a box around them on the empty map; Ctrl+A selects all, Esc clears. The first one you pick is the reference (gold outline).",
+                    "Drag any selected window and the whole group moves together; arrow keys nudge it 1 px, Shift+arrow 10 px. Same width / height / size (Alt+Z) copy the reference's size; Align lines them up with it – or with the monitor when one window is selected.",
+                    "Distribute spaces 3 or more windows evenly. Fill row / Fill column makes the selected windows the same size and fills the monitor's width or height edge to edge in their order (optional gap). Fit 4:3 makes the whole Classic action bar fit. Type exact X, Y, W, H for the selection under the toolbar.",
+                    "In the toolbar, Swap when dropped is off, so windows can sit right next to or partly over each other; Snap, Grid and Lock aspect are there too. Ctrl+Z / Ctrl+Y undo and redo every step. The real windows follow when you let go.",
+                ],
+                "Leaving Custom with changes you have not saved under a name asks once: Save as… (a new layout of its own), Keep as draft (pick Custom later to get it back) or Discard (back to how it was). That is the only question; nothing else ever asks."),
+            new(4, "Open your clients",
                 "Press Start placing windows: from then on every WoW window that opens goes straight into the next free slot. Until you press it, the app leaves every window alone.",
                 [
                     "Start placing windows (bottom right): the app places the squad's windows. Stop leaves them where they are – for example while you play something else.",
@@ -88,14 +99,14 @@ public sealed class GuideViewModel : ObservableObject
             new(SwapChapter, "Swap windows (advanced)",
                 "Optional and off until you turn it on: hotkeys that move a character's window into the main slot – for example your healer's window into the big one. Only the windows move.",
                 [
-                    "Turn it on in Settings › Advanced › Window swap hotkeys. Main + side and Overlays use the large window as the main slot (one per party with 6–10 clients). In Grid and Free for all, click the crown on one window per party on the map first.",
+                    "Turn it on in Settings › Advanced › Window swap hotkeys. Main + side and Overlays use the large window as the main slot (one per party with 6–10 clients). In Grid and Custom, click the crown on one window per party on the map first.",
                     "Ctrl+Alt+Shift+Right / Left: the next / previous client into the main slot – closed windows are skipped, and after the last one it starts again. Ctrl+Alt+Shift+1 … 0: that client into the main slot. Ctrl+Alt+Shift+Backspace: everyone back home. Every hotkey can be changed or cleared in Settings.",
                     "The client that was in the main slot takes the chosen client's old place. Numbers, names and classes stay with the characters; size, monitor and \"always on top\" belong to the slot. Your squad shows who is in the main slot.",
                     "A swap never changes which window gets your keys: hover to activate or a click does that. Re-arrange, or Back to home layout in the tray, puts everyone back in their own slot.",
                 ],
                 SwapNote + " The hotkey itself goes to WoWBoxer, not to the game.",
                 "Open Settings", openAdvanced),
-            new(6, "If something looks wrong",
+            new(7, "If something looks wrong",
                 "Most problems have a simple cause. The app tells you what it sees.",
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
@@ -104,7 +115,7 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 "The Help tab lists the common problems with their fixes, and has Report a problem: a report with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
                 "Open Help", openHelp),
-            new(7, "What WoWBoxer never does",
+            new(8, "What WoWBoxer never does",
                 "WoWBoxer only places and sizes your game windows. That is the whole job.",
                 [
                     "Never sends keys or mouse clicks to the game – no broadcasting, no round robin.",

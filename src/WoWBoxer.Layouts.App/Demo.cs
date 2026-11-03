@@ -14,6 +14,9 @@ internal static class Demo
 {
     public static bool On { get; private set; }
 
+    /// <summary>"--screenshots": rendering unattended – questions get their safe answer instead of a dialog.</summary>
+    public static bool Rendering { get; set; }
+
     /// <summary>Settings, layouts, logs and the links cache of this demo run (deleted when it ends).</summary>
     public static string Root { get; } = Path.Combine(Path.GetTempPath(), $"WoWBoxer-demo-{Environment.ProcessId}");
 

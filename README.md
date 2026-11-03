@@ -51,7 +51,7 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
 ## Using it
 
 - **Setup** – how many clients (1–10; 6–10 = two parties), a layout card (Main + side, Overlays, Grid,
-  Free for all) and how many monitors to use, then fine-tune on a to-scale map of the chosen monitors: drag (also
+  Custom) and how many monitors to use, then fine-tune on a to-scale map of the chosen monitors: drag (also
   across monitors), resize, snap, nudge, undo. One button opens the missing
   clients; new WoW windows drop into the next free slot by themselves. Layouts save automatically; share them as
   `WBX1:` codes or files, or capture an arrangement you made by hand.

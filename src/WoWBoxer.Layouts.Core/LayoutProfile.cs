@@ -42,7 +42,7 @@ public sealed record LayoutProfile
     public bool FollowersOnSecond { get; init; }
     /// <summary>
     /// Window swap: the main slot of each party as 1-based slot numbers (at most one per party). Null = the default (the
-    /// large slot in Main + side and Overlays; none in Grid and Free for all, where the user picks one).
+    /// large slot in Main + side and Overlays; none in Grid and Custom, where the user picks one).
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<int>? SwapMainSlots { get; init; }

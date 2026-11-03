@@ -52,7 +52,7 @@ WoW windows found (class GxWindowClass* / waApplication Window, process Wow*, pa
   - **Overlays:** the main client fills the screen, and the followers float in a row along the bottom (as in the mockup);
     optionally on monitor 2. 6–10 clients: two rows, or one row per monitor.
   - **Grid:** tiles spread evenly over the chosen monitors.
-  - **Free for all:** a loose start spread over the chosen monitors; windows can be dragged anywhere, also across monitors.
+  - **Custom** (was "Free for all" until 0.7.0): the user's own arrangement – choosing it keeps what is on the map, editing any preset switches to it, every change is kept as a draft; windows can be dragged anywhere, also across monitors. Advanced editing (multi-select, match size, align, distribute, fill) since 0.7.0-beta.3.
   - A layout remembers its monitors (device ID, with place and size as fallback); if one is missing it falls back to 1 monitor.
 - **Share code:** `WBX1:` + base64 of the JSON, to copy between the website, the app and friends.
 

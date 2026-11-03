@@ -27,6 +27,7 @@ public static class ProfileJson
         LayoutProfile? profile;
         try
         {
+            json = Migrate(json);
             profile = JsonSerializer.Deserialize<LayoutProfile>(json, Indented);
         }
         catch (JsonException e)
@@ -40,10 +41,52 @@ public static class ProfileJson
         return profile;
     }
 
+    /// <summary>True for a layout written before 0.7.0 with the preset "free" (now "custom"): the file is saved again.</summary>
+    public static bool IsLegacy(string json)
+    {
+        try
+        {
+            return System.Text.Json.Nodes.JsonNode.Parse(json) is System.Text.Json.Nodes.JsonObject o
+                && o["preset"] is System.Text.Json.Nodes.JsonValue v && v.TryGetValue<string>(out var p) && string.Equals(p, "free", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>"Free for all" became "Custom" in 0.7.0: old files and share codes say "preset": "free".</summary>
+    private static string Migrate(string json)
+    {
+        if (!IsLegacy(json)) return json;
+        var o = (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(json)!;
+        o["preset"] = "custom";
+        return o.ToJsonString();
+    }
+
     /// <summary>A share code. The screens' device IDs stay on this PC (place and size are enough to find a friend's monitors).</summary>
     public static string ToShareCode(LayoutProfile profile) =>
         SharePrefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(Serialize(
             profile with { Screens = profile.Screens?.Select(s => s with { Id = null }).ToList() }, indented: false)));
+
+    /// <summary>
+    /// The import dialog's live check: "Valid WBX1 code · 3 clients · Main + side", or a short reason it is not valid.
+    /// Never throws. Whitespace and line breaks inside a pasted code are ignored.
+    /// </summary>
+    public static (bool Ok, string Message, LayoutProfile? Profile) CheckShareCode(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return (false, "Paste a code that starts with WBX1:", null);
+        try
+        {
+            var p = FromShareCode(code);
+            var kind = p.Preset is { } k ? Presets.DisplayName(k) : "hand-made";
+            return (true, $"Valid WBX1 code · {p.Clients} client{(p.Clients == 1 ? "" : "s")} · {kind}", p);
+        }
+        catch (FormatException e)
+        {
+            return (false, e.Message, null);
+        }
+    }
 
     public static LayoutProfile FromShareCode(string code)
     {

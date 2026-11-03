@@ -47,7 +47,7 @@ public static class WindowSwap
     /// <summary>
     /// The main slot of each party, as 0-based slot indices (index 0 = party 1, 1 = party 2; -1 = none chosen).
     /// The layout's own choice (<see cref="LayoutProfile.SwapMainSlots"/>) wins; else the default: the large slot (role
-    /// Main) in Main + side and Overlays, none in layouts where slots are equal (Grid, Free for all, captured).
+    /// Main) in Main + side and Overlays, none in layouts where slots are equal (Grid, Custom, captured).
     /// </summary>
     public static int[] MainSlots(LayoutProfile layout)
     {

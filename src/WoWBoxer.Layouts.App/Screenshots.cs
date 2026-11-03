@@ -64,17 +64,17 @@ internal static class Screenshots
         await Snap("setup-main-side", "Setup: clients, layout and monitors", "WoWBoxer, Setup: three WoW windows in the Main + side layout on one monitor – the main window big on the left, two followers stacked on the right – and the squad list with every window connected.",
             "Pick how many clients and a layout – every window goes to its place as it opens.");
 
-        // 2) Setup: 2 monitors, Free for all
+        // 2) Setup: 2 monitors, Custom
         Squad(vm, 4);
-        Use(vm, PresetKind.Free, monitors: 2);
-        // a hand-made arrangement; window 2 straddles the monitor border (Free for all allows it)
+        Use(vm, PresetKind.Custom, monitors: 2);
+        // a hand-made arrangement; window 2 straddles the monitor border (Custom allows it)
         Place(vm, 0, 0, 0, 1840, 1150);
         Place(vm, 1, 1960, 560, 1100, 740);
         Place(vm, 2, 3160, 40, 1260, 440);
         Place(vm, 3, 3160, 520, 1260, 440);
         vm.SelectedSlotIndex = -1;
-        await Snap("setup-two-monitors-free", "Two monitors, Free for all", "WoWBoxer Setup with two monitors (2560×1440 and 1920×1080) and the Free for all layout: four WoW windows arranged by hand over both monitors on the map – window 2 straddles the border between them.",
-            "Two monitors, Free for all: drag any window anywhere – across monitors too.");
+        await Snap("setup-two-monitors-free", "Two monitors, Custom", "WoWBoxer Setup with two monitors (2560×1440 and 1920×1080) and the Custom layout: four WoW windows arranged by hand over both monitors on the map – window 2 straddles the border between them.",
+            "Two monitors, Custom: drag any window anywhere – across monitors too.");
 
         // 3) Setup: 10 clients, two parties
         Squad(vm, 10);
@@ -91,6 +91,17 @@ internal static class Screenshots
         await Snap("window-details", "Window details", "WoWBoxer Setup with the details of window 1 open: name, class, position and size in pixels, always on top, and whether the whole action bar fits.",
             "Fine-tune any window: exact position and size, on top, and an action-bar check.");
         vm.ExpandedIndex = -1;
+
+        // 4b) Advanced editing: the ribbon, three windows selected and filled into one row (that makes it Custom)
+        vm.SelectedSlotIndex = -1;
+        vm.AdvancedEditing = true;
+        vm.SetSelection([1, 0, 2]);
+        vm.FillRowCommand.Execute(null);
+        await Snap("advanced-editing", "Advanced editing", "WoWBoxer Setup with Advanced editing on: a toolbar above the map to match sizes, align, distribute and fill a row or column; three WoW windows are selected (window 2 with the gold reference outline) and fill the monitor's width side by side.",
+            "Advanced editing: select several windows and line them up – same size, align, distribute, fill a row – with undo and redo.");
+        vm.UndoCommand.Execute(null);   // back to Main + side (no question: nothing unsaved to leave)
+        vm.SetSelection([]);
+        vm.AdvancedEditing = false;
 
         // 5) Settings: hover to activate and the action-bar fit
         vm.SelectedTab = AppTab.Settings;

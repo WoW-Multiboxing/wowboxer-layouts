@@ -13,6 +13,9 @@
     </WindowChrome.WindowChrome>
     <Window.InputBindings>
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
+        <KeyBinding Key="Z" Modifiers="Control+Shift" Command="{Binding RedoCommand}" />
+        <KeyBinding Key="Z" Modifiers="Alt" Command="{Binding SameSizeCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Setup" />
         <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Guide" />
         <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Settings" />

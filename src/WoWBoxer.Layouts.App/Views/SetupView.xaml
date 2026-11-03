@@ -88,6 +88,120 @@
             </Setter>
         </Style>
 
+        <!-- ===== Advanced editing ribbon ===== -->
+        <Style x:Key="RibbonGroup" TargetType="StackPanel">
+            <Setter Property="Margin" Value="0,0,14,0" />
+        </Style>
+        <Style x:Key="RibbonCaption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="9.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,1,0,0" />
+        </Style>
+        <Style x:Key="RibbonIcon" TargetType="Path">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="StrokeThickness" Value="1.3" />
+            <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Control}}" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+        <Style x:Key="RibbonButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource UiGoldBrush}" />
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Margin" Value="0,0,2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="B" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent" Background="#14FFFFFF">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource GoldBrush}" />
+                                <Setter Property="Foreground" Value="#FFE45C" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="B" Property="Background" Value="#40E8C66A" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="B" Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="RibbonToggle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{StaticResource UiGoldBrush}" />
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Margin" Value="0,0,2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="B" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent" Background="#14FFFFFF">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="B" Property="Background" Value="#55C9A24A" />
+                                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource GoldBrush}" />
+                                <Setter Property="Foreground" Value="#FFE9A8" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="RibbonField" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0,3,0" />
+        </Style>
+        <Style x:Key="RibbonNumber" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Width" Value="56" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Padding" Value="4,1" />
+        </Style>
+        <!-- the map header's "Advanced editing" switch -->
+        <Style x:Key="EditModeToggle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{StaticResource UiGoldBrush}" />
+            <Setter Property="FontFamily" Value="{StaticResource DisplaySemiFont}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="B" CornerRadius="4" BorderThickness="1" BorderBrush="#6B5422" Background="#1AFFFFFF" Padding="9,3">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M2,12 L2,14 L4,14 L12,6 L10,4 Z M9,5 L11,7" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.3" Width="14" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="B" Property="Background" Value="#55C9A24A" />
+                                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource GoldHiBrush}" />
+                                <Setter Property="Foreground" Value="#FFE9A8" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="B" Property="BorderBrush" Value="{StaticResource GoldBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource Muted}">
             <Setter Property="Margin" Value="0,0,0,3" />
             <Setter Property="FontSize" Value="11.5" />
@@ -372,23 +486,183 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <DockPanel>
                     <Border DockPanel.Dock="Right" Style="{StaticResource HelpMark}" VerticalAlignment="Center" AutomationProperties.Name="Map help">
                         <Border.ToolTip>
                             <TextBlock MaxWidth="380" TextWrapping="Wrap"
-                                       Text="Drag a window to move it · drop it on another to swap · gold handles resize · Alt places freely · arrow keys nudge · Tab selects the next window. The dot shows the action bar (solid = measured on the open game window, ring = planned). Pin = always on top. The ring round each number: pulsing = awaiting its WoW window, green = connected." />
+                                       Text="Drag a window to move it · drop it on another to swap · gold handles resize · Alt places freely · arrow keys nudge · Tab selects the next window. Moving or resizing a window of a preset makes it Custom (kept as a draft). ADVANCED EDITING: select several (Ctrl/Shift+click, drag a box, Ctrl+A), move them together, match size (Alt+Z), align, distribute, fill a row or column; Ctrl+Z / Ctrl+Y undo and redo. The dot shows the action bar (solid = measured on the open game window, ring = planned). Pin = always on top. The ring round each number: pulsing = awaiting its WoW window, green = connected." />
                         </Border.ToolTip>
                         <TextBlock Text="?" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource GoldHiBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
+                    <ToggleButton DockPanel.Dock="Right" Style="{StaticResource EditModeToggle}" IsChecked="{Binding AdvancedEditing}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                  AutomationProperties.AutomationId="AdvancedEditing" AutomationProperties.Name="Advanced editing"
+                                  ToolTip="Advanced editing: select several windows (Ctrl/Shift+click, drag a box, Ctrl+A), move them together, match sizes, align, distribute, fill a row or column">
+                        <TextBlock Text="ADVANCED EDITING" />
+                    </ToggleButton>
                     <TextBlock Style="{StaticResource StepLabel}" Text="III  ·  YOUR SCREENS" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding LayoutTitle}" Style="{StaticResource H2}" Margin="14,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                 </DockPanel>
 
-                <Grid Grid.Row="1" Margin="0,8,0,0">
+                <!-- ===== Advanced editing: a slim ribbon above the map (shortcuts work only inside the app) ===== -->
+                <Border Grid.Row="1" x:Name="EditRibbon" Margin="0,8,0,0" Padding="8,5" CornerRadius="5" BorderThickness="1" BorderBrush="{StaticResource LineSoftBrush}"
+                        AutomationProperties.AutomationId="EditRibbon" AutomationProperties.Name="Advanced editing toolbar">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#E6171B25" Offset="0" /><GradientStop Color="#E60D1017" Offset="1" /></LinearGradientBrush>
+                    </Border.Background>
+                    <Border.RenderTransform><TranslateTransform x:Name="RibbonShift" /></Border.RenderTransform>
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding AdvancedEditing}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.18" />
+                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" From="-10" To="0" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <WrapPanel Orientation="Horizontal">
+                            <!-- select -->
+                            <StackPanel Style="{StaticResource RibbonGroup}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding SelectAllCommand}" ToolTip="Select all windows (Ctrl+A)" AutomationProperties.Name="Select all">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1.5,1.5 H14.5 V14.5 H1.5 Z" StrokeDashArray="2 1.5" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding ClearSelectionCommand}" ToolTip="Clear the selection (Esc)" AutomationProperties.Name="Clear selection">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M3,3 L13,13 M13,3 L3,13" />
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Select" />
+                            </StackPanel>
+                            <!-- match size -->
+                            <StackPanel Style="{StaticResource RibbonGroup}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding SameWidthCommand}" ToolTip="Same width as the reference (gold outline); top-left corners stay" AutomationProperties.Name="Same width">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M2,5 H14 M2,11 H14 M2,3 V7 M14,3 V7 M2,9 V13 M14,9 V13" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding SameHeightCommand}" ToolTip="Same height as the reference; top-left corners stay" AutomationProperties.Name="Same height">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M5,2 V14 M11,2 V14 M3,2 H7 M3,14 H7 M9,2 H13 M9,14 H13" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding SameSizeCommand}" ToolTip="Same size as the reference (Alt+Z); top-left corners stay" AutomationProperties.Name="Same size">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1.5,1.5 H8.5 V8.5 H1.5 Z M7.5,7.5 H14.5 V14.5 H7.5 Z" />
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Match size" />
+                            </StackPanel>
+                            <!-- align -->
+                            <StackPanel Style="{StaticResource RibbonGroup}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Align left edges (to the reference, or to the monitor for one window)" AutomationProperties.Name="Align left">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M2,1 V15 M4,3 H13 V7 H4 Z M4,9 H9 V13 H4 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Align centres horizontally" AutomationProperties.Name="Align centre">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M8,1 V15 M3,3 H13 V7 H3 Z M5,9 H11 V13 H5 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Align right edges" AutomationProperties.Name="Align right">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M14,1 V15 M3,3 H12 V7 H3 Z M7,9 H12 V13 H7 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding AlignCommand}" CommandParameter="Top" ToolTip="Align top edges" AutomationProperties.Name="Align top">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1,2 H15 M3,4 V13 H7 V4 Z M9,4 V9 H13 V4 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding AlignCommand}" CommandParameter="Middle" ToolTip="Align middles vertically" AutomationProperties.Name="Align middle">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1,8 H15 M3,3 V13 H7 V3 Z M9,5 V11 H13 V5 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding AlignCommand}" CommandParameter="Bottom" ToolTip="Align bottom edges" AutomationProperties.Name="Align bottom">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1,14 H15 M3,3 V12 H7 V3 Z M9,7 V12 H13 V7 Z" />
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Align" />
+                            </StackPanel>
+                            <!-- distribute and fill -->
+                            <StackPanel Style="{StaticResource RibbonGroup}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding DistributeHorizontallyCommand}" ToolTip="Distribute horizontally: equal gaps (3+ windows; the outer ones stay)" AutomationProperties.Name="Distribute horizontally">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1,2 V14 M15,2 V14 M6,4 H10 V12 H6 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding DistributeVerticallyCommand}" ToolTip="Distribute vertically: equal gaps (3+ windows)" AutomationProperties.Name="Distribute vertically">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M2,1 H14 M2,15 H14 M4,6 H12 V10 H4 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding FillRowCommand}" ToolTip="Fill row: equal size, edge to edge across the monitor's usable width, in their order" AutomationProperties.Name="Fill row">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1,4 H5 V12 H1 Z M6,4 H10 V12 H6 Z M11,4 H15 V12 H11 Z" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding FillColumnCommand}" ToolTip="Fill column: equal size, edge to edge down the monitor's usable height, in their order" AutomationProperties.Name="Fill column">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M4,1 H12 V5 H4 Z M4,6 H12 V10 H4 Z M4,11 H12 V15 H4 Z" />
+                                    </Button>
+                                    <TextBox Text="{Binding FillGap, UpdateSourceTrigger=LostFocus}" Width="34" FontSize="11.5" Padding="3,1" VerticalAlignment="Center" Margin="4,0,0,0"
+                                             ToolTip="Gap between windows for Fill row / Fill column, in pixels (0 = edge to edge)" AutomationProperties.Name="Fill gap" />
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding Fit43Command}" ToolTip="Fit 4:3: the whole Classic action bar fits (keeps width and top-left; shorter if it would leave the monitor)" AutomationProperties.Name="Fit 4:3">
+                                        <TextBlock Text="4:3" FontSize="10.5" FontWeight="Bold" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Distribute · fill (gap px) · 4:3" />
+                            </StackPanel>
+                            <!-- options -->
+                            <StackPanel Style="{StaticResource RibbonGroup}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton Style="{StaticResource RibbonToggle}" IsChecked="{Binding SwapOnDrop}" ToolTip="Swap when dropped on another window (off: windows can sit next to or partly over each other)" AutomationProperties.Name="Swap when dropped on another window">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M2,5 H12 M9,2 L12,5 L9,8 M14,11 H4 M7,8 L4,11 L7,14" />
+                                    </ToggleButton>
+                                    <ToggleButton Style="{StaticResource RibbonToggle}" IsChecked="{Binding SnapEnabled}" ToolTip="Snap to edges, monitors and the grid (Alt while dragging does the opposite)" AutomationProperties.Name="Snap">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M4,2 V8 A4,4 0 0 0 12,8 V2 M2,2 H6 M10,2 H14" />
+                                    </ToggleButton>
+                                    <ToggleButton Style="{StaticResource RibbonToggle}" IsChecked="{Binding ShowGrid}" ToolTip="Show grid (twelfths of each monitor: halves, thirds, quarters)" AutomationProperties.Name="Show grid">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1.5,1.5 H14.5 V14.5 H1.5 Z M6,1.5 V14.5 M10.5,1.5 V14.5 M1.5,6 H14.5 M1.5,10.5 H14.5" />
+                                    </ToggleButton>
+                                    <ToggleButton Style="{StaticResource RibbonToggle}" IsChecked="{Binding LockAspect}" ToolTip="Lock aspect ratio while resizing" AutomationProperties.Name="Lock aspect ratio">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M4,7.5 H12 V14 H4 Z M6,7.5 V5 A2,2 0 0 1 10,5 V7.5" />
+                                    </ToggleButton>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Swap · snap · grid · lock" />
+                            </StackPanel>
+                            <!-- undo / redo -->
+                            <StackPanel Style="{StaticResource RibbonGroup}" Margin="0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" AutomationProperties.Name="Undo">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M6,3 L2,7 L6,11 M2,7 H10 A4,4 0 0 1 10,15 H7" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)" AutomationProperties.Name="Redo">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M10,3 L14,7 L10,11 M14,7 H6 A4,4 0 0 0 6,15 H9" />
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Undo" />
+                            </StackPanel>
+                        </WrapPanel>
+                        <!-- the selection: X / Y / W / H (blank where they differ) -->
+                        <DockPanel Margin="2,4,0,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource RibbonField}" Text="X" />
+                                <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding SelX, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Selection X" ToolTip="Left edge in pixels (all selected windows)" />
+                                <TextBlock Style="{StaticResource RibbonField}" Text="Y" />
+                                <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding SelY, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Selection Y" ToolTip="Top edge in pixels" />
+                                <TextBlock Style="{StaticResource RibbonField}" Text="W" />
+                                <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding SelW, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Selection width" ToolTip="Width in pixels" />
+                                <TextBlock Style="{StaticResource RibbonField}" Text="H" />
+                                <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding SelH, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Selection height" ToolTip="Height in pixels" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding SelectionText}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       AutomationProperties.AutomationId="SelectionText" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="2" Margin="0,8,0,0">
                     <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
-                                    SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}" />
+                                    SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}"
+                                    AdvancedEditing="{Binding AdvancedEditing}" SwapOnDrop="{Binding SwapOnDrop}" SnapEnabled="{Binding SnapEnabled}" ShowGrid="{Binding ShowGrid}"
+                                    LockAspect="{Binding LockAspect}" SelectedIndices="{Binding SelectedIndices, Mode=TwoWay}" AutomationProperties.AutomationId="LayoutMap" />
                     <!-- window swap is on but a party has no main slot yet -->
                     <Border Style="{StaticResource TipBox}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" MaxWidth="520"
                             Visibility="{Binding MainSlotHint, Converter={x:Static app:BoolVisibility.Instance}}">

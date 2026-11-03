@@ -81,7 +81,7 @@ public class PresetTests
     {
         var placed = Place(kind, n, setup, screens);
 
-        if (kind == PresetKind.Free) return;   // free windows keep whatever size the user drags
+        if (kind == PresetKind.Custom) return;   // free windows keep whatever size the user drags
         Assert.All(placed.Where(p => p.Slot.Role == SlotRole.Follower), p =>
         {
             var (w, h) = LayoutEngine.GameArea(p.Rect, LayoutEngine.FrameSize(new LayoutOptions(), p.Monitor.Dpi));
@@ -94,7 +94,7 @@ public class PresetTests
     public void Windows_do_not_overlap_except_overlays_on_the_main(PresetKind kind, int n, string setup, int screens)
     {
         var placed = Place(kind, n, setup, screens);
-        if (kind == PresetKind.Free) return;   // a cascade overlaps on purpose
+        if (kind == PresetKind.Custom) return;   // a cascade overlaps on purpose
         // overlays float over a main: only windows on the same level must not overlap
         foreach (var level in placed.GroupBy(p => p.Slot.Z == ZOrder.Top))
         {
@@ -205,7 +205,7 @@ public class PresetTests
     [InlineData(PresetKind.Side)]
     [InlineData(PresetKind.Overlay)]
     [InlineData(PresetKind.Grid)]
-    [InlineData(PresetKind.Free)]
+    [InlineData(PresetKind.Custom)]
     public void One_client_is_a_single_window_filling_the_work_area(PresetKind kind)
     {
         var profile = Presets.Create(kind, 1, TestMonitors.Reference, options: new LayoutOptions { Borderless = true });
@@ -337,7 +337,7 @@ public class PresetTests
 
     [Theory]
     [InlineData(PresetKind.Grid)]
-    [InlineData(PresetKind.Free)]
+    [InlineData(PresetKind.Custom)]
     public void Grid_and_free_spread_the_windows_evenly_over_the_monitors(PresetKind kind)
     {
         var placed = Place(kind, 10, "triple-mixed", screens: 3);
@@ -359,7 +359,7 @@ public class PresetTests
     public void Free_windows_can_be_dragged_onto_another_chosen_monitor()
     {
         var monitors = TestMonitors.Setups["dual-mixed"];
-        var profile = Presets.ForScreens(PresetKind.Free, 3, ScreenSet.Ordered(monitors));
+        var profile = Presets.ForScreens(PresetKind.Custom, 3, ScreenSet.Ordered(monitors));
         var slot = profile.Slots[1];
 
         // dragged so it straddles the border, mostly on the left monitor: it lands there, inside it
