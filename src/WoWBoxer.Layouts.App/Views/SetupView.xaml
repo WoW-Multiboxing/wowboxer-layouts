@@ -169,8 +169,10 @@
         </Style>
         <Style x:Key="RibbonNumber" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Width" Value="56" />
+            <Setter Property="Height" Value="24" />
             <Setter Property="FontSize" Value="11.5" />
-            <Setter Property="Padding" Value="4,1" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <!-- the map header's "Advanced editing" switch -->
         <Style x:Key="EditModeToggle" TargetType="ToggleButton">
@@ -601,13 +603,44 @@
                                     <Button Style="{StaticResource RibbonButton}" Command="{Binding FillColumnCommand}" ToolTip="Fill column: equal size, edge to edge down the monitor's usable height, in their order" AutomationProperties.Name="Fill column">
                                         <Path Style="{StaticResource RibbonIcon}" Data="M4,1 H12 V5 H4 Z M4,6 H12 V10 H4 Z M4,11 H12 V15 H4 Z" />
                                     </Button>
-                                    <TextBox Text="{Binding FillGap, UpdateSourceTrigger=LostFocus}" Width="34" FontSize="11.5" Padding="3,1" VerticalAlignment="Center" Margin="4,0,0,0"
+                                    <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding FillGap, UpdateSourceTrigger=LostFocus}" Width="34" VerticalAlignment="Center" Margin="4,0,0,0"
                                              ToolTip="Gap between windows for Fill row / Fill column, in pixels (0 = edge to edge)" AutomationProperties.Name="Fill gap" />
                                     <Button Style="{StaticResource RibbonButton}" Command="{Binding Fit43Command}" ToolTip="Fit 4:3: the whole Classic action bar fits (keeps width and top-left; shorter if it would leave the monitor)" AutomationProperties.Name="Fit 4:3">
                                         <TextBlock Text="4:3" FontSize="10.5" FontWeight="Bold" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                     </Button>
                                 </StackPanel>
                                 <TextBlock Style="{StaticResource RibbonCaption}" Text="Distribute · fill (gap px) · 4:3" />
+                            </StackPanel>
+                            <!-- fill a custom area -->
+                            <StackPanel Style="{StaticResource RibbonGroup}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding FillEmptySpaceCommand}" AutomationProperties.Name="Fill empty space"
+                                            ToolTip="Fill empty space: tiles the selection into the largest free area – not under the other windows – the one the selection is mostly in. Shows a preview first.">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1.5,1.5 H6 V14.5 H1.5 Z M8,1.5 H14.5 V14.5 H8 Z M8,8 H14.5 M11.25,1.5 V14.5" StrokeDashArray="1.5 1" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding FillSpanCommand}" AutomationProperties.Name="Fill selection span"
+                                            ToolTip="Fill selection span: equal windows from the first window's left/top edge to the last window's right/bottom edge. Shows a preview first.">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1,3 V13 M15,3 V13 M3,5 H7 V11 H3 Z M9,5 H13 V11 H9 Z M1,8 H3 M13,8 H15" />
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding FillAreaCommand}" AutomationProperties.Name="Fill area"
+                                            ToolTip="Fill area…: drag a rectangle on the map (over windows too) or type it in px or %, then the selection is tiled inside it. Shows a preview first.">
+                                        <Path Style="{StaticResource RibbonIcon}" Data="M1.5,1.5 H14.5 V14.5 H1.5 Z M4,4 H8 V8 H4 Z M9,9 L13,13 M13,10 V13 H10" StrokeDashArray="2 1.2" />
+                                    </Button>
+                                    <ComboBox ItemsSource="{Binding FillArrangements}" SelectedItem="{Binding FillArrangement}" Width="84" Height="26" FontSize="11.5" Padding="6,0" Margin="4,0,0,0" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                              AutomationProperties.Name="Fill arrangement" ToolTip="Row, column or grid for the area fills" />
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsGridFill, Converter={x:Static app:BoolVisibility.Instance}}">
+                                        <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding FillRows, UpdateSourceTrigger=LostFocus}" Width="28" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                 AutomationProperties.Name="Grid rows" ToolTip="Grid rows (empty = automatic)" />
+                                        <TextBlock Text="×" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="2,0" />
+                                        <TextBox Style="{StaticResource RibbonNumber}" Text="{Binding FillColumns, UpdateSourceTrigger=LostFocus}" Width="28" VerticalAlignment="Center"
+                                                 AutomationProperties.Name="Grid columns" ToolTip="Grid columns (empty = automatic)" />
+                                    </StackPanel>
+                                    <ToggleButton Style="{StaticResource RibbonToggle}" IsChecked="{Binding FillByNumber}" Margin="4,0,0,0" AutomationProperties.Name="Order by client number"
+                                                  ToolTip="Order: by client number (1, 2, 3 …). Off: the windows' current left-to-right / top-to-bottom order">
+                                        <TextBlock Text="1·2" FontSize="10" FontWeight="Bold" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                                    </ToggleButton>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource RibbonCaption}" Text="Fill area: empty · span · drawn" />
                             </StackPanel>
                             <!-- options -->
                             <StackPanel Style="{StaticResource RibbonGroup}">
@@ -655,6 +688,32 @@
                             <TextBlock Text="{Binding SelectionText}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                        AutomationProperties.AutomationId="SelectionText" />
                         </DockPanel>
+                        <!-- fill preview: what will happen, the area in px or %, Apply / Cancel -->
+                        <Border Margin="0,6,0,0" Padding="8,5" CornerRadius="4" BorderThickness="1" BorderBrush="{StaticResource GoldBrush}" Background="#2AC9A24A"
+                                Visibility="{Binding ShowFillBar, Converter={x:Static app:BoolVisibility.Instance}}" AutomationProperties.AutomationId="FillBar">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource RibbonField}" Text="Area X" />
+                                    <TextBox Style="{StaticResource RibbonNumber}" Width="50" Text="{Binding AreaX, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Area left" ToolTip="Left edge of the area" />
+                                    <TextBlock Style="{StaticResource RibbonField}" Text="Y" />
+                                    <TextBox Style="{StaticResource RibbonNumber}" Width="50" Text="{Binding AreaY, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Area top" ToolTip="Top edge of the area" />
+                                    <TextBlock Style="{StaticResource RibbonField}" Text="W" />
+                                    <TextBox Style="{StaticResource RibbonNumber}" Width="50" Text="{Binding AreaW, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Area width" ToolTip="Width of the area" />
+                                    <TextBlock Style="{StaticResource RibbonField}" Text="H" />
+                                    <TextBox Style="{StaticResource RibbonNumber}" Width="50" Text="{Binding AreaH, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Area height" ToolTip="Height of the area" />
+                                    <ToggleButton Style="{StaticResource RibbonToggle}" IsChecked="{Binding AreaInPercent}" Margin="6,0,0,0" AutomationProperties.Name="Area in percent"
+                                                  ToolTip="Type the area in % of the monitor's usable area (off: pixels)">
+                                        <TextBlock Text="%" FontSize="11" FontWeight="Bold" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                                    </ToggleButton>
+                                    <Button Content="APPLY" Command="{Binding ApplyFillCommand}" Padding="10,2" FontSize="11.5" Margin="10,0,0,0" AutomationProperties.Name="Apply fill"
+                                            ToolTip="Move the windows as shown (one undo step)" />
+                                    <Button Content="CANCEL" Command="{Binding CancelFillCommand}" Padding="10,2" FontSize="11.5" Margin="6,0,0,0" AutomationProperties.Name="Cancel fill"
+                                            ToolTip="Leave everything as it is (Esc)" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding FillPreviewText}" FontSize="11.5" Foreground="{StaticResource GoldHiBrush}" TextWrapping="Wrap" VerticalAlignment="Center"
+                                           AutomationProperties.AutomationId="FillPreviewText" />
+                            </DockPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
@@ -662,7 +721,8 @@
                     <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
                                     SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}"
                                     AdvancedEditing="{Binding AdvancedEditing}" SwapOnDrop="{Binding SwapOnDrop}" SnapEnabled="{Binding SnapEnabled}" ShowGrid="{Binding ShowGrid}"
-                                    LockAspect="{Binding LockAspect}" SelectedIndices="{Binding SelectedIndices, Mode=TwoWay}" AutomationProperties.AutomationId="LayoutMap" />
+                                    LockAspect="{Binding LockAspect}" SelectedIndices="{Binding SelectedIndices, Mode=TwoWay}"
+                                    PreviewTiles="{Binding PreviewTiles}" PreviewArea="{Binding PreviewArea}" PickingArea="{Binding PickingArea}" AutomationProperties.AutomationId="LayoutMap" />
                     <!-- window swap is on but a party has no main slot yet -->
                     <Border Style="{StaticResource TipBox}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" MaxWidth="520"
                             Visibility="{Binding MainSlotHint, Converter={x:Static app:BoolVisibility.Instance}}">

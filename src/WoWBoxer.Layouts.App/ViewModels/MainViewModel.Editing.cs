@@ -110,7 +110,11 @@ public sealed partial class MainViewModel
         {
             if (value == _settings.AdvancedEditing) return;
             SetSetting(() => _settings.AdvancedEditing = value);
-            if (!value) SetSelection(SelectedSlotIndex >= 0 ? [SelectedSlotIndex] : []);
+            if (!value)
+            {
+                ClearFill();
+                SetSelection(SelectedSlotIndex >= 0 ? [SelectedSlotIndex] : []);
+            }
             OnPropertyChanged(nameof(SwapOnDrop));
             CommandManager.InvalidateRequerySuggested();
         }
@@ -134,7 +138,11 @@ public sealed partial class MainViewModel
     public int FillGap
     {
         get => _settings.FillGap;
-        set => SetSetting(() => _settings.FillGap = Math.Clamp(value, 0, 200));
+        set
+        {
+            SetSetting(() => _settings.FillGap = Math.Clamp(value, 0, 200));
+            RecomputeFill();
+        }
     }
 
     /// <summary>The selected windows (row indices), the reference first. The map shows them; the toolbar works on them.</summary>
@@ -167,6 +175,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(SelectedIndices));
         OnPropertyChanged(nameof(SelectionText));
         foreach (var n in new[] { nameof(SelX), nameof(SelY), nameof(SelW), nameof(SelH) }) OnPropertyChanged(n);
+        if (_fillTarget != FillTarget.None) RecomputeFill();   // the preview follows the selection
         CommandManager.InvalidateRequerySuggested();
     }
 

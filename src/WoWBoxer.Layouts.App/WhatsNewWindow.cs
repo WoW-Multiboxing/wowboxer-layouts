@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Fill a custom area",
+            "Advanced editing can now fill the empty space next to your other windows, the span of the selection, or a rectangle you draw – as a row, column or grid, with a live preview and each window's action-bar verdict before you apply."),
         ("Custom layouts and Advanced editing",
             "Free for all is now Custom: drag any window of a preset and it becomes your own layout, kept as a draft on every change. ADVANCED EDITING on the map selects several windows and lines them up – same size, align, distribute, fill a row – with undo and redo."),
         ("Paste a layout code, fixed",

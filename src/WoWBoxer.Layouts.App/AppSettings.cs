@@ -47,8 +47,14 @@ public sealed class AppSettings
     public bool SnapEnabled { get; set; } = true;
     public bool ShowGrid { get; set; }
     public bool LockAspect { get; set; }
-    /// <summary>Pixels between windows for Fill row / column.</summary>
+    /// <summary>Pixels between windows for Fill row / column and the area fills.</summary>
     public int FillGap { get; set; }
+    /// <summary>Area fills: row, column or grid; grid rows / columns (0 = automatic); client-number order; typed areas in %.</summary>
+    public TileArrangement FillArrangement { get; set; } = TileArrangement.Grid;
+    public int FillRows { get; set; }
+    public int FillColumns { get; set; }
+    public bool FillByNumber { get; set; }
+    public bool FillAreaPercent { get; set; }
 
     /// <summary>Window swap hotkeys (Settings › Advanced). Off by default; only moves windows, never sends input.</summary>
     public bool SwapHotkeys { get; set; }

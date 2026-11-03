@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.0-beta.4 – Fill a custom area (2026-11-03)
+**Beta channel only.** Everything from v0.7.0-beta.3, plus three ways in Advanced editing to fill an area of your
+choice with the selected windows (next to Fill row / Fill column for the whole monitor):
+- **Fill empty space:** tiles the selection into the largest free rectangle – the part of the monitor not covered by
+  the windows you did not select (window 1 on the left half → four selected windows fill the right half). With
+  several free areas it takes the one the selection is mostly in.
+- **Fill selection span:** equal windows from the first window's left/top edge to the last one's right/bottom edge
+  (PowerPoint-style, within the selection).
+- **Fill area…:** drag a rectangle on the map (over windows too) or type it in px or % of the monitor.
+- For all three: **Row / Column / Grid** (rows × columns automatic – cells as close to 4:3 as possible – or set),
+  the gap, and the order (current left-to-right / top-to-bottom, or by client number). Each one is a **live
+  preview** first: the area is highlighted and every window shows where it goes and its action-bar verdict there;
+  **Apply** makes it one undo step, **Cancel** or Esc leaves everything as it was.
+- Tests: free-space detection (1–3 monitors, taskbar on/off, overlapping windows and windows sticking out), the three
+  fill modes, grid sizes, order and typed areas.
+
 ## v0.7.0-beta.3 – Advanced editing and Custom layouts (2026-11-03)
 **Beta channel only.** Everything from v0.7.0-beta.2, plus:
 - **Advanced editing** on "Your screens": a toggle on the map's header opens a slim toolbar above the map (icons with

@@ -75,7 +75,8 @@ try {
     Check 'Advanced editing opens the ribbon' { -not (FindId 'EditRibbon').Current.IsOffscreen }
     $buttons = 'Select all', 'Clear selection', 'Same width', 'Same height', 'Same size', 'Align left', 'Align centre', 'Align right', 'Align top', 'Align middle', 'Align bottom',
         'Distribute horizontally', 'Distribute vertically', 'Fill row', 'Fill column', 'Fit 4:3', 'Swap when dropped on another window', 'Snap', 'Show grid', 'Lock aspect ratio', 'Undo', 'Redo',
-        'Fill gap', 'Selection X', 'Selection Y', 'Selection width', 'Selection height'
+        'Fill gap', 'Selection X', 'Selection Y', 'Selection width', 'Selection height', 'Fill empty space', 'Fill selection span', 'Fill area', 'Fill arrangement',
+        'Grid rows', 'Grid columns', 'Order by client number'
     $missing = @($buttons | Where-Object { -not (Find $_) })
     Check "every toolbar control is there ($($buttons.Count))$(if ($missing) { ': missing ' + ($missing -join ', ') })" { $missing.Count -eq 0 }
     $noTip = @($buttons | Where-Object { $e = Find $_; $e -and -not $e.Current.HelpText })
@@ -120,6 +121,32 @@ try {
     Check 'a new change asks again when leaving' { $d -ne $null }
     if ($d) { Invoke (Find 'Discard' $d) }
     Check 'Discard: Overlays, no draft left' { (Layout).preset -eq 'overlay' -and (Draft) -eq $null }
+
+    # ---- fill a custom area (preview first, one undo step each) ----
+    Card 'Grid'
+    function SetValue($name, $v) { (Pat (Find $name) ([System.Windows.Automation.ValuePattern]::Pattern)).SetValue($v); Start-Sleep -Milliseconds 400 }
+    Press 'Select all'
+    $gridBefore = Layout
+    Press 'Fill selection span'
+    Check 'Fill selection span shows a preview first' { (Text 'FillPreviewText') -like 'Preview*selection span*3 windows*' }
+    Check 'the preview changes nothing yet' { ((Layout).slots | ConvertTo-Json -Compress) -eq ($gridBefore.slots | ConvertTo-Json -Compress) }
+    Press 'Cancel fill'
+    Check 'Cancel: no preview, nothing changed' { -not (Find 'Apply fill') -and ((Layout).slots | ConvertTo-Json -Compress) -eq ($gridBefore.slots | ConvertTo-Json -Compress) }
+    Press 'Fill area'
+    Check 'Fill area waits for a rectangle' { (Text 'FillPreviewText') -like 'Fill area: drag a rectangle*' }
+    Toggle 'Area in percent' $true
+    SetValue 'Area left' '0'; SetValue 'Area top' '0'; SetValue 'Area width' '50'; SetValue 'Area height' '100'
+    Check 'a typed area (% of the monitor) gives a live preview' { (Text 'FillPreviewText') -like 'Preview*area 1280*1392*' }
+    Press 'Apply fill'
+    $left = Layout
+    Check 'Fill area: every window in the left half, one undo step' { @($left.slots | Where-Object { $_.x + $_.w -gt 50.01 }).Count -eq 0 }
+    Press 'Undo'
+    Check 'Undo: the Grid again' { ((Layout).slots | ConvertTo-Json -Compress) -eq ($gridBefore.slots | ConvertTo-Json -Compress) }
+    Press 'Fill empty space'
+    Check 'Fill empty space: with every window selected the whole monitor is free' { (Text 'FillPreviewText') -like 'Preview*empty space 2560*' }
+    Press 'Apply fill'
+    Check 'Fill empty space applied (a 2x2 grid over the monitor)' { $l = Layout; [math]::Abs((($l.slots | ForEach-Object { $_.w * $_.h } | Measure-Object -Sum).Sum) - 7500) -lt 1 }
+    Press 'Undo'
 
     # ---- Paste a layout code ----
     $code = (& $Wbx layout --preset side --clients 10 | Where-Object { $_ -match '^\s*WBX1:' } | Select-Object -First 1).Trim()

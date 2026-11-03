@@ -59,6 +59,12 @@ public sealed class LayoutCanvas : FrameworkElement
     public static readonly DependencyProperty SelectedIndicesProperty = DependencyProperty.Register(
         nameof(SelectedIndices), typeof(IReadOnlyList<int>), typeof(LayoutCanvas),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, _) => ((LayoutCanvas)d).OnSelectedIndicesChanged()));
+    public static readonly DependencyProperty PreviewTilesProperty = DependencyProperty.Register(
+        nameof(PreviewTiles), typeof(IReadOnlyList<ViewModels.FillPreviewTile>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty PreviewAreaProperty = DependencyProperty.Register(
+        nameof(PreviewArea), typeof(PixelRect?), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty PickingAreaProperty = DependencyProperty.Register(
+        nameof(PickingArea), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
         nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
@@ -92,6 +98,19 @@ public sealed class LayoutCanvas : FrameworkElement
     public bool LockAspect { get => (bool)GetValue(LockAspectProperty); set => SetValue(LockAspectProperty, value); }
     /// <summary>The selected windows in Advanced editing, the reference (gold outline) first.</summary>
     public IReadOnlyList<int>? SelectedIndices { get => (IReadOnlyList<int>?)GetValue(SelectedIndicesProperty); set => SetValue(SelectedIndicesProperty, value); }
+
+    /// <summary>Fill preview: where each selected window would go (ghosts with their action-bar verdict).</summary>
+    public IReadOnlyList<ViewModels.FillPreviewTile>? PreviewTiles { get => (IReadOnlyList<ViewModels.FillPreviewTile>?)GetValue(PreviewTilesProperty); set => SetValue(PreviewTilesProperty, value); }
+    /// <summary>Fill preview: the area that will be filled (highlighted).</summary>
+    public PixelRect? PreviewArea { get => (PixelRect?)GetValue(PreviewAreaProperty); set => SetValue(PreviewAreaProperty, value); }
+    /// <summary>"Fill area…": the next drag on the map draws the area (over windows too).</summary>
+    public bool PickingArea { get => (bool)GetValue(PickingAreaProperty); set => SetValue(PickingAreaProperty, value); }
+
+    /// <summary>"Fill area…": the area the user dragged, in pixels.</summary>
+    public event EventHandler<PixelRect>? AreaPicked;
+
+    /// <summary>Esc while a fill preview (or area picking) is showing.</summary>
+    public event EventHandler? FillCancelRequested;
 
     /// <summary>Advanced editing: the selection changed (reference first).</summary>
     public event EventHandler<IReadOnlyList<int>>? SelectionChanged;
@@ -421,6 +440,27 @@ public sealed class LayoutCanvas : FrameworkElement
                     dc.DrawRectangle(new SolidColorBrush(GoldHi), new Pen(Brushes.Black, 1), handle);
         }
         _shown = shown;
+        if (!Compact && PreviewArea is { } fillArea)
+        {
+            var a = ToCanvas(fillArea);
+            dc.DrawRectangle(Brush(0x26, GoldHi), new Pen(new SolidColorBrush(GoldHi), 2) { DashStyle = DashStyles.Dash }, a);
+            Draw(dc, Text("FILL AREA", 10, new SolidColorBrush(GoldHi), ppd, display: true), new Point(a.X + 6, a.Y + 4), shadow: true);
+        }
+        if (!Compact && PreviewTiles is { } ghosts)
+            foreach (var g in ghosts)
+            {
+                var gr = ToCanvas(g.Rect);
+                gr.Inflate(-2, -2);
+                if (gr.Width <= 0 || gr.Height <= 0) continue;
+                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0xB0, 0x10, 0x15, 0x22)), new Pen(Brush(0xE0, Parchment), 1.4) { DashStyle = DashStyles.Dot }, gr, 3, 3);
+                var num = Text($"{g.Index + 1}", Math.Clamp(gr.Height * 0.22, 10, 26), new SolidColorBrush(Color.FromRgb(0xFF, 0xD1, 0x00)), ppd, display: true);
+                Draw(dc, num, new Point(gr.X + (gr.Width - num.Width) / 2, gr.Y + gr.Height / 2 - num.Height), shadow: true);
+                if (gr.Width > 70 && gr.Height > 40)
+                {
+                    var verdict = Text(g.Verdict, 10.5, new SolidColorBrush(g.Color), ppd);
+                    Draw(dc, verdict, new Point(gr.X + (gr.Width - verdict.Width) / 2, gr.Y + gr.Height / 2 + 2), shadow: true);
+                }
+            }
         if (_band is { } rubber)
             dc.DrawRectangle(Brush(0x22, GoldHi), new Pen(new SolidColorBrush(GoldHi), 1.2) { DashStyle = DashStyles.Dash }, ToCanvas(rubber));
     }
@@ -537,6 +577,16 @@ public sealed class LayoutCanvas : FrameworkElement
             e.Handled = true;
             return;
         }
+        if (AdvancedEditing && PickingArea)
+        {
+            _bandStart = p;
+            _bandAdd = false;
+            _bandForArea = true;
+            _band = null;
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
         var (index, edges) = HitTest(p);
         if (AdvancedEditing)
         {
@@ -610,6 +660,7 @@ public sealed class LayoutCanvas : FrameworkElement
                 ResizeEdges.Left or ResizeEdges.Right => Cursors.SizeWE,
                 ResizeEdges.Top or ResizeEdges.Bottom => Cursors.SizeNS,
                 ResizeEdges.Left | ResizeEdges.Top or ResizeEdges.Right | ResizeEdges.Bottom => Cursors.SizeNWSE,
+                _ when AdvancedEditing && PickingArea => Cursors.Cross,
                 ResizeEdges.None => AdvancedEditing ? Cursors.Cross : Cursors.Arrow,
                 _ => Cursors.SizeNESW,
             };
@@ -667,6 +718,13 @@ public sealed class LayoutCanvas : FrameworkElement
             _bandStart = null;
             _band = null;
             ReleaseMouseCapture();
+            if (_bandForArea)
+            {
+                _bandForArea = false;
+                if (band is { } picked) AreaPicked?.Invoke(this, picked);
+                InvalidateVisual();
+                return;
+            }
             if (band is { Width: > 2, Height: > 2 } b)
             {
                 var items = Items().OrderBy(i => i.Index).ToList();
@@ -719,6 +777,12 @@ public sealed class LayoutCanvas : FrameworkElement
     protected override void OnKeyDown(KeyEventArgs e)
     {
         if (Compact || Profile is null || Monitors is null) return;
+        if (e.Key == Key.Escape && _dragIndex < 0 && _bandStart is null && (PreviewTiles is not null || PickingArea))
+        {
+            FillCancelRequested?.Invoke(this, EventArgs.Empty);
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape && (_dragIndex >= 0 || _bandStart is not null))
         {
             ReleaseMouseCapture();
@@ -795,6 +859,7 @@ public sealed class LayoutCanvas : FrameworkElement
     private PixelRect? _band;
     private bool _bandAdd;
     private bool _syncingSelection;
+    private bool _bandForArea;
 
     private void SetSelection(IReadOnlyList<int> indices)
     {
