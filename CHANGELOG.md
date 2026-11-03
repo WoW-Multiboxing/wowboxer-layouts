@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.7.0 – Window swap, Advanced editing, Custom layouts (2026-11-03)
+Everything tested on the beta channel as v0.7.0-beta.1 – beta.4, now for everyone. The app code is that of
+v0.7.0-beta.4. (Update channels and the beta channel itself came in v0.6.1.)
+- **Window swap hotkeys** (Settings › Advanced, off by default): move a client's window into the main slot – the one
+  there takes its old place. Ctrl+Alt+Shift+Right / Left (next / previous), +1…0 (that client), +Backspace (home);
+  all editable, applied with **Apply hotkeys**. The hotkey goes to WoWBoxer, never to the game; a swap only moves
+  windows and never changes which window has the keys. Moves windows only – nothing is sent to the game. Blizzard has
+  not ruled on window-swap tools; use at your own judgement.
+- **Remove title bars works properly** – contributed by [Limerobin](https://github.com/Limerobin) (PR #1): borderless
+  windows are exactly the game area, Main + side fills its column without gaps; new switch on Setup. Still off by
+  default.
+- **Advanced editing** on Your screens: select several windows (Ctrl/Shift+click, drag a box, Ctrl+A), move them
+  together, match size (Alt+Z), align, distribute, fill a row or column, **fill the empty space, the selection's span
+  or a drawn area** (row / column / grid, live preview with each window's action-bar verdict), Fit 4:3, snap, grid,
+  lock aspect, exact X/Y/W/H, Undo/Redo (Ctrl+Z / Ctrl+Y).
+- **Custom** (was "Free for all"): your own layout. Choosing it keeps what is on the map; moving a window of any preset
+  switches to Custom; every change is kept as a draft; leaving with unsaved changes asks once (Save as… / Keep as
+  draft / Discard). Old layouts and codes are migrated.
+- **Paste a layout code** fixed: long codes stay inside the dialog, Paste button, live check, Enter = OK.
+- Squad rows have an optional Role (tank / healer / damage); Guide chapters "Swap windows (advanced)" and "Build your
+  own layout (Custom)".
+
 ## v0.7.0-beta.4 – Fill a custom area (2026-11-03)
 **Beta channel only.** Everything from v0.7.0-beta.3, plus three ways in Advanced editing to fill an area of your
 choice with the selected windows (next to Fill row / Fill column for the whole monitor):
