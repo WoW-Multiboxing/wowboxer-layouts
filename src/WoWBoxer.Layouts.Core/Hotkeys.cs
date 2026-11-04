@@ -156,7 +156,22 @@ public static class Hotkeys
         var list = new List<string>();
         if (k.ModifierCount < 2) list.Add("Uses fewer than two modifier keys – easy to press by accident in the game.");
         if (KnownWindowsShortcut(k) is { } what) list.Add($"Windows uses this combination ({what}).");
+        if (KnownOverlayShortcut(k) is { } overlay) list.Add($"{overlay} uses this combination by default – if it is installed, it may take the key first.");
         return list;
+    }
+
+    /// <summary>
+    /// The graphics overlay that uses this combination by default (they grab it on every PC that has them), else null.
+    /// NVIDIA: Alt+Z overlay, Alt+R performance, Alt+F1/F2/F3, Alt+F9/F10. AMD: Alt+R, Ctrl+Shift+E/S/O/I.
+    /// </summary>
+    public static string? KnownOverlayShortcut(Hotkey k)
+    {
+        var m = k.Modifiers;
+        if (m == HotkeyModifiers.Alt && (k.Key is 'Z' or VkF1 or VkF1 + 1 or VkF1 + 2 or VkF1 + 8 or VkF1 + 9)) return "The NVIDIA overlay";
+        if (m == HotkeyModifiers.Alt && k.Key == 'R') return "The NVIDIA or AMD overlay";
+        if (m == (HotkeyModifiers.Alt | HotkeyModifiers.Shift) && k.Key == VkF1 + 9) return "The NVIDIA overlay";
+        if (m == (HotkeyModifiers.Ctrl | HotkeyModifiers.Shift) && k.Key is 'E' or 'S' or 'O' or 'I') return "The AMD overlay";
+        return null;
     }
 
     /// <summary>A short description if Windows uses this combination, else null.</summary>

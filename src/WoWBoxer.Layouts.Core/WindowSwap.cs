@@ -47,7 +47,8 @@ public static class WindowSwap
     /// <summary>
     /// The main slot of each party, as 0-based slot indices (index 0 = party 1, 1 = party 2; -1 = none chosen).
     /// The layout's own choice (<see cref="LayoutProfile.SwapMainSlots"/>) wins; else the default: the large slot (role
-    /// Main) in Main + side and Overlays, none in layouts where slots are equal (Grid, Custom, captured).
+    /// Main) in Main + side and Overlays, the clearly largest window in Custom and captured layouts, none in Grid or where
+    /// the windows are about the same size.
     /// </summary>
     public static int[] MainSlots(LayoutProfile layout)
     {
@@ -64,6 +65,12 @@ public static class WindowSwap
             }
             return result;
         }
+        if (layout.Preset is PresetKind.Custom or null)
+        {
+            // Custom / captured without a crown: the clearly largest window of each party (none when sizes are about equal)
+            for (var p = 0; p < parties; p++) result[p] = ClearlyLargest(layout, p);
+            return result;
+        }
         if (layout.Preset is not (PresetKind.Side or PresetKind.Overlay or PresetKind.Dual)) return result;
         for (var i = 0; i < layout.Slots.Count; i++)
         {
@@ -73,8 +80,55 @@ public static class WindowSwap
         return result;
     }
 
-    /// <summary>True when the layout's main slots are the default (Main + side / Overlays) – no need to pick one.</summary>
+    /// <summary>How much larger (area) the largest window must be than the next one to count as "clearly largest".</summary>
+    public const double ClearlyLargerBy = 1.1;
+
+    /// <summary>
+    /// The 0-based slot of party <paramref name="party"/> that is clearly the largest (area at least
+    /// <see cref="ClearlyLargerBy"/> × the next one, in % of its monitor), or -1 when the sizes are about equal.
+    /// </summary>
+    public static int ClearlyLargest(LayoutProfile layout, int party)
+    {
+        var n = layout.Slots.Count;
+        var members = Enumerable.Range(0, n).Where(i => PartyIndexOf(i, n) == party)
+            .OrderByDescending(i => layout.Slots[i].W * layout.Slots[i].H).ToList();
+        if (members.Count < 2) return -1;
+        double Area(int i) => layout.Slots[i].W * layout.Slots[i].H;
+        return Area(members[0]) >= Area(members[1]) * ClearlyLargerBy ? members[0] : -1;
+    }
+
+    /// <summary>True when a party has no main slot (neither chosen nor found) – the crown has to be clicked.</summary>
     public static bool NeedsChoice(LayoutProfile layout) => MainSlots(layout).Contains(-1);
+
+    /// <summary>
+    /// Keeps the main slots when a layout is edited – above all when a preset turns into Custom (a dragged window, a
+    /// drag-swap): <paramref name="after"/> gets the main slots of <paramref name="before"/> stored, following the main
+    /// slot's place when it moved to another slot (two windows swapped places), so the hotkeys keep working.
+    /// Unchanged when <paramref name="before"/> has no main slot.
+    /// </summary>
+    public static LayoutProfile CarryMainSlots(LayoutProfile before, LayoutProfile after)
+    {
+        var n = before.Slots.Count;
+        if (after.Slots.Count != n) return after;
+        var mains = MainSlots(before);
+        if (mains.All(m => m < 0)) return after;
+        var moved = false;
+        var carried = mains.Select(m =>
+        {
+            if (m < 0 || SamePlace(after.Slots[m], before.Slots[m])) return m;
+            // the main slot's place is now another window's (swapped): the crown goes with the place
+            var to = Enumerable.Range(0, n).FirstOrDefault(i => i != m && PartyIndexOf(i, n) == PartyIndexOf(m, n) && SamePlace(after.Slots[i], before.Slots[m]), -1);
+            if (to < 0) return m;   // moved or resized: it stays the main slot
+            moved = true;
+            return to;
+        }).ToList();
+        var presetChanged = after.Preset != before.Preset;
+        if (!moved && !presetChanged && before.SwapMainSlots is null) return after;   // the default still applies
+        return after with { SwapMainSlots = carried.Where(m => m >= 0).Select(m => m + 1).ToList() };
+    }
+
+    private static bool SamePlace(LayoutSlot a, LayoutSlot b) => a.Monitor == b.Monitor
+        && Math.Abs(a.X - b.X) < 0.01 && Math.Abs(a.Y - b.Y) < 0.01 && Math.Abs(a.W - b.W) < 0.01 && Math.Abs(a.H - b.H) < 0.01;
 
     /// <summary>
     /// Makes <paramref name="slot"/> its party's main slot (or, if it already is, clears it). Returns the 1-based slot

@@ -495,7 +495,7 @@
                     <Border DockPanel.Dock="Right" Style="{StaticResource HelpMark}" VerticalAlignment="Center" AutomationProperties.Name="Map help">
                         <Border.ToolTip>
                             <TextBlock MaxWidth="380" TextWrapping="Wrap"
-                                       Text="Drag a window to move it · drop it on another to swap · gold handles resize · Alt places freely · arrow keys nudge · Tab selects the next window. Moving or resizing a window of a preset makes it Custom (kept as a draft). ADVANCED EDITING: select several (Ctrl/Shift+click, drag a box, Ctrl+A), move them together, match size (Alt+Z), align, distribute, fill a row or column; Ctrl+Z / Ctrl+Y undo and redo. The dot shows the action bar (solid = measured on the open game window, ring = planned). Pin = always on top. The ring round each number: pulsing = awaiting its WoW window, green = connected." />
+                                       Text="Drag a window to move it · drop it on another to swap · gold handles resize · Alt places freely · arrow keys nudge · Tab selects the next window. Moving or resizing a window of a preset makes it Custom (kept as a draft). ADVANCED EDITING: select several (Ctrl/Shift+click, drag a box, Ctrl+A), move them together, match size (Ctrl+Shift+M), align, distribute, fill a row or column; Ctrl+Z / Ctrl+Y undo and redo. The dot shows the action bar (solid = measured on the open game window, ring = planned). Pin = always on top. The ring round each number: pulsing = awaiting its WoW window, green = connected." />
                         </Border.ToolTip>
                         <TextBlock Text="?" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource GoldHiBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
@@ -558,7 +558,7 @@
                                     <Button Style="{StaticResource RibbonButton}" Command="{Binding SameHeightCommand}" ToolTip="Same height as the reference; top-left corners stay" AutomationProperties.Name="Same height">
                                         <Path Style="{StaticResource RibbonIcon}" Data="M5,2 V14 M11,2 V14 M3,2 H7 M3,14 H7 M9,2 H13 M9,14 H13" />
                                     </Button>
-                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding SameSizeCommand}" ToolTip="Same size as the reference (Alt+Z); top-left corners stay" AutomationProperties.Name="Same size">
+                                    <Button Style="{StaticResource RibbonButton}" Command="{Binding SameSizeCommand}" ToolTip="Same size as the reference (Ctrl+Shift+M); top-left corners stay" AutomationProperties.Name="Same size">
                                         <Path Style="{StaticResource RibbonIcon}" Data="M1.5,1.5 H8.5 V8.5 H1.5 Z M7.5,7.5 H14.5 V14.5 H7.5 Z" />
                                     </Button>
                                 </StackPanel>
@@ -718,7 +718,7 @@
                 </Border>
 
                 <Grid Grid.Row="2" Margin="0,8,0,0">
-                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
+                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" CrownPulse="{Binding CrownPulse}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
                                     SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}"
                                     AdvancedEditing="{Binding AdvancedEditing}" SwapOnDrop="{Binding SwapOnDrop}" SnapEnabled="{Binding SnapEnabled}" ShowGrid="{Binding ShowGrid}"
                                     LockAspect="{Binding LockAspect}" SelectedIndices="{Binding SelectedIndices, Mode=TwoWay}"

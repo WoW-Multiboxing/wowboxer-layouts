@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.1-beta.1 – Window swap keeps its main slot (2026-11-04)
+**Beta channel only.** Fixes from the owner's beta test of v0.7.0: the swap hotkeys fired, but each press only logged
+"click the crown on a window to make it the main slot". A drag-swap had turned "Trio" (Main + side) into Custom, and
+the main slot was lost.
+- **The main slot is carried over** when a preset turns into Custom (moving a window, a drag-swap, the Custom card). It
+  follows the large place: after a drag-swap, the client now in the large window is in the main slot.
+- **Custom without a crown uses its clearly largest window** (at least 10 % larger than the next one), per party. It
+  only asks when the windows are about the same size. Grid still asks.
+- **No main slot? You see it:** a swap hotkey shows a short notice in the status bar and the crowns on the map pulse.
+  No pop-up, no focus change. It is written to the log once, not on every press.
+- The crown and **IN MAIN SLOT** in the squad list now show whenever swap hotkeys are on, not only while swapped.
+- Choosing another preset brings that preset's own main slot back instead of an old crown.
+- **Same size** in Advanced editing is now **Ctrl+Shift+M**. Alt+Z is taken by the NVIDIA overlay on every PC that has
+  it. The hotkey editor also warns about the default NVIDIA / AMD overlay shortcuts (Alt+Z, Alt+R, Alt+F1–F3,
+  Alt+F9/F10, Ctrl+Shift+E/S/O/I).
+
 ## v0.7.0 – Window swap, Advanced editing, Custom layouts (2026-11-03)
 Everything tested on the beta channel as v0.7.0-beta.1 – beta.4, now for everyone. The app code is that of
 v0.7.0-beta.4. (Update channels and the beta channel itself came in v0.6.1.)

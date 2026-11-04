@@ -404,8 +404,11 @@ public sealed partial class MainViewModel : ObservableObject
         ResetSwap(quiet: true);   // a new layout starts at home
         var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class, CombatRole = Current.Slots[i].CombatRole } : s).ToList();
         // Custom with another number of clients: the windows that exist keep their places
-        if (kind == PresetKind.Custom && Current.Preset == PresetKind.Custom && screens is null) slots = [.. CustomLayouts.WithCount(Current.Slots, preset)];
-        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond });
+        var keepPlaces = kind == PresetKind.Custom && Current.Preset == PresetKind.Custom && screens is null;
+        if (keepPlaces) slots = [.. CustomLayouts.WithCount(Current.Slots, preset)];
+        // a new preset brings its own main slot (the large window); Custom keeping its places keeps its crowns
+        var mains = keepPlaces ? Current.SwapMainSlots : null;
+        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond, SwapMainSlots = mains });
         SelectedSlotIndex = 0;
     }
 

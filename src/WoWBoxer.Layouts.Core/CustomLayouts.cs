@@ -33,12 +33,12 @@ public static class CustomLayouts
     {
         if (before.Preset == PresetKind.Custom || before.Preset is null)
         {
-            var custom = edited with { Preset = PresetKind.Custom };
+            var custom = WindowSwap.CarryMainSlots(before, edited with { Preset = PresetKind.Custom });
             // a change in a Custom session is unsaved again (also after "Keep as draft"); a layout saved as Custom under
             // its own name (no draft) is saved by every change anyway, so it never asks
             return (custom, draft is null ? new CustomDraft(custom, null, Unsaved: false) : new CustomDraft(custom, draft.Before, Unsaved: true));
         }
-        var started = edited with { Preset = PresetKind.Custom };
+        var started = WindowSwap.CarryMainSlots(before, edited with { Preset = PresetKind.Custom });
         return (started, new CustomDraft(started, before, Unsaved: true));
     }
 
@@ -57,9 +57,11 @@ public static class CustomLayouts
                 Slots = draft.Custom.Slots.Select((s, i) => s with { Name = current.Slots[i].Name, Class = current.Slots[i].Class, CombatRole = current.Slots[i].CombatRole }).ToList(),
                 Screens = draft.Custom.Screens,
             };
+            // the draft's own crowns, else the main slots of the layout it replaces
+            restored = draft.Custom.SwapMainSlots is { } own ? restored with { SwapMainSlots = own } : WindowSwap.CarryMainSlots(current, restored);
             return (restored, draft with { Custom = restored, Before = current });
         }
-        var kept = current with { Preset = PresetKind.Custom };
+        var kept = WindowSwap.CarryMainSlots(current, current with { Preset = PresetKind.Custom });
         return (kept, new CustomDraft(kept, current, Unsaved: false));
     }
 

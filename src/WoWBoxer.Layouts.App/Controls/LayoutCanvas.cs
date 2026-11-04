@@ -65,6 +65,8 @@ public sealed class LayoutCanvas : FrameworkElement
         nameof(PreviewArea), typeof(PixelRect?), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty PickingAreaProperty = DependencyProperty.Register(
         nameof(PickingArea), typeof(bool), typeof(LayoutCanvas), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty CrownPulseProperty = DependencyProperty.Register(
+        nameof(CrownPulse), typeof(int), typeof(LayoutCanvas), new PropertyMetadata(0, (d, _) => ((LayoutCanvas)d).StartCrownPulse()));
     public static readonly DependencyProperty AnimateProperty = DependencyProperty.Register(
         nameof(Animate), typeof(bool), typeof(LayoutCanvas), new PropertyMetadata(true));
 
@@ -88,6 +90,9 @@ public sealed class LayoutCanvas : FrameworkElement
     /// one); clicking it raises <see cref="MainSlotClicked"/>. Null = no crowns (swap is off).
     /// </summary>
     public IReadOnlyList<bool>? MainSlotMarks { get => (IReadOnlyList<bool>?)GetValue(MainSlotMarksProperty); set => SetValue(MainSlotMarksProperty, value); }
+
+    /// <summary>Each change makes the crowns pulse for a moment: a swap hotkey was pressed but there is no main slot to swap into.</summary>
+    public int CrownPulse { get => (int)GetValue(CrownPulseProperty); set => SetValue(CrownPulseProperty, value); }
 
     /// <summary>Advanced editing: multi-selection (Ctrl/Shift+click, rubber band, Ctrl+A), group moves, grid, locked aspect.</summary>
     public bool AdvancedEditing { get => (bool)GetValue(AdvancedEditingProperty); set => SetValue(AdvancedEditingProperty, value); }
@@ -155,14 +160,19 @@ public sealed class LayoutCanvas : FrameworkElement
         FocusVisualStyle = null;
         ClipToBounds = true;
         UseLayoutRounding = false;   // smooth sub-pixel motion while gliding
-        _pulse.Tick += (_, _) => InvalidateVisual();
+        _pulse.Tick += (_, _) =>
+        {
+            InvalidateVisual();
+            if (_crownPulseUntil is { } until && DateTime.UtcNow > until) _crownPulseUntil = null;
+            UpdatePulse();
+        };
         IsVisibleChanged += (_, _) => UpdatePulse();
         Unloaded += (_, _) => _pulse.Stop();
     }
 
     private void UpdatePulse()
     {
-        var on = !Compact && Animate && IsVisible && SlotStates?.Contains(ViewModels.PartyState.Awaiting) == true;
+        var on = !Compact && IsVisible && ((Animate && SlotStates?.Contains(ViewModels.PartyState.Awaiting) == true) || _crownPulseUntil is not null);
         if (on != _pulse.IsEnabled) _pulse.IsEnabled = on;
     }
 
@@ -421,7 +431,10 @@ public sealed class LayoutCanvas : FrameworkElement
             }
 
             if (MainSlotMarks is { } marks && item.Index < marks.Count && CrownChip(r) is { } chip)
+            {
+                if (!marks[item.Index]) DrawCrownGlow(dc, chip);   // "click one of these"
                 DrawCrown(dc, chip, marks[item.Index], item.Index == _hoverIndex && _hoverCrown, ppd);
+            }
 
             if (item.Index == _swapTarget)
             {
@@ -470,6 +483,28 @@ public sealed class LayoutCanvas : FrameworkElement
     // ---------- window swap: main slot crowns ----------
 
     private bool _hoverCrown;
+    private DateTime? _crownPulseUntil;
+    private const double CrownPulseSeconds = 2.4;
+
+    private void StartCrownPulse()
+    {
+        if (Compact || MainSlotMarks is null) return;
+        _crownPulseUntil = DateTime.UtcNow.AddSeconds(CrownPulseSeconds);
+        UpdatePulse();
+        InvalidateVisual();
+    }
+
+    /// <summary>The glow around a crown chip while <see cref="CrownPulse"/> asks for attention (steady when animations are off).</summary>
+    private void DrawCrownGlow(DrawingContext dc, Rect chip)
+    {
+        if (_crownPulseUntil is not { } until) return;
+        var left = (until - DateTime.UtcNow).TotalSeconds;
+        if (left <= 0) return;
+        var wave = Animate ? 0.5 + 0.5 * Math.Sin((CrownPulseSeconds - left) * Math.PI * 2 / 0.8 - Math.PI / 2) : 1;
+        var glow = chip;
+        glow.Inflate(3 + 3 * wave, 3 + 3 * wave);
+        dc.DrawRoundedRectangle(Brush((byte)(0x20 + 0x50 * wave), GoldHi), new Pen(Brush((byte)(0x80 + 0x7F * wave), GoldHi), 2), glow, 5, 5);
+    }
 
     /// <summary>Where a window's crown chip goes: bottom left, inside the window (null if the window is drawn too small).</summary>
     /// <remarks>Small windows (overlay followers) get the crown alone, without the label.</remarks>

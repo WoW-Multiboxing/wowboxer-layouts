@@ -204,7 +204,7 @@ public sealed partial class MainViewModel
             var main = WindowSwap.MainSlotFor(mains, n - 1, clients);
             if (main < 0)
             {
-                Status.Warn(MainSlotHint);
+                NoMainSlot(MainSlotHint);
                 return;
             }
             if (WindowAt(n - 1) is null)
@@ -223,7 +223,7 @@ public sealed partial class MainViewModel
         var mainSlot = scope == SwapCycleScope.All ? mains[0] : party < mains.Length ? mains[party] : -1;
         if (mainSlot < 0)
         {
-            Status.Warn(MainSlotHint is { Length: > 0 } hint ? hint : "Window swap: this party has no main slot – click the crown on one of its windows.");
+            NoMainSlot(MainSlotHint is { Length: > 0 } hint ? hint : "Window swap: this party has no main slot – click the crown on one of its windows.");
             return;
         }
         var custom = WindowSwap.CustomOrder(_settings.SwapOrder, clients);
@@ -237,6 +237,30 @@ public sealed partial class MainViewModel
         _swapCursor = cursor;
         SwapInto(client, mainSlot);
     }
+
+    private bool _noMainLogged;
+    private int _crownPulse;
+
+    /// <summary>Goes up by one each time a swap hotkey finds no main slot: the map pulses the crowns (LayoutCanvas.CrownPulse).</summary>
+    public int CrownPulse { get => _crownPulse; private set => Set(ref _crownPulse, value); }
+
+    /// <summary>
+    /// A swap hotkey was pressed but there is no main slot: a short notice in the status bar and pulsing crowns on the
+    /// map – no pop-up, no focus change. Written to the log once, not on every press.
+    /// </summary>
+    private void NoMainSlot(string message)
+    {
+        if (!_noMainLogged)
+        {
+            _noMainLogged = true;
+            Status.Warn(message);
+        }
+        else ShowNotice(StatusLevel.Warn, message);
+        CrownPulse++;
+    }
+
+    /// <summary>A status bar line that is not written to the log (repeats of a message that is logged once).</summary>
+    private void ShowNotice(StatusLevel level, string message) => LastStatus = new StatusLine(Demo.Now(), level, message);
 
     private void SwapInto(int client, int mainSlot)
     {
@@ -343,6 +367,7 @@ public sealed partial class MainViewModel
 
     private void RaiseSwap()
     {
+        if (Current is null || !_settings.SwapHotkeys || !WindowSwap.NeedsChoice(Current)) _noMainLogged = false;   // log it again next time it happens
         OnPropertyChanged(nameof(Placed));
         OnPropertyChanged(nameof(IsSwapped));
         OnPropertyChanged(nameof(MainSlotMarks));
@@ -361,7 +386,7 @@ public sealed partial class MainViewModel
         var placed = Placed;
         for (var i = 0; i < Party.Count; i++)
         {
-            Party[i].InMainSlot = marks is not null && i < marks.Count && marks[i] && IsSwapped;
+            Party[i].InMainSlot = marks is not null && i < marks.Count && marks[i];   // always, while swap is on
             Party[i].SwapSlot = IsSwapped && i < _swapPos.Length && _swapPos[i] != i ? $"in slot {_swapPos[i] + 1}" : "";
             if (placed is not null && i < placed.Slots.Count) Party[i].OnTop = placed.Slots[i].Z == ZOrder.Top;
         }

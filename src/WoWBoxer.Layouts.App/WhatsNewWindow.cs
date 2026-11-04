@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Window swap keeps its main slot",
+            "Dragging a window of Main + side no longer loses the main slot, and Custom layouts use their clearly largest window. Without a main slot, a swap hotkey shows a note in the status bar and the crowns on the map pulse. Same size in Advanced editing is now Ctrl+Shift+M (the NVIDIA overlay takes Alt+Z)."),
         ("Fill a custom area",
             "Advanced editing can now fill the empty space next to your other windows, the span of the selection, or a rectangle you draw – as a row, column or grid, with a live preview and each window's action-bar verdict before you apply."),
         ("Custom layouts and Advanced editing",

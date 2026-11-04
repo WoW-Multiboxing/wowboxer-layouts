@@ -15,7 +15,8 @@
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
         <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
         <KeyBinding Key="Z" Modifiers="Control+Shift" Command="{Binding RedoCommand}" />
-        <KeyBinding Key="Z" Modifiers="Alt" Command="{Binding SameSizeCommand}" />
+        <!-- Same size: not Alt+Z – the NVIDIA overlay takes Alt+Z on every PC that has it -->
+        <KeyBinding Key="M" Modifiers="Control+Shift" Command="{Binding SameSizeCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Setup" />
         <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Guide" />
         <KeyBinding Key="D3" Modifiers="Control" Command="{Binding SetTabCommand}" CommandParameter="Settings" />

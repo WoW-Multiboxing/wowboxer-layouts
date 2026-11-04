@@ -31,9 +31,12 @@ public class WindowSwapTests
         Assert.Equal([0, 5], WindowSwap.MainSlots(l));
     }
 
+    [Fact]
+    public void The_custom_start_uses_its_large_window_as_main() =>
+        Assert.Equal([0], WindowSwap.MainSlots(Layout(PresetKind.Custom, 4)));
+
     [Theory]
     [InlineData(PresetKind.Grid)]
-    [InlineData(PresetKind.Custom)]
     public void Equal_slot_layouts_need_a_choice(PresetKind kind)
     {
         var l = Layout(kind, 4);
@@ -45,8 +48,8 @@ public class WindowSwapTests
     }
 
     [Fact]
-    public void Captured_layouts_without_a_preset_need_a_choice() =>
-        Assert.True(WindowSwap.NeedsChoice(Layout(PresetKind.Side, 3) with { Preset = null }));
+    public void Captured_layouts_with_equal_windows_need_a_choice() =>
+        Assert.True(WindowSwap.NeedsChoice(Layout(PresetKind.Grid, 4) with { Preset = null }));
 
     [Fact]
     public void Picking_a_main_slot_replaces_that_partys_main_only()
