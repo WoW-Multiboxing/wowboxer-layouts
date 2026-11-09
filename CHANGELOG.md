@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased – Auto-fit fits every action bar, also on Forever
+Owner bug (2026-11-06): with action bars 2 and 3 on, buttons were missing in the small windows. Auto-fit only made room
+for Classic Era's main bar, and it never ran on Forever.
+- **Auto-fit now fits every bar you have on**: bars 1–3, the right bars and the bag and menu buttons, on **Classic Era
+  and Forever**. Which bars are on comes from each character's settings (`enableMultiActionBars` in its
+  config-cache.wtf). Where they are comes from the WoWBoxer AddOn's measurement when there is one (Edit Mode on
+  Forever), otherwise from each game's default layout.
+- **Forever:** bars 2 and 3 sit side by side above bar 1, so bars 1–3 and the bags need about 1190 UI units. A
+  870×696 follower draws its UI at scale 1.00 (960 units wide), so the game pushed bar 3 onto bar 2 and the bags off
+  the edge. Auto-fit sets one UI Scale for the install: 0.77 for the owner's Main + side layout. **Classic Era:** bars
+  2 and 3 sit inside the main bar and the right bars above it, so nothing changes there (0.93 stays 0.93).
+- If even the smallest UI Scale (0.64) can't fit them, the card says so in plain words: make that window larger or
+  turn off a bar. The backup and the notice are as before.
+- The map, the window details and **Shorten this window instead** use the same check ("All bars fit" / "Bars cut").
+- `wbx bars` shows, per account, which bars are on, where they come from, and the UI Scale that fits them (reads
+  files only).
+
 ## v0.7.1-beta.1 – Window swap keeps its main slot (2026-11-04)
 **Beta channel only.** Fixes from the owner's beta test of v0.7.0: the swap hotkeys fired, but each press only logged
 "click the crown on a window to make it the main slot". A drag-swap had turned "Trio" (Main + side) into Custom, and

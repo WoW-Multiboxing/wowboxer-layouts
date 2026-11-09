@@ -280,7 +280,7 @@
                         <TextBlock Text="{Binding SlotUiScaleHint}" Foreground="#1EFF00" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"
                                    Visibility="{Binding SlotUiScaleHint, Converter={x:Static app:BoolVisibility.Instance}}" />
                         <Button Style="{StaticResource LinkButton}" Content="Shorten this window instead" Command="{Binding FitActionBarCommand}" FontSize="11.5" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                ToolTip="Shortens this window just enough for a 4:3 picture (keeps its width); no game setting changes" />
+                                ToolTip="Shortens this window just enough for all its action bars (keeps its width); no game setting changes" />
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -718,7 +718,7 @@
                 </Border>
 
                 <Grid Grid.Row="2" Margin="0,8,0,0">
-                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" CrownPulse="{Binding CrownPulse}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" UiScale="{Binding UiScaleEffective}"
+                    <c:LayoutCanvas x:Name="Canvas" Profile="{Binding Placed}" MainSlotMarks="{Binding MainSlotMarks}" CrownPulse="{Binding CrownPulse}" Monitors="{Binding Monitors}" Screens="{Binding ChosenScreens}" LiveSlots="{Binding LiveSlots}" BarFit="{Binding BarFit}" UiScale="{Binding UiScaleEffective}"
                                     SlotStates="{Binding SlotStates}" SelectedIndex="{Binding SelectedSlotIndex}" Animate="{Binding Animations}"
                                     AdvancedEditing="{Binding AdvancedEditing}" SwapOnDrop="{Binding SwapOnDrop}" SnapEnabled="{Binding SnapEnabled}" ShowGrid="{Binding ShowGrid}"
                                     LockAspect="{Binding LockAspect}" SelectedIndices="{Binding SelectedIndices, Mode=TwoWay}"

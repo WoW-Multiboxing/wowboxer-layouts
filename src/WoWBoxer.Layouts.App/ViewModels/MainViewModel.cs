@@ -609,11 +609,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The game-area aspect a slot of the layout gives (title bar excluded).</summary>
     private double PlannedAspect(int index)
     {
-        if (Current is null || Monitors.Count == 0 || index < 0 || index >= Current.Slots.Count) return 0;
-        var s = Current.Slots[index];
-        var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
-        var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
-        var (w, h) = LayoutEngine.GameArea(LayoutEngine.Fit(SlotEditing.Raw(s, monitor, Current.Options), s.Fit ?? Current.Options.Fit, s.Anchor, Current.Options.MinAspect, frame), frame);
+        var (w, h) = PlannedArea(index);
         return h == 0 ? 0 : (double)w / h;
     }
 
@@ -627,21 +623,32 @@ public sealed partial class MainViewModel : ObservableObject
     {
         get
         {
+            var known = ActionBars.Knows(SquadGame);
             if (LiveSlots.TryGetValue(SelectedSlotIndex, out var m))
-                return $"Now: game draws {m.Width} × {m.Height}, UI Scale {UiScaleNow.Display} · {ActionBar.Verdict(m.Effective)}";
+                return $"Now: game draws {m.Width} × {m.Height}, UI Scale {UiScaleNow.Display} · {(known ? SlotBarsVerdict() : ActionBar.Verdict(m.Effective))}";
             var planned = UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
-            return $"Planned: aspect {SlotGameAspect:0.00}, UI Scale {UiScaleNow.Display} · {ActionBar.Verdict(planned)}";
+            return $"Planned: aspect {SlotGameAspect:0.00}, UI Scale {UiScaleNow.Display} · {(known ? SlotBarsVerdict() : ActionBar.Verdict(planned))}";
         }
     }
 
     private double SlotEffectiveAspect => LiveSlots.TryGetValue(SelectedSlotIndex, out var m) ? m.Effective : UiScale.EffectiveAspect(SlotGameAspect, UiScaleNow);
 
     /// <summary>The fix for a clipped bar: the UI Scale this window needs (one value is shared by every client).</summary>
-    public string SlotUiScaleHint => SlotEffectiveAspect >= 4.0 / 3 - 0.001 || SlotGameAspect <= 0
-        ? ""
-        : _settings.AutoFitActionBar && SquadGame == WowGame.ClassicEra
-            ? $"Auto-fit sets UI Scale {UiScale.ForSquad(Enumerable.Range(0, Current?.Slots.Count ?? 0).Select(PlannedAspect)):0.00} the next time all clients are closed."
-            : $"Fix: UI Scale {UiScale.ForFullBar(SlotGameAspect):0.00} or lower (Settings › Action bar), or shorten this window.";
+    public string SlotUiScaleHint
+    {
+        get
+        {
+            if (SlotGameAspect <= 0) return "";
+            if (!ActionBars.Knows(SquadGame))
+                return SlotEffectiveAspect >= 4.0 / 3 - 0.001 ? "" : $"Fix: UI Scale {UiScale.ForFullBar(SlotGameAspect):0.00} or lower (Settings › Action bar), or shorten this window.";
+            if (SlotCheck(SelectedSlotIndex, UiScaleNow).Fits) return "";
+            if (SlotFitScale(SelectedSlotIndex) is not { } fit)
+                return "Even the smallest UI Scale (0.64) can't fit all your action bars in this window. Make it larger or turn off a bar.";
+            return _settings.AutoFitActionBar
+                ? $"Auto-fit sets UI Scale {SquadFit().Need:0.00} the next time all clients are closed."
+                : $"Fix: UI Scale {fit:0.00} or lower (Settings › Action bar), or shorten this window.";
+        }
+    }
 
     /// <summary>WoW's UI Scale for the selected game, read from the shared Config.wtf (read-only).</summary>
     public UiScaleSetting UiScaleNow { get; private set; } = UiScaleSetting.Automatic;
@@ -672,6 +679,7 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(LiveSlots));
         OnPropertyChanged(nameof(UiScaleText));
         OnPropertyChanged(nameof(LayoutAdvice));
+        OnPropertyChanged(nameof(BarFit));
         for (var i = 0; i < Party.Count; i++)
         {
             Party[i].OnTop = Placed?.Slots.ElementAtOrDefault(i)?.Z == ZOrder.Top;
@@ -687,7 +695,20 @@ public sealed partial class MainViewModel : ObservableObject
     private void FixUiScale()
     {
         if (Current is null) return;
-        var need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
+        ReadBarSetup();
+        double? need;
+        IReadOnlyList<int> tooSmall = [];
+        if (ActionBars.Knows(SquadGame))
+        {
+            if (!UiScaleNow.Use && AllFitAt(UiScaleNow))
+            {
+                Status.Ok("Every window of this layout already shows all its action bars – no UI Scale needed.");
+                return;
+            }
+            (var n, tooSmall) = SquadFit();
+            need = n;
+        }
+        else need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
         if (need is null)
         {
             Status.Ok("Every window of this layout already shows the whole action bar – no UI Scale needed.");
@@ -698,15 +719,16 @@ public sealed partial class MainViewModel : ObservableObject
             Status.Warn("The WoW client was not found. Set it in Settings › WoW client.");
             return;
         }
+        if (tooSmall.Count > 0) Status.Warn(TooSmallText(tooSmall));
         if (UiScaleNow.Use && UiScaleNow.Scale <= need.Value + 0.001)
         {
-            Status.Ok($"UI Scale is already {UiScaleNow.Display}: every window shows the whole action bar (from each client's next start).");
+            Status.Ok($"UI Scale is already {UiScaleNow.Display}: every window shows all its action bars{(tooSmall.Count > 0 ? " that can fit" : "")} (from each client's next start).");
             return;
         }
         var running = UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!);
         if (running > 0)
         {
-            Status.Warn($"UI Scale {need:0.00} makes the whole action bar fit in every window of \"{Current.Name}\".");
+            Status.Warn($"UI Scale {need:0.00} makes all action bars fit in every window of \"{Current.Name}\".");
             Status.Info($"Either close all {running} {SquadGameName} client(s) and press Fix action bar again – the app then writes it for you –");
             Status.Info($"or in each client: Options › search \"UI Scale\" › tick Use UI Scale › set {need:0.00}. (One value for all clients; the last client to close saves it.)");
             return;
@@ -717,7 +739,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         MeasureBars();
-        Status.Ok($"UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf (a backup was kept). Open your clients: every window shows the whole action bar.");
+        Status.Ok($"UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf (a backup was kept). Open your clients: every window shows all its action bars{(tooSmall.Count > 0 ? " that can fit" : "")}.");
     }
 
     /// <summary>Turns "Use UI Scale" off again (automatic UI size), with the same closed-clients rule.</summary>
@@ -741,7 +763,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The squad install's UI Scale, for Settings.</summary>
     public string UiScaleText => SquadExe is null
         ? "WoW was not found."
-        : $"{SquadGameName}: UI Scale {UiScaleNow.Display}{(SquadGame == WowGame.ClassicEra ? "" : " · Auto-fit runs for Classic Era only (this game's bar is not verified yet)")}";
+        : $"{SquadGameName}: UI Scale {UiScaleNow.Display}{(ActionBars.Knows(SquadGame) ? "" : " · Auto-fit runs for Classic Era and Forever only (this game's bars are not verified yet)")}";
 
     /// <summary>Shortens the selected window just enough for a 4:3 game area (keeps its width and its anchor edge).</summary>
     private void FitActionBar()
@@ -750,16 +772,20 @@ public sealed partial class MainViewModel : ObservableObject
         var monitor = Core.Monitors.Find(Monitors, s.Monitor) ?? Core.Monitors.Primary(Monitors);
         var frame = LayoutEngine.FrameSize(Current.Options, monitor.Dpi);
         var raw = SlotRect;
-        var fitted = LayoutEngine.Fit(raw, FitMode.ShrinkAnchor, s.Anchor, 4.0 / 3, frame);
+        var (gw, gh) = LayoutEngine.GameArea(raw, frame);
+        var aspect = ActionBars.Knows(SquadGame) ? NeededAspect(SelectedSlotIndex, gw, gh) : 4.0 / 3;
+        var fitted = LayoutEngine.Fit(raw, FitMode.ShrinkAnchor, s.Anchor, aspect, frame);
         if (fitted == raw)
         {
-            Status.Info($"Window {s.N} already shows the whole action bar.");
+            Status.Info($"Window {s.N} already shows all its action bars.");
             return;
         }
         OnSlotEdited(SelectedSlotIndex, SlotEditing.WithRect(s, fitted, Monitors, Current.Options) with { Fit = FitMode.None });
-        Status.Ok($"Window {s.N} is now {fitted.Width} × {fitted.Height}: the whole action bar fits.");
+        Status.Ok($"Window {s.N} is now {fitted.Width} × {fitted.Height}: all its action bars fit.");
     }
-    public Brush SlotBarBrush => ActionBar.Brush(SlotEffectiveAspect);
+    public Brush SlotBarBrush => ActionBars.Knows(SquadGame) && Current is not null && SelectedSlotIndex < Current.Slots.Count
+        ? new SolidColorBrush(MarkFor(SelectedSlotIndex).Color)
+        : ActionBar.Brush(SlotEffectiveAspect);
 
     private void RaiseSlotProperties()
     {
@@ -907,7 +933,7 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var name in new[] { nameof(ChosenScreens), nameof(MonitorCounts), nameof(SelectedMonitorCount), nameof(MonitorSets), nameof(ShowMonitorSets), nameof(SelectedMonitorSet) })
                 OnPropertyChanged(name);
         }
-        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(LayoutAdvice) })
+        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(LayoutAdvice), nameof(BarFit) })
             OnPropertyChanged(name);
     }
 
@@ -974,11 +1000,24 @@ public sealed partial class MainViewModel : ObservableObject
         get
         {
             if (Current is null || Current.Slots.Count < 2 || Monitors.Count == 0) return "";
-            var bars = Enumerable.Range(0, Current.Slots.Count).Select(i => UiScale.EffectiveAspect(PlannedAspect(i), UiScaleNow)).ToList();
-            var full = bars.Count(a => a >= 4.0 / 3 - 0.001);
-            var text = full == bars.Count
-                ? $"The whole action bar fits in all {bars.Count} windows."
-                : $"The whole action bar fits in {full} of {bars.Count} windows at UI Scale {UiScaleNow.Display} – Auto-fit or Settings › Fix action bar sets a smaller one.";
+            string text;
+            if (ActionBars.Knows(SquadGame))
+            {
+                var count = Current.Slots.Count;
+                var fits = Enumerable.Range(0, count).Count(i => SlotCheck(i, UiScaleNow, live: false).Fits);
+                text = fits == count
+                    ? $"All action bars fit in all {count} windows."
+                    : $"All action bars fit in {fits} of {count} windows at UI Scale {UiScaleNow.Display} – Auto-fit or Settings › Fix action bar sets a smaller one.";
+                if (SquadFit().TooSmall is { Count: > 0 } tooSmall) text += " " + TooSmallText(tooSmall);
+            }
+            else
+            {
+                var bars = Enumerable.Range(0, Current.Slots.Count).Select(i => UiScale.EffectiveAspect(PlannedAspect(i), UiScaleNow)).ToList();
+                var full = bars.Count(a => a >= 4.0 / 3 - 0.001);
+                text = full == bars.Count
+                    ? $"The whole action bar fits in all {bars.Count} windows."
+                    : $"The whole action bar fits in {full} of {bars.Count} windows at UI Scale {UiScaleNow.Display} – Auto-fit or Settings › Fix action bar sets a smaller one.";
+            }
             if (Current.Clients > Presets.PartySize && _chosen.Count == 1)
                 text += Monitors.Count > 1
                     ? " Two parties on one monitor make small windows: choose 2 monitors to give each party its own."
@@ -1611,6 +1650,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             WowAccounts = [];
         }
+        ReadBarSetup();
         Party.Clear();   // rebuild rows with the new lists
         RefreshParty();
     }
@@ -1724,20 +1764,27 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     private void AutoFitUiScale(string why)
     {
-        // Only where the bar rule is verified in game (Classic Era); other games' UI is not known yet – the button still works there.
-        if (!_settings.AutoFitActionBar || Current is null || SquadGame != WowGame.ClassicEra) return;
-        var need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
-        if (need is null || SquadExe is not { } exe) return;
+        // Only where the bars are known (Classic Era, Forever); other games' UI is not known yet – the button still works there.
+        if (!_settings.AutoFitActionBar || Current is null || !ActionBars.Knows(SquadGame) || SquadExe is not { } exe) return;
+        ReadBarSetup();   // the clients are closed: WoW has just written which bars are on and the addon's measurement
         var now = UiScaleFix.Read(exe);
-        if (now.Use && now.Scale <= need.Value + 0.001) return;
-        if (UiScaleFix.Write(exe, use: true, need.Value) is { } error)
+        var (need, tooSmall) = SquadFit();
+        if (AllFitAt(now) || (now.Use && now.Scale <= need + 0.001))
+        {
+            if (tooSmall.Count > 0) UiScaleNotice = TooSmallText(tooSmall);
+            return;
+        }
+        if (UiScaleFix.Write(exe, use: true, need) is { } error)
         {
             Status.Warn("Auto-fit action bar: " + error);
             return;
         }
         MeasureBars();
-        UiScaleNotice = $"UI Scale set to {need:0.00} so the full action bar fits in every window ({why}; backup kept).";
-        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf so the full bar fits in every window of \"{Current.Name}\" ({why}; backup kept).");
+        UiScaleNotice = tooSmall.Count == 0
+            ? $"UI Scale set to {need:0.00} so every action bar fits in every window ({why}; backup kept)."
+            : $"UI Scale set to {need:0.00}, the smallest there is ({why}; backup kept). {TooSmallText(tooSmall)}";
+        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf so every enabled action bar fits in every window of \"{Current.Name}\" ({why}; backup kept).");
+        if (tooSmall.Count > 0) Status.Warn("Auto-fit action bar: " + TooSmallText(tooSmall));
     }
 
     private void SaveAccount(int index, string account)
@@ -1746,6 +1793,9 @@ public sealed partial class MainViewModel : ObservableObject
         _settings.Accounts[index] = account.Trim();
         _settings.Save();
         UpdatePartyWindows();
+        OnPropertyChanged(nameof(BarFit));   // another account may have other bars on
+        OnPropertyChanged(nameof(LayoutAdvice));
+        RaiseSlotProperties();
     }
 
     private void Identify()
