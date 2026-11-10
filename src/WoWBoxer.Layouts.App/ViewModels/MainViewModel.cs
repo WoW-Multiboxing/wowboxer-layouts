@@ -942,6 +942,12 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Current is null) return;
         MonitorNotice = "";
+        if (Current.Preset is PresetKind.Custom or null && ScreenSet.MoveTo(Current, _chosen, screens, Monitors) is { } moved)
+        {
+            Update(moved with { Preset = PresetKind.Custom });
+            Status.Info("Moved to the chosen monitors – every window keeps its place. Ctrl+Z moves it back.");
+            return;
+        }
         if (Current.Preset is null) Status.Info("This layout was made by hand: it starts again as Custom on the chosen monitors. Ctrl+Z brings it back.");
         ApplyKind(Current.Preset ?? PresetKind.Custom, screens: screens);
     }
