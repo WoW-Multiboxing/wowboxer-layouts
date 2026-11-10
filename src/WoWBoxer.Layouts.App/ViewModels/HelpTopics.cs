@@ -15,7 +15,7 @@ public static class HelpTopics
         new("A window jumps back after I move it",
             "While started, the app keeps every window in its slot. Move it on the map in Setup instead, or press Stop to place windows by hand."),
         new("The ends of the action bar are cut off",
-            "The game picture is narrower than 4:3. Auto-fit action bar (on by default) sets a smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead in Your squad."),
+            "The game picture is too narrow for the action bars you have on (Classic Era's main bar needs 4:3; on Forever bars 2 and 3 sit side by side and need more). Auto-fit action bar (on by default) sets a smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead in Your squad."),
         new("Forever (or another client) maximises itself again",
             "It is in \"Windowed (Fullscreen)\". In game: Esc › Options › Graphics › Display Mode › Windowed, once. Then it can be placed."),
         new("The wrong character is in a window",

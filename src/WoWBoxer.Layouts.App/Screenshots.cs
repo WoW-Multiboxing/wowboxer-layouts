@@ -106,7 +106,7 @@ internal static class Screenshots
         // 5) Settings: hover to activate and the action-bar fit
         vm.SelectedTab = AppTab.Settings;
         await Snap("settings", "Settings: hover to activate and action bar", "WoWBoxer Settings: hover to activate windows (a Windows setting) with its delay, the action-bar fit (UI Scale) and the window rules.",
-            "Hover to activate is a Windows setting – it sends nothing to the game. Auto-fit keeps the whole action bar in view.");
+            "Hover to activate is a Windows setting – it sends nothing to the game. Auto-fit keeps every action bar in view.");
 
         // 6) Help: Report a problem
         vm.SelectedTab = AppTab.Help;

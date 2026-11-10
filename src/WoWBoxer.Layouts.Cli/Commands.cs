@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -25,6 +26,41 @@ internal static class Commands
             log.Info($"  {w.ProcessName}.exe  pid {w.Pid}  {GameDetection.DisplayName(w.Game)}  class \"{w.ClassName}\"  window {w.Rect}  visible {WindowFinder.VisibleRectOf(w.Handle)}  top-most {WindowPlacer.IsTopmost(w.Handle)}");
             log.Info($"      game renders {cw}x{ch} (aspect {(ch == 0 ? 0 : (double)cw / ch):F3})  {(borderless ? "borderless" : "title bar")}  style 0x{w.Style:X8}");
             log.Info($"      {BarLine(w, cw, ch)}");
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// Auto-fit's view of the bars: per account which bars are on (character's config-cache.wtf) and where (the WoWBoxer
+    /// AddOn's measurement or the game's default layout), and the UI Scale at which all of them fit the reference game
+    /// areas and the open windows. Reads files only.
+    /// </summary>
+    public static int Bars(CliOptions o, Log log)
+    {
+        foreach (var game in o.Game is { } only ? [only] : new[] { WowGame.ClassicEra, WowGame.Forever })
+        {
+            var exe = GameInstall.FindExe(null, game);
+            log.Line();
+            log.Line($"{GameDetection.DisplayName(game)}: {exe ?? "not installed"}", ConsoleColor.Yellow);
+            if (exe is null) continue;
+            var setting = UiScaleFix.Read(exe);
+            log.Info($"UI Scale in Config.wtf: {setting.Display}");
+            var folder = Path.GetDirectoryName(exe)!;
+            var open = WindowFinder.FindGameWindows(game).Select(w => WindowFinder.ClientSizeOf(w.Handle)).Where(s => s.Width > 0 && s.Height > 0).ToList();
+            (int W, int H)[] reference = [(868, 664), (830, 664), (1688, 1360), (2558, 1360)];
+            var n = 0;
+            foreach (var (_, bars) in BarSetup.Read(folder, game, WtfInfo.Read(folder)))
+            {
+                log.Info($"  account {++n}: bars {bars.Names} ({bars.Source})");   // no account names in logs
+                foreach (var (w, h) in reference.Concat(open.Select(s => (s.Width, s.Height))))
+                {
+                    var aspect = (double)w / h;
+                    var drawn = ActionBars.DrawnScale(game, setting, h);
+                    var now = ActionBars.Describe(ActionBars.Check(bars.Bars, aspect, drawn));
+                    var fit = ActionBars.FitScale(bars.Bars, aspect);
+                    log.Info($"      {w}x{h}: at {drawn:0.00} {(now.Length == 0 ? "all fit" : now)}; fits all at {(fit is { } f ? f.ToString("0.00", CultureInfo.InvariantCulture) : "none (not even 0.64)")}");
+                }
+            }
         }
         return 0;
     }

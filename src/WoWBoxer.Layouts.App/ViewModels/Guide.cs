@@ -64,7 +64,7 @@ public sealed class GuideViewModel : ObservableObject
                     "Click a layout card: Main + side, Overlays, Grid or Custom. Each card shows a live preview for your clients and monitors.",
                     "Monitors (right below, with 2+ monitors): 1 monitor, 2 monitors … The map shows exactly the chosen ones, numbered 1, 2 …; the main goes on 1. With fewer than all, \"Which ones\" picks them.",
                     "Main + side on 2+ monitors: the main fills monitor 1, the followers go on the others. With 6–10 clients each party gets its own block – one per monitor, or two halves of one monitor (Flip turns the halves). Custom: drag windows anywhere, also across monitors.",
-                    "Fine-tune by dragging windows on the map. A green dot means the whole action bar fits; a solid dot is measured on the open game window, a ring is the plan.",
+                    "Fine-tune by dragging windows on the map. A green dot means all your action bars fit; a solid dot is measured on the open game window, a ring is the plan.",
                 ],
                 "Everything is saved automatically – clients, layout and monitors – and the app opens with your last setup next time. If a monitor of the layout is unplugged, it goes back to 1 monitor and tells you. Layouts work with every WoW install."),
             new(CustomChapter, "Build your own layout (Custom)",
@@ -111,7 +111,7 @@ public sealed class GuideViewModel : ObservableObject
                 "Most problems have a simple cause. The app tells you what it sees.",
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
-                    "Action bar ends cut off: the game picture is narrower than 4:3. Auto-fit action bar (on by default) sets one smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead.",
+                    "Action bar buttons cut off: the game picture is too narrow for the bars you have on (Classic Era's main bar needs 4:3; on Forever bars 2 and 3 sit side by side). Auto-fit action bar (on by default) sets one smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead.",
                     "Still stuck: Help › Report a problem (also in the tray). It copies a short report and opens #setup-help in the WoWBoxer Discord – paste with Ctrl+V and press Enter. The full report is saved as a file you can drag in if someone asks.",
                 ],
                 "The Help tab lists the common problems with their fixes, and has Report a problem: a report with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",

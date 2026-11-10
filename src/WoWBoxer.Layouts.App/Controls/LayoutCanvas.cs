@@ -39,6 +39,8 @@ public sealed class LayoutCanvas : FrameworkElement
         nameof(Screens), typeof(IReadOnlyList<MonitorInfo>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty LiveSlotsProperty = DependencyProperty.Register(
         nameof(LiveSlots), typeof(IReadOnlyDictionary<int, ViewModels.LiveSlot>), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty BarFitProperty = DependencyProperty.Register(
+        nameof(BarFit), typeof(ViewModels.BarFitContext), typeof(LayoutCanvas), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty UiScaleProperty = DependencyProperty.Register(
         nameof(UiScale), typeof(double), typeof(LayoutCanvas), new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
     public static readonly DependencyProperty SlotStatesProperty = DependencyProperty.Register(
@@ -79,6 +81,8 @@ public sealed class LayoutCanvas : FrameworkElement
     public IReadOnlyList<MonitorInfo>? Screens { get => (IReadOnlyList<MonitorInfo>?)GetValue(ScreensProperty); set => SetValue(ScreensProperty, value); }
     /// <summary>Slot index → what the open WoW window in that slot really draws. Those slots show the measured action-bar state (solid dot).</summary>
     public IReadOnlyDictionary<int, ViewModels.LiveSlot>? LiveSlots { get => (IReadOnlyDictionary<int, ViewModels.LiveSlot>?)GetValue(LiveSlotsProperty); set => SetValue(LiveSlotsProperty, value); }
+    /// <summary>Every slot's enabled action bars (Classic Era, Forever): the label says whether all of them fit. Null: the 4:3 rule.</summary>
+    public ViewModels.BarFitContext? BarFit { get => (ViewModels.BarFitContext?)GetValue(BarFitProperty); set => SetValue(BarFitProperty, value); }
     /// <summary>WoW's UI Scale (1 = automatic), used for the planned state of slots without an open window (ring dot).</summary>
     public double UiScale { get => (double)GetValue(UiScaleProperty); set => SetValue(UiScaleProperty, value); }
 
@@ -395,7 +399,10 @@ public sealed class LayoutCanvas : FrameworkElement
             if (r.Height > 70 && label is not null) lines.Add(Text(label, 12.5, new SolidColorBrush(color), ppd, display: true));
             if (r.Height > 56 && r.Width > 80) lines.Add(Text($"{item.Fitted.Width} × {item.Fitted.Height}", 11, Brush(0xC8, Parchment), ppd));
             var showBar = r.Height > 84 && r.Width > 110;
-            var barText = showBar ? Text(ActionBar.Short(aspect), 10.5, new SolidColorBrush(ActionBar.ColorFor(aspect)), ppd) : null;
+            var mark = BarFit is { } fit
+                ? fit.Mark(item.Index, measured?.Width ?? gw, measured?.Height ?? gh)
+                : new ViewModels.BarMark(ActionBar.Short(aspect), ActionBar.ColorFor(aspect));
+            var barText = showBar ? Text(mark.Short, 10.5, new SolidColorBrush(mark.Color), ppd) : null;
             var total = radiusM * 2 + 6 + lines.Sum(l => l.Height) + (barText?.Height ?? 0);
             var y = r.Y + edge / 2 + (r.Height - total) / 2;
             var mc = new Point(r.X + r.Width / 2, y + radiusM);
@@ -414,7 +421,7 @@ public sealed class LayoutCanvas : FrameworkElement
             {
                 var dot = 7.0;
                 var x0 = r.X + (r.Width - barText.Width - dot - 5) / 2;
-                var barBrush = new SolidColorBrush(ActionBar.ColorFor(aspect));
+                var barBrush = new SolidColorBrush(mark.Color);
                 var centre = new Point(x0 + dot / 2, y + barText.Height / 2 + 0.5);
                 if (measured is not null) dc.DrawEllipse(barBrush, null, centre, dot / 2, dot / 2);   // measured on the real window
                 else dc.DrawEllipse(null, new Pen(barBrush, 1.4), centre, dot / 2 - 0.7, dot / 2 - 0.7);   // planned

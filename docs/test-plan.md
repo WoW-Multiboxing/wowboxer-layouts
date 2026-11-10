@@ -69,7 +69,8 @@ checks the squad's install first and stops paused otherwise.
 |---|---|
 | UI Scale 0.93 (owner pressed Fix action bar, restarted clients) → both 830×664 followers show the whole bar incl. gryphons + backpack (snapshots); main too | ✅ in game |
 | Auto-fit on a fake Classic Era install (scratch folder, copy of ping.exe as WowClassic.exe): app start → 0.93 + backup + notice; while a client runs → nothing; last client closes → 0.93; before Start squad → 0.93 | ✅ 4/4 |
-| Auto-fit never touches Forever (bar rule not verified there) and never writes while a client of the install runs | ✅ (code + owner's real Config.wtf unchanged by the tests) |
+| Auto-fit never writes while a client of the install runs | ✅ (code + owner's real Config.wtf unchanged by the tests) |
+| Auto-fit for every enabled bar (2026-11-09, `ActionBarsTests`, `BarBridgeTests`): Era and Forever, bars 1, 1+2, 1+2+3, + right bars, small (830×664, 868×664) and large (1688×1360, 2558×1360) game areas; the fit scale fits and the next step up does not; Era keeps 0.93; Forever 870×696 → 0.79; a squeezed addon measurement falls back to default places; `wbx bars` on the owner's installs: Era 0.64 fits all, Forever Main + side → 0.77 | ✅ 35 tests; in game: owner's checklist |
 | Always on top, live mode OFF: every slot toggled on/off 3× → WS_EX_TOPMOST follows at once | ✅ 18/18 |
 | Guard: 24 disturbances (cleared/set by another program, moved 3 px, foreground switched Notepad ↔ app), slots 2+3 on top → corrected within 1 s | ✅ 24/24 |
 | Squad row drag (guarded real mouse) row 2 → row 1: real windows swap, on-top follows the slot; Undo puts windows and rows back | ✅ (found + fixed: the list swallowed the drag; Undo did not restore window order) |

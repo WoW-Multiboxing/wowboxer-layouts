@@ -39,6 +39,7 @@ internal sealed class CliOptions
           wbx layout     print the layout as JSON and as a WBX1: share code
           wbx restore    give the WoW windows their title bars and borders back (moves nothing)
           wbx capture    save where the WoW windows are now as a layout: wbx capture --save my.json
+          wbx bars       which action bars each account has on and the UI Scale that fits them all (reads files only)
           wbx snap       save a picture of what each WoW window shows (read-only): wbx snap [--out FOLDER]
 
         Layout:
