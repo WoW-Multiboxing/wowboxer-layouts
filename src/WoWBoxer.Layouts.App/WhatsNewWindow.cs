@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Fixes from #help",
+            "WowUp and other programs named Wow… are never taken for a WoW client. A layout keeps its monitor when Windows swaps the IDs of two identical monitors, and a monitor that is off no longer changes your saved layout. Windows stop flipping in front of each other when another program fights over \"on top\" – Activity says which one to turn off."),
         ("Auto-fit fits every action bar, also on Forever",
             "With bars 2 and 3 (and the right bars) on, Auto-fit now finds the one UI Scale at which every bar, the bags and the menu buttons fit in every window – on Classic Era and Forever. It writes it while that game's clients are closed, and the Activity line says why whenever it does not."),
         ("Window swap keeps its main slot",

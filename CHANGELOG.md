@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased – Fixes from #help
+## v0.7.1 – Window swap keeps its main slot, Auto-fit fits every bar, fixes from #help (2026-11-10)
+Everything from v0.7.1-beta.1 and v0.7.1-beta.2 (below), now for everyone, plus these fixes for problems players
+reported in #help (released straight to stable on the owner's decision):
 - **WowUp (and other programs whose name starts with "Wow") are never a WoW client.** Only Blizzard's game exe names
   count (Wow, WowClassic, their -64 / PTR / beta versions); an exe with a new name still counts when it sits in a
   World of Warcraft game folder. Settings refuses a WoW client path that is not a game, and a saved one is ignored.
