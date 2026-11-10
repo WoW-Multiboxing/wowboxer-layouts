@@ -6,6 +6,14 @@ public class GameDetectionTests
     [InlineData("WowClassic", true)]
     [InlineData("Wow", true)]
     [InlineData("WowT", true)]
+    [InlineData("WowB", true)]
+    [InlineData("Wow-64", true)]
+    [InlineData("WowClassicT", true)]
+    [InlineData("WowClassic.exe", true)]
+    [InlineData("WowUp", false)]   // the addon manager (#help 2026-11-08)
+    [InlineData("WowUpCF", false)]
+    [InlineData("WowUp-CF", false)]
+    [InlineData("WowheadClient", false)]
     [InlineData("WoWBoxer.Layouts", false)]   // our own app must never be arranged
     [InlineData("WoWBoxer", false)]   // its exe since 0.6.0
     [InlineData("wbx", false)]
@@ -22,6 +30,22 @@ public class GameDetectionTests
     [InlineData(@"C:\Program Files (x86)\World of Warcraft\_retail_\BlizzardError.exe", false)]
     [InlineData(@"C:\Tools\Wow.exe", false)]
     public void Install_paths(string path, bool expected) => Assert.Equal(expected, GameDetection.IsWowPath(path));
+
+    [Theory]
+    [InlineData(@"C:\Program Files (x86)\World of Warcraft\_forever_\Wow.exe", true)]
+    [InlineData(@"C:\Program Files (x86)\World of Warcraft\_classic_era_\WowClassic.exe", true)]
+    [InlineData(@"D:\WoW\_anniversary_\WowClassic.exe", true)]   // a renamed install folder: known exe in a game folder
+    [InlineData(@"D:\Games\World of Warcraft\_forever_\SomethingNew.exe", true)]
+    [InlineData(@"C:\Users\x\AppData\Local\Programs\WowUp\WowUp.exe", false)]   // #help 2026-11-08
+    [InlineData(@"C:\Users\x\AppData\Local\Programs\WowUpCF\WowUpCF.exe", false)]
+    [InlineData(@"C:\Program Files (x86)\World of Warcraft\WowUp.exe", false)]
+    [InlineData(@"D:\WoW\_classic_era_\WowUp.exe", false)]
+    [InlineData(@"C:\Program Files (x86)\Overwolf\Overwolf.exe", false)]
+    [InlineData(@"C:\Program Files (x86)\Battle.net\Battle.net.exe", false)]
+    [InlineData(@"C:\Tools\Wow.exe", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void Game_exes(string? path, bool expected) => Assert.Equal(expected, GameDetection.IsGameExe(path));
 
     // Exe names are shared between games (WowClassic.exe: Era + Anniversary; Wow.exe: Forever + Retail): the folder decides.
     [Theory]

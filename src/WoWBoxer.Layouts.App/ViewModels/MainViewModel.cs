@@ -140,7 +140,7 @@ public sealed partial class MainViewModel : ObservableObject
         ReadWowAccounts();
         ApplyOnTop();
         // Keeps "on top" right when Windows changes the foreground window or a WoW window moves (listening only).
-        _guard = new ZOrderGuard(WantedZOrder, OnZCorrected);
+        _guard = new ZOrderGuard(WantedZOrder, OnZCorrected, OnZFight);
         _lastRunning = RunningClientsNow();
         _loaded = true;
         ApplyHotkeys();   // window swap (Settings › Advanced): registers its hotkeys only when switched on
@@ -156,6 +156,13 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Placed is not { } placed || _paused) return [];
         return Windows.Where(w => w.Slot - 1 < placed.Slots.Count).Select(w => (w.Window.Handle, placed.Slots[w.Slot - 1].Z)).ToList();
+    }
+
+    /// <summary>The guard gave up on a window: another program keeps changing its "on top" (#help 2026-11-10, Altsy).</summary>
+    private void OnZFight(nint handle)
+    {
+        var slot = Windows.FirstOrDefault(w => w.Window.Handle == handle)?.Slot ?? 0;
+        Status.Warn($"Window {slot}: something else keeps changing its \"on top\" – another window tool (PowerToys Always On Top, a pin or \"keep on top\" app) or a second copy of WoWBoxer. WoWBoxer stopped correcting it, so the windows stop flipping. Turn the other tool off for WoW, then press Re-arrange.");
     }
 
     private void OnZCorrected(nint handle, ZOrder z)
@@ -271,10 +278,16 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (value is null || value == _selectedProfile) return;
             LeaveCustom(switchingLayout: true);   // asks only for an unsaved custom arrangement
+            if (_beforeFallback is { } saved && _selectedProfile is not null)
+            {
+                _selectedProfile.Profile = saved;   // the 1-monitor stand-in was never saved: leave the saved layout behind
+                _beforeFallback = null;
+            }
             if (!Set(ref _selectedProfile, value)) return;
             _undo.Clear();
             _redo.Clear();
             MonitorNotice = "";
+            _guard?.Resume();
             Current = value.Profile;
             LoadDraft();
             _selection.Clear();
@@ -345,6 +358,7 @@ public sealed partial class MainViewModel : ObservableObject
             else
             {
                 _keeper.Settle();   // windows that opened or moved meanwhile go to their slots now
+                _guard?.Resume();
                 ApplyOnTop();
                 Status.Info("Started: every WoW window of the squad goes to its slot.");
             }
@@ -398,7 +412,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// Applies a layout type, client count or monitor choice (anything not given stays as it is), keeping names and
     /// classes. Undo brings the old one back.
     /// </summary>
-    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null)
+    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null, bool save = true)
     {
         if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond)) return;
         ResetSwap(quiet: true);   // a new layout starts at home
@@ -408,7 +422,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (keepPlaces) slots = [.. CustomLayouts.WithCount(Current.Slots, preset)];
         // a new preset brings its own main slot (the large window); Custom keeping its places keeps its crowns
         var mains = keepPlaces ? Current.SwapMainSlots : null;
-        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond, SwapMainSlots = mains });
+        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond, SwapMainSlots = mains }, save: save);
         SelectedSlotIndex = 0;
     }
 
@@ -942,6 +956,12 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Current is null) return;
         MonitorNotice = "";
+        if (Current.Preset is PresetKind.Custom or null && ScreenSet.MoveTo(Current, _chosen, screens, Monitors) is { } moved)
+        {
+            Update(moved with { Preset = PresetKind.Custom });
+            Status.Info("Moved to the chosen monitors – every window keeps its place. Ctrl+Z moves it back.");
+            return;
+        }
         if (Current.Preset is null) Status.Info("This layout was made by hand: it starts again as Custom on the chosen monitors. Ctrl+Z brings it back.");
         ApplyKind(Current.Preset ?? PresetKind.Custom, screens: screens);
     }
@@ -950,14 +970,30 @@ public sealed partial class MainViewModel : ObservableObject
     /// After the monitors changed or a layout was opened: monitors Windows numbers differently are followed (by device
     /// ID, else place and size); if one is not connected, the layout goes back to 1 monitor with a short notice.
     /// </summary>
+    /// <summary>The saved layout while a 1-monitor stand-in is used because one of its monitors is not connected (#help 2026-11-08: never rewrite a saved layout's monitors without the user).</summary>
+    private LayoutProfile? _beforeFallback;
+
+    // older layouts remember no screens: a slot on a monitor that is not there counts as missing too
+    private bool MonitorMissing(LayoutProfile p) => ScreenSet.Resolve(p, Monitors).Missing || p.Slots.Any(s => Core.Monitors.Find(Monitors, s.Monitor) is null);
+
     private void CheckScreens()
     {
         if (Current is null || Monitors.Count == 0) return;
-        // older layouts remember no screens: a slot on a monitor that is not there counts as missing too
-        if (ScreenSet.Resolve(Current, Monitors).Missing || Current.Slots.Any(s => Core.Monitors.Find(Monitors, s.Monitor) is null))
+        // the monitor is back: the saved layout returns as it was (the 1-monitor stand-in was never saved)
+        if (_beforeFallback is { } saved && !MonitorMissing(saved))
         {
-            ApplyKind(Current.Preset ?? PresetKind.Custom, screens: [Core.Monitors.Primary(Monitors)]);
-            MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor now. Choose the monitors again when it is back (or Ctrl+Z).";
+            _beforeFallback = null;
+            Update(ScreenSet.Remap(saved, Monitors), pushUndo: false, save: false);
+            MonitorNotice = "";
+            Status.Ok("The missing monitor is back – the layout is on its own monitors again.");
+            return;
+        }
+        if (MonitorMissing(Current))
+        {
+            var saved2 = _beforeFallback ?? Current;
+            ApplyKind(Current.Preset ?? PresetKind.Custom, screens: [Core.Monitors.Primary(Monitors)], save: false);
+            _beforeFallback = saved2;
+            MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor for now. Your saved layout is not changed and comes back when the monitor does.";
             Status.Warn(MonitorNotice);
             return;
         }
@@ -1107,9 +1143,10 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Every edit goes through here: undo, auto-save, refresh, live apply.</summary>
-    private void Update(LayoutProfile profile, bool pushUndo = true)
+    private void Update(LayoutProfile profile, bool pushUndo = true, bool save = true)
     {
         if (_selectedProfile is null || Current is null || profile == Current) return;
+        if (save) _beforeFallback = null;   // the user changed the layout on purpose: that is the one to keep
         if (pushUndo)
         {
             _undo.Push(new UndoStep(Current));
@@ -1119,7 +1156,7 @@ public sealed partial class MainViewModel : ObservableObject
         var moved = Monitors.Count == 0 || !LayoutEngine.Resolve(Current, Monitors).Select(p => p.Rect).SequenceEqual(LayoutEngine.Resolve(profile, Monitors).Select(p => p.Rect));
         try
         {
-            _selectedProfile.Path = _store.Save(profile, _selectedProfile.Path);
+            if (save) _selectedProfile.Path = _store.Save(profile, _selectedProfile.Path);
         }
         catch (IOException e)
         {
@@ -1314,9 +1351,16 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The WoW client the app opens and reads (UI Scale, accounts): the open clients' install, else the last used one.</summary>
     public string GameExe
     {
-        get => SquadExe ?? _settings.GameExe ?? "";
+        get => SquadExe ?? (GameDetection.IsGameExe(_settings.GameExe) ? _settings.GameExe! : "");
         set
         {
+            if (!string.IsNullOrWhiteSpace(value) && !GameDetection.IsGameExe(value.Trim()))
+            {
+                // e.g. WowUp.exe (#help 2026-11-08): only a game exe in a WoW install folder can be the client
+                Status.Warn($"{Path.GetFileName(value.Trim())} is not a WoW game client. Pick Wow.exe or WowClassic.exe inside your World of Warcraft folder (e.g. _forever_ or _classic_era_).");
+                OnPropertyChanged();
+                return;
+            }
             SetSetting(() => _settings.GameExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
             ReadWowAccounts();
             MeasureBars();
@@ -1361,7 +1405,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// The WoW client the squad uses: the install of the open squad windows, else the last used one, else Classic Era's.
     /// UI Scale, accounts and "Open WoW clients" follow it.
     /// </summary>
-    public string? SquadExe => _squadExe ?? (File.Exists(_settings.GameExe) ? _settings.GameExe : GameInstall.FindExe(null));
+    public string? SquadExe => _squadExe ?? (File.Exists(_settings.GameExe) && GameDetection.IsGameExe(_settings.GameExe) ? _settings.GameExe : GameInstall.FindExe(null));
 
     public WowGame SquadGame => GameDetection.GameOf(SquadExe);
 
@@ -1869,6 +1913,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task ArrangeAsync()
     {
         ResetSwap(quiet: true);   // Re-arrange = every client back in its home slot
+        _guard?.Resume();
         if (Plan() is not { } plan) return;
         RefreshWindows();
         var placements = Placements();

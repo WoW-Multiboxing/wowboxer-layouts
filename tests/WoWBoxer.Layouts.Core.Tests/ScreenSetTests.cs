@@ -54,6 +54,42 @@ public class ScreenSetTests
     }
 
     [Fact]
+    public void Two_monitors_of_one_model_with_swapped_ids_stay_where_they_are()
+    {
+        // #help 2026-11-08: after a restart the layout on the primary said "Right" (Windows swapped the two IDs)
+        var rect = new PixelRect(0, 0, 2560, 1440);
+        IReadOnlyList<MonitorInfo> before =
+        [
+            new MonitorInfo(1, @"\\.\DISPLAY1", true, rect, rect with { Height = 1392 }) { DeviceId = "LEN#A" },
+            new MonitorInfo(2, @"\\.\DISPLAY2", false, rect with { X = 2560 }, rect with { X = 2560, Height = 1392 }) { DeviceId = "LEN#B" },
+        ];
+        var profile = Presets.ForScreens(PresetKind.Side, 3, [before[0]]);
+        IReadOnlyList<MonitorInfo> now = [before[0] with { DeviceId = "LEN#B" }, before[1] with { DeviceId = "LEN#A" }];
+
+        Assert.Equal([1], ScreenSet.Resolve(profile, now).Chosen.Select(m => m.Index));
+        var remapped = ScreenSet.Remap(profile, now);
+        Assert.All(remapped.Slots, s => Assert.Equal("primary", s.Monitor));
+        Assert.Equal(LayoutEngine.Resolve(profile, before).Select(p => p.Rect), LayoutEngine.Resolve(remapped, now).Select(p => p.Rect));
+    }
+
+    [Fact]
+    public void A_custom_layout_moved_to_another_monitor_keeps_every_place()
+    {
+        var monitors = TestMonitors.Setups["triple-mixed"];
+        var primary = Monitors.Primary(monitors);
+        var other = monitors.First(m => !m.IsPrimary);
+        var custom = Presets.ForScreens(PresetKind.Side, 3, [primary]) with { Preset = PresetKind.Custom };
+
+        var moved = ScreenSet.MoveTo(custom, [primary], [other], monitors)!;
+        var back = ScreenSet.MoveTo(moved, [other], [primary], monitors)!;
+
+        Assert.All(moved.Slots, s => Assert.Equal(ScreenSet.Ref(other), s.Monitor));
+        Assert.Equal(custom.Slots.Select(s => (s.X, s.Y, s.W, s.H)), moved.Slots.Select(s => (s.X, s.Y, s.W, s.H)));
+        Assert.Equal(custom.Slots, back.Slots);
+        Assert.Null(ScreenSet.MoveTo(custom, [primary], [primary, other], monitors));
+    }
+
+    [Fact]
     public void Without_ids_screens_are_found_by_place_and_size_then_by_size()
     {
         var refs = ScreenSet.Ordered(Triple).Select(m => ScreenSet.ToRef(m) with { Id = null }).ToList();

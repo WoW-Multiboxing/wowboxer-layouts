@@ -58,8 +58,11 @@ public static class ScreenSet
                 used.Add(candidates[0].Index);
             }
         }
-        Pass((s, m) => s.Id is { Length: > 0 } id && string.Equals(id, m.DeviceId, StringComparison.OrdinalIgnoreCase));
+        // Place and size first: that is the monitor the user sees there (the primary is always at 0,0). Windows can swap
+        // the device IDs of two monitors of the same model after sleep or a restart (#help 2026-11-08: a layout on the
+        // primary said "Right" the next day); the ID then finds a screen that moved.
         Pass((s, m) => s.X == m.Bounds.X && s.Y == m.Bounds.Y && s.Width == m.Bounds.Width && s.Height == m.Bounds.Height);
+        Pass((s, m) => s.Id is { Length: > 0 } id && string.Equals(id, m.DeviceId, StringComparison.OrdinalIgnoreCase));
         Pass((s, m) => s.Width == m.Bounds.Width && s.Height == m.Bounds.Height, unique: true);
         return result;
     }
@@ -97,6 +100,20 @@ public static class ScreenSet
         for (var i = 0; i < screens.Count; i++) map.TryAdd(screens[i].Ref, now[i].Ref);
         var slots = profile.Slots.Select(s => map.TryGetValue(s.Monitor, out var r) ? s with { Monitor = r } : s).ToList();
         return profile with { Slots = slots, Screens = now };
+    }
+
+    /// <summary>
+    /// A hand-made layout on other monitors, the same number of them: each window keeps its place (slots are in percent of
+    /// their monitor) on the monitor that takes its old one's turn. Null when the counts differ (#help 2026-11-08: choosing
+    /// Primary again reset every window).
+    /// </summary>
+    public static LayoutProfile? MoveTo(LayoutProfile profile, IReadOnlyList<MonitorInfo> from, IReadOnlyList<MonitorInfo> to, IReadOnlyList<MonitorInfo> monitors)
+    {
+        if (from.Count == 0 || from.Count != to.Count) return null;
+        var map = new Dictionary<int, MonitorInfo>();
+        for (var i = 0; i < from.Count; i++) map[from[i].Index] = to[i];
+        var slots = profile.Slots.Select(s => Monitors.Find(monitors, s.Monitor) is { } m && map.TryGetValue(m.Index, out var target) ? s with { Monitor = Ref(target) } : s).ToList();
+        return profile with { Slots = slots, Screens = to.Select(ToRef).ToList() };
     }
 
     /// <summary>Every way to pick <paramref name="count"/> monitors, in the app's order; the first is the default (primary, then left to right).</summary>

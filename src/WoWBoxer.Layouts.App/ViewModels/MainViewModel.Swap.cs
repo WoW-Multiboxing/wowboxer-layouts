@@ -182,6 +182,13 @@ public sealed partial class MainViewModel
     public void RunSwapAction(string action)
     {
         if (!_settings.SwapHotkeys || Current is null) return;
+        // a swap only moves windows and never starts another swap; a flood of presses (a stuck key, a keyboard macro)
+        // is stopped for a few seconds instead of flipping the windows non-stop (#help 2026-11-10)
+        if (!_swapFlood.Allow("swap", out var flooded))
+        {
+            if (flooded) Status.Warn($"Window swap: more than {SwapFloodLimit} swap hotkeys in 2 seconds – swapping is paused for 5 seconds. Is a key stuck, or is a keyboard macro repeating it?");
+            return;
+        }
         if (action == SwapActions.Home)
         {
             ResetSwap(quiet: false);
@@ -237,6 +244,10 @@ public sealed partial class MainViewModel
         _swapCursor = cursor;
         SwapInto(client, mainSlot);
     }
+
+    /// <summary>At most this many swap actions within 2 seconds.</summary>
+    public const int SwapFloodLimit = 8;
+    private readonly RateGuard<string> _swapFlood = new(SwapFloodLimit, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5));
 
     private bool _noMainLogged;
     private int _crownPulse;
