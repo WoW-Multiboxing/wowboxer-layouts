@@ -271,6 +271,11 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (value is null || value == _selectedProfile) return;
             LeaveCustom(switchingLayout: true);   // asks only for an unsaved custom arrangement
+            if (_beforeFallback is { } saved && _selectedProfile is not null)
+            {
+                _selectedProfile.Profile = saved;   // the 1-monitor stand-in was never saved: leave the saved layout behind
+                _beforeFallback = null;
+            }
             if (!Set(ref _selectedProfile, value)) return;
             _undo.Clear();
             _redo.Clear();
@@ -398,7 +403,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// Applies a layout type, client count or monitor choice (anything not given stays as it is), keeping names and
     /// classes. Undo brings the old one back.
     /// </summary>
-    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null)
+    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null, bool save = true)
     {
         if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond)) return;
         ResetSwap(quiet: true);   // a new layout starts at home
@@ -408,7 +413,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (keepPlaces) slots = [.. CustomLayouts.WithCount(Current.Slots, preset)];
         // a new preset brings its own main slot (the large window); Custom keeping its places keeps its crowns
         var mains = keepPlaces ? Current.SwapMainSlots : null;
-        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond, SwapMainSlots = mains });
+        Update(Current with { Clients = preset.Clients, Preset = kind, Slots = slots, Screens = preset.Screens, Split = preset.Split, FollowersOnSecond = preset.FollowersOnSecond, SwapMainSlots = mains }, save: save);
         SelectedSlotIndex = 0;
     }
 
@@ -956,14 +961,30 @@ public sealed partial class MainViewModel : ObservableObject
     /// After the monitors changed or a layout was opened: monitors Windows numbers differently are followed (by device
     /// ID, else place and size); if one is not connected, the layout goes back to 1 monitor with a short notice.
     /// </summary>
+    /// <summary>The saved layout while a 1-monitor stand-in is used because one of its monitors is not connected (#help 2026-11-08: never rewrite a saved layout's monitors without the user).</summary>
+    private LayoutProfile? _beforeFallback;
+
+    // older layouts remember no screens: a slot on a monitor that is not there counts as missing too
+    private bool MonitorMissing(LayoutProfile p) => ScreenSet.Resolve(p, Monitors).Missing || p.Slots.Any(s => Core.Monitors.Find(Monitors, s.Monitor) is null);
+
     private void CheckScreens()
     {
         if (Current is null || Monitors.Count == 0) return;
-        // older layouts remember no screens: a slot on a monitor that is not there counts as missing too
-        if (ScreenSet.Resolve(Current, Monitors).Missing || Current.Slots.Any(s => Core.Monitors.Find(Monitors, s.Monitor) is null))
+        // the monitor is back: the saved layout returns as it was (the 1-monitor stand-in was never saved)
+        if (_beforeFallback is { } saved && !MonitorMissing(saved))
         {
-            ApplyKind(Current.Preset ?? PresetKind.Custom, screens: [Core.Monitors.Primary(Monitors)]);
-            MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor now. Choose the monitors again when it is back (or Ctrl+Z).";
+            _beforeFallback = null;
+            Update(ScreenSet.Remap(saved, Monitors), pushUndo: false, save: false);
+            MonitorNotice = "";
+            Status.Ok("The missing monitor is back – the layout is on its own monitors again.");
+            return;
+        }
+        if (MonitorMissing(Current))
+        {
+            var saved2 = _beforeFallback ?? Current;
+            ApplyKind(Current.Preset ?? PresetKind.Custom, screens: [Core.Monitors.Primary(Monitors)], save: false);
+            _beforeFallback = saved2;
+            MonitorNotice = "A monitor of this layout is not connected, so it is on 1 monitor for now. Your saved layout is not changed and comes back when the monitor does.";
             Status.Warn(MonitorNotice);
             return;
         }
@@ -1113,9 +1134,10 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Every edit goes through here: undo, auto-save, refresh, live apply.</summary>
-    private void Update(LayoutProfile profile, bool pushUndo = true)
+    private void Update(LayoutProfile profile, bool pushUndo = true, bool save = true)
     {
         if (_selectedProfile is null || Current is null || profile == Current) return;
+        if (save) _beforeFallback = null;   // the user changed the layout on purpose: that is the one to keep
         if (pushUndo)
         {
             _undo.Push(new UndoStep(Current));
@@ -1125,7 +1147,7 @@ public sealed partial class MainViewModel : ObservableObject
         var moved = Monitors.Count == 0 || !LayoutEngine.Resolve(Current, Monitors).Select(p => p.Rect).SequenceEqual(LayoutEngine.Resolve(profile, Monitors).Select(p => p.Rect));
         try
         {
-            _selectedProfile.Path = _store.Save(profile, _selectedProfile.Path);
+            if (save) _selectedProfile.Path = _store.Save(profile, _selectedProfile.Path);
         }
         catch (IOException e)
         {
