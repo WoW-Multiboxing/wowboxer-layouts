@@ -141,6 +141,7 @@ public sealed partial class MainViewModel : ObservableObject
         ApplyOnTop();
         // Keeps "on top" right when Windows changes the foreground window or a WoW window moves (listening only).
         _guard = new ZOrderGuard(WantedZOrder, OnZCorrected, OnZFight);
+        _keeper.Refused = OnClientKeepsSize;
         _lastRunning = RunningClientsNow();
         _loaded = true;
         ApplyHotkeys();   // window swap (Settings › Advanced): registers its hotkeys only when switched on
@@ -163,6 +164,24 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var slot = Windows.FirstOrDefault(w => w.Window.Handle == handle)?.Slot ?? 0;
         Status.Warn($"Window {slot}: something else keeps changing its \"on top\" – another window tool (PowerToys Always On Top, a pin or \"keep on top\" app) or a second copy of WoWBoxer. WoWBoxer stopped correcting it, so the windows stop flipping. Turn the other tool off for WoW, then press Re-arrange.");
+    }
+
+    private readonly Dictionary<(nint, PixelRect), DateTime> _keepsSaid = [];
+
+    /// <summary>
+    /// The game put a window back to its own size a few times in a row: WoWBoxer stopped resizing it (SlotKeeper.HoldLimit).
+    /// Said once per window and size for 10 minutes (each swap or Re-arrange tries again). Called on any thread.
+    /// </summary>
+    private void OnClientKeepsSize(nint handle, int slot, PixelRect kept)
+    {
+        lock (_keepsSaid)
+        {
+            if (_keepsSaid.TryGetValue((handle, kept), out var at) && DateTime.UtcNow - at < TimeSpan.FromMinutes(10)) return;
+            _keepsSaid[(handle, kept)] = DateTime.UtcNow;
+        }
+        var plan = _lastPlan;
+        var wanted = plan is not null && slot < plan.Slots.Count ? plan.Slots[slot].Rect : default;
+        Status.Warn(ClientSizeText.KeepsSize(slot + 1, wanted, kept, plan?.Game ?? WowGame.Unknown));
     }
 
     private void OnZCorrected(nint handle, ZOrder z)
@@ -1902,8 +1921,11 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Placed is not { } placed) return null;
         RefreshMonitors();
-        return new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
+        return _lastPlan = new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
     }
+
+    /// <summary>The last plan made (for messages from other threads).</summary>
+    private volatile SquadPlan? _lastPlan;
 
     /// <summary>The open squad windows with their slot index (slots without a window are left out).</summary>
     private List<(WindowInfo Window, int Slot)> Placements() =>

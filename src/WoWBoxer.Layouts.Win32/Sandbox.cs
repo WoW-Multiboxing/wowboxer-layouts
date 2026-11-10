@@ -72,12 +72,17 @@ public static class Sandbox
         lock (Gate) return Windows.TryGetValue(h, out var w) && w.Topmost;
     }
 
+    /// <summary>
+    /// Tests: a game client that changes the size it is given (e.g. Forever keeping 4:3). Null = every size is taken as is.
+    /// </summary>
+    public static Func<PixelRect, PixelRect>? ClientRule { get; set; }
+
     internal static bool Move(nint h, PixelRect rect)
     {
         lock (Gate)
         {
             if (!Windows.TryGetValue(h, out var w)) return false;
-            Windows[h] = w with { Rect = rect };
+            Windows[h] = w with { Rect = ClientRule?.Invoke(rect) ?? rect };
             return true;
         }
     }
