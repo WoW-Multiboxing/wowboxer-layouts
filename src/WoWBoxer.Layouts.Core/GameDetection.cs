@@ -14,22 +14,39 @@ public enum WowGame { Unknown, ClassicEra, Forever, Anniversary, Classic, Retail
 /// </summary>
 public static class GameDetection
 {
-    public static bool IsWowProcessName(string? name)
+    /// <summary>
+    /// Blizzard's game exe names only: Wow, WowClassic, with an optional -64/64 and T (PTR) / B (beta) ending. Other
+    /// programs that start with "Wow" are not games (WowUp, the addon manager: #help 2026-11-08; WowVoiceProxy,
+    /// WowErrorReporter, our own WoWBoxer). An exe with a new name still counts by its folder (<see cref="IsWowPath"/>).
+    /// </summary>
+    public static bool IsWowProcessName(string? name) =>
+        !string.IsNullOrEmpty(name) && GameExeName.IsMatch(name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name);
+
+    private static readonly System.Text.RegularExpressions.Regex GameExeName =
+        new("^wow(classic)?(-?64)?[tb]?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// True for a WoW game client exe: a game exe name in a game folder (<c>_classic_era_</c>, <c>_forever_</c> …), or
+    /// any non-helper exe inside a "World of Warcraft" folder. WowUp, CurseForge, Overwolf or Battle.net never count.
+    /// </summary>
+    public static bool IsGameExe(string? path)
     {
-        if (string.IsNullOrEmpty(name)) return false;
-        name = name.ToLowerInvariant();
-        return name.StartsWith("wow", StringComparison.Ordinal) && !name.StartsWith("wowboxer", StringComparison.Ordinal)   // our own tools
-            && !name.Contains("voice") && !name.Contains("error") && !name.Contains("crash");
+        if (string.IsNullOrWhiteSpace(path) || !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return false;
+        var file = Path.GetFileName(path).ToLowerInvariant();
+        if (NotGame(file)) return false;
+        return IsWowPath(path) || (GameOf(path) != WowGame.Unknown && IsWowProcessName(file));
     }
+
+    private static readonly string[] Helpers = ["launcher", "battle.net", "agent", "error", "crash", "voice", "wowup", "curseforge", "overwolf", "wowboxer"];
+
+    private static bool NotGame(string file) => Helpers.Any(file.ToLowerInvariant().Contains);
 
     public static bool IsWowPath(string? path)
     {
         if (string.IsNullOrEmpty(path)) return false;
         path = path.ToLowerInvariant();
         if (!path.Contains(@"\world of warcraft\")) return false;
-        var file = path[(path.LastIndexOf('\\') + 1)..];
-        string[] notGame = ["launcher", "battle.net", "agent", "error", "crash", "voice"];
-        return !notGame.Any(file.Contains);
+        return !NotGame(path[(path.LastIndexOf('\\') + 1)..]);
     }
 
     /// <summary>The game of a client exe, from its install folder (<c>_classic_era_</c>, <c>_forever_</c> …).</summary>

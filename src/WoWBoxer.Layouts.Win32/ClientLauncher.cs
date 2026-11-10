@@ -97,7 +97,7 @@ public static class GameInstall
     public static string? FindExe(string? configured, WowGame game = WowGame.ClassicEra)
     {
         if (Sandbox.Active) return Sandbox.GameExe;
-        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured) && GameDetection.GameOf(configured) is var g && (g == game || g == WowGame.Unknown))
+        if (GameDetection.IsGameExe(configured) && File.Exists(configured) && GameDetection.GameOf(configured) is var g && (g == game || g == WowGame.Unknown))
             return configured;
 
         foreach (var w in WindowFinder.FindGameWindows(game))

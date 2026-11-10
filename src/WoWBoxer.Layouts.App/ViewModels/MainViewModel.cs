@@ -1314,9 +1314,16 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The WoW client the app opens and reads (UI Scale, accounts): the open clients' install, else the last used one.</summary>
     public string GameExe
     {
-        get => SquadExe ?? _settings.GameExe ?? "";
+        get => SquadExe ?? (GameDetection.IsGameExe(_settings.GameExe) ? _settings.GameExe! : "");
         set
         {
+            if (!string.IsNullOrWhiteSpace(value) && !GameDetection.IsGameExe(value.Trim()))
+            {
+                // e.g. WowUp.exe (#help 2026-11-08): only a game exe in a WoW install folder can be the client
+                Status.Warn($"{Path.GetFileName(value.Trim())} is not a WoW game client. Pick Wow.exe or WowClassic.exe inside your World of Warcraft folder (e.g. _forever_ or _classic_era_).");
+                OnPropertyChanged();
+                return;
+            }
             SetSetting(() => _settings.GameExe = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
             ReadWowAccounts();
             MeasureBars();
@@ -1361,7 +1368,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// The WoW client the squad uses: the install of the open squad windows, else the last used one, else Classic Era's.
     /// UI Scale, accounts and "Open WoW clients" follow it.
     /// </summary>
-    public string? SquadExe => _squadExe ?? (File.Exists(_settings.GameExe) ? _settings.GameExe : GameInstall.FindExe(null));
+    public string? SquadExe => _squadExe ?? (File.Exists(_settings.GameExe) && GameDetection.IsGameExe(_settings.GameExe) ? _settings.GameExe : GameInstall.FindExe(null));
 
     public WowGame SquadGame => GameDetection.GameOf(SquadExe);
 
