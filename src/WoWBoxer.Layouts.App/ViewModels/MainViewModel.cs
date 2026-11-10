@@ -140,7 +140,7 @@ public sealed partial class MainViewModel : ObservableObject
         ReadWowAccounts();
         ApplyOnTop();
         // Keeps "on top" right when Windows changes the foreground window or a WoW window moves (listening only).
-        _guard = new ZOrderGuard(WantedZOrder, OnZCorrected);
+        _guard = new ZOrderGuard(WantedZOrder, OnZCorrected, OnZFight);
         _lastRunning = RunningClientsNow();
         _loaded = true;
         ApplyHotkeys();   // window swap (Settings › Advanced): registers its hotkeys only when switched on
@@ -156,6 +156,13 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Placed is not { } placed || _paused) return [];
         return Windows.Where(w => w.Slot - 1 < placed.Slots.Count).Select(w => (w.Window.Handle, placed.Slots[w.Slot - 1].Z)).ToList();
+    }
+
+    /// <summary>The guard gave up on a window: another program keeps changing its "on top" (#help 2026-11-10, Altsy).</summary>
+    private void OnZFight(nint handle)
+    {
+        var slot = Windows.FirstOrDefault(w => w.Window.Handle == handle)?.Slot ?? 0;
+        Status.Warn($"Window {slot}: something else keeps changing its \"on top\" – another window tool (PowerToys Always On Top, a pin or \"keep on top\" app) or a second copy of WoWBoxer. WoWBoxer stopped correcting it, so the windows stop flipping. Turn the other tool off for WoW, then press Re-arrange.");
     }
 
     private void OnZCorrected(nint handle, ZOrder z)
@@ -280,6 +287,7 @@ public sealed partial class MainViewModel : ObservableObject
             _undo.Clear();
             _redo.Clear();
             MonitorNotice = "";
+            _guard?.Resume();
             Current = value.Profile;
             LoadDraft();
             _selection.Clear();
@@ -350,6 +358,7 @@ public sealed partial class MainViewModel : ObservableObject
             else
             {
                 _keeper.Settle();   // windows that opened or moved meanwhile go to their slots now
+                _guard?.Resume();
                 ApplyOnTop();
                 Status.Info("Started: every WoW window of the squad goes to its slot.");
             }
@@ -1904,6 +1913,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task ArrangeAsync()
     {
         ResetSwap(quiet: true);   // Re-arrange = every client back in its home slot
+        _guard?.Resume();
         if (Plan() is not { } plan) return;
         RefreshWindows();
         var placements = Placements();

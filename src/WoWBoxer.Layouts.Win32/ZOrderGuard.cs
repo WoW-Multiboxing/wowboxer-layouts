@@ -15,16 +15,27 @@ public sealed unsafe class ZOrderGuard : IDisposable
 
     private readonly Func<IReadOnlyList<(nint Handle, ZOrder Z)>> _wanted;
     private readonly Action<nint, ZOrder>? _corrected;
+    private readonly Action<nint>? _gaveUp;
+
+    /// <summary>
+    /// More than this many corrections of one window within 10 s: another program keeps changing it (PowerToys Always On
+    /// Top, a second window tool). The guard then leaves that window alone until <see cref="Resume"/> (Start, Re-arrange,
+    /// another layout) – otherwise the two fight for ever and the windows flip in front of each other (#help 2026-11-10).
+    /// </summary>
+    public const int FightLimit = 6;
+    private readonly RateGuard<nint> _fights = new(FightLimit, TimeSpan.FromSeconds(10));
     private readonly List<nint> _hooks = [];
     private readonly Dictionary<nint, DateTime> _lastFix = [];
     private bool _busy;
 
     /// <param name="wanted">The open WoW windows and the z-order their slot wants (read on every event).</param>
     /// <param name="corrected">Called after a window's "on top" had to be put right (for the activity log).</param>
-    public ZOrderGuard(Func<IReadOnlyList<(nint Handle, ZOrder Z)>> wanted, Action<nint, ZOrder>? corrected = null)
+    /// <param name="gaveUp">Called once when a window is left alone because something else keeps changing it.</param>
+    public ZOrderGuard(Func<IReadOnlyList<(nint Handle, ZOrder Z)>> wanted, Action<nint, ZOrder>? corrected = null, Action<nint>? gaveUp = null)
     {
         _wanted = wanted;
         _corrected = corrected;
+        _gaveUp = gaveUp;
         _active?.Dispose();
         _active = this;
         if (Sandbox.Active) return;   // demo mode: no real windows to watch
@@ -35,6 +46,12 @@ public sealed unsafe class ZOrderGuard : IDisposable
         _hooks.Add(SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, 0, &OnEvent, 0, 0, flags));
         _hooks.RemoveAll(h => h == 0);
     }
+
+    /// <summary>Guards every window again (after Start, Re-arrange or another layout).</summary>
+    public void Resume() => _fights.Reset();
+
+    /// <summary>Windows the guard has given up on (another program keeps changing their "on top").</summary>
+    public IReadOnlyCollection<nint> GivenUp => _fights.Blocked;
 
     /// <summary>How many times a window's "on top" had to be put right since start (for tests and Diagnose).</summary>
     public int Corrections { get; private set; }
@@ -56,6 +73,13 @@ public sealed unsafe class ZOrderGuard : IDisposable
             {
                 // Our change is asynchronous: give it a moment to land before correcting the same window again.
                 if (!ours && _lastFix.TryGetValue(h, out var at) && DateTime.UtcNow - at < TimeSpan.FromMilliseconds(400)) continue;
+                if (!ours && _fights.IsBlocked(h)) continue;   // given up on this window: something else keeps changing it
+                if (WindowPlacer.IsTopmost(h) == (z == ZOrder.Top)) continue;
+                if (!ours && !_fights.Allow(h, out var justBlocked))
+                {
+                    if (justBlocked) _gaveUp?.Invoke(h);
+                    continue;
+                }
                 if (!WindowPlacer.ApplyZOrder(h, z)) continue;
                 _lastFix[h] = DateTime.UtcNow;
                 fixedNow++;
