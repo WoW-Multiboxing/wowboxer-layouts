@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased – Fixes from #help
+- **WowUp (and other programs whose name starts with "Wow") are never a WoW client.** Only Blizzard's game exe names
+  count (Wow, WowClassic, their -64 / PTR / beta versions); an exe with a new name still counts when it sits in a
+  World of Warcraft game folder. Settings refuses a WoW client path that is not a game, and a saved one is ignored.
+- **A layout keeps its monitor.** Monitors are recognised by place and size first, then by Windows' device ID
+  (Windows can swap the IDs of two monitors of the same model after sleep or a restart). Moving a Custom layout to other
+  monitors keeps every window's place. While a monitor of the layout is off, the app uses 1 monitor without saving that:
+  your saved layout comes back by itself when the monitor does.
+- **Windows no longer flip in front of each other without stopping** when another program keeps changing "on top"
+  (PowerToys Always On Top, a pin tool, a second WoWBoxer): after 6 corrections in 10 seconds WoWBoxer leaves that
+  window alone and says why in Activity; Start or Re-arrange tries again. More than 8 swap hotkeys in 2 seconds pause
+  swapping for 5 seconds (a stuck key or a keyboard macro).
+- Help: "Shift, Ctrl or Alt does nothing after moving to another window" – release it and press it again there; the new
+  window did not see the key go down.
+
 ## v0.7.1-beta.2 – Auto-fit fits every action bar, also on Forever (2026-11-10)
 **Beta channel only.** Everything from v0.7.1-beta.1, plus:
 Owner bug (2026-11-06): with action bars 2 and 3 on, buttons were missing in the small windows. Auto-fit only made room
