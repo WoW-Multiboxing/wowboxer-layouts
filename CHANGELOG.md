@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased – Auto-fit fits every action bar, also on Forever
+## v0.7.1-beta.2 – Auto-fit fits every action bar, also on Forever (2026-11-10)
+**Beta channel only.** Everything from v0.7.1-beta.1, plus:
 Owner bug (2026-11-06): with action bars 2 and 3 on, buttons were missing in the small windows. Auto-fit only made room
 for Classic Era's main bar, and it never ran on Forever.
 - **Auto-fit now fits every bar you have on**: bars 1–3, the right bars and the bag and menu buttons, on **Classic Era

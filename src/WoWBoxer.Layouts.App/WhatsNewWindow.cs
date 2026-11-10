@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Auto-fit fits every action bar, also on Forever",
+            "With bars 2 and 3 (and the right bars) on, Auto-fit now finds the one UI Scale at which every bar, the bags and the menu buttons fit in every window – on Classic Era and Forever. It writes it while that game's clients are closed, and the Activity line says why whenever it does not."),
         ("Window swap keeps its main slot",
             "Dragging a window of Main + side no longer loses the main slot, and Custom layouts use their clearly largest window. Without a main slot, a swap hotkey shows a note in the status bar and the crowns on the map pulse. Same size in Advanced editing is now Ctrl+Shift+M (the NVIDIA overlay takes Alt+Z)."),
         ("Fill a custom area",
