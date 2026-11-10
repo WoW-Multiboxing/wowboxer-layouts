@@ -144,7 +144,7 @@ public sealed partial class MainViewModel : ObservableObject
         _lastRunning = RunningClientsNow();
         _loaded = true;
         ApplyHotkeys();   // window swap (Settings › Advanced): registers its hotkeys only when switched on
-        if (_lastRunning == 0) AutoFitUiScale("no clients are running");
+        AutoFitUiScale("the app started");
     }
 
     private readonly ZOrderGuard? _guard;
@@ -1133,7 +1133,7 @@ public sealed partial class MainViewModel : ObservableObject
         LastProfileName = profile.Name;
         ApplyOnTop();
         if (moved) ScheduleLive();
-        if (_loaded && _settings.AutoFitActionBar && RunningClientsNow() == 0) AutoFitUiScale("the layout changed");
+        if (_loaded) AutoFitUiScale("the layout changed");
     }
 
     /// <summary>
@@ -1410,6 +1410,7 @@ public sealed partial class MainViewModel : ObservableObject
             _settings.Save();
             foreach (var name in new[] { nameof(GameExe), nameof(SquadGame), nameof(SquadGameName) }) OnPropertyChanged(name);
             if (!_firstSync) ReadWowAccounts();
+            if (_loaded && exe is not null) AutoFitUiScale($"the squad is now {SquadGameName}");
         }
         _squadExe = exe ?? _squadExe;
 
@@ -1565,7 +1566,7 @@ public sealed partial class MainViewModel : ObservableObject
             Status.Warn("WoW was not found. Set the WoW client in Settings.");
             return;
         }
-        if (RunningClientsNow() == 0) AutoFitUiScale("before opening the clients");
+        AutoFitUiScale("before opening the clients");
         Paused = false;   // opening clients means: place them
         var missing = Missing;
         Status.Title($"Opening {missing} {SquadGameName} login screen(s) for \"{Current.Name}\"");
@@ -1748,9 +1749,23 @@ public sealed partial class MainViewModel : ObservableObject
         set
         {
             SetSetting(() => _settings.AutoFitActionBar = value);
-            if (value && RunningClientsNow() == 0) AutoFitUiScale("Auto-fit was switched on");
+            AutoFitUiScale(value ? "Auto-fit was switched on" : "Auto-fit was switched off");
             RaiseSlotProperties();
         }
+    }
+
+    private string _autoFitSaid = "";
+
+    /// <summary>
+    /// One Activity line each time Auto-fit decides not to write, with the reason (owner, 2026-11-10: it stayed silent).
+    /// The same reason is not repeated until something changes (Auto-fit runs on every layout edit).
+    /// </summary>
+    private void NotWritten(string key, string text, bool warn = false)
+    {
+        if (key == _autoFitSaid) return;
+        _autoFitSaid = key;
+        if (warn) Status.Warn(text);
+        else Status.Info(text);
     }
 
     private string _uiScaleNotice = "";
@@ -1764,21 +1779,45 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     private void AutoFitUiScale(string why)
     {
+        if (Current is null) return;
+        if (!_settings.AutoFitActionBar)
+        {
+            NotWritten("off", "Auto-fit action bar is off (Settings › Action bar), so the UI Scale is left as it is.");
+            return;
+        }
+        if (SquadExe is not { } exe)
+        {
+            NotWritten("no-exe", "Auto-fit action bar: the WoW client was not found, so no UI Scale was written. Set it in Settings › WoW client.");
+            return;
+        }
         // Only where the bars are known (Classic Era, Forever); other games' UI is not known yet – the button still works there.
-        if (!_settings.AutoFitActionBar || Current is null || !ActionBars.Knows(SquadGame) || SquadExe is not { } exe) return;
-        ReadBarSetup();   // the clients are closed: WoW has just written which bars are on and the addon's measurement
+        if (!ActionBars.Knows(SquadGame))
+        {
+            NotWritten($"game|{exe}", $"Auto-fit action bar: {SquadGameName}'s action bars are not known yet, so its UI Scale is left as it is (Fix action bar still works).");
+            return;
+        }
+        ReadBarSetup();   // WoW writes which bars are on and the addon's measurement when a client closes
         var now = UiScaleFix.Read(exe);
         var (need, tooSmall) = SquadFit();
         if (AllFitAt(now) || (now.Use && now.Scale <= need + 0.001))
         {
             if (tooSmall.Count > 0) UiScaleNotice = TooSmallText(tooSmall);
+            NotWritten($"fits|{exe}|{now.Display}|{Current.Name}", $"Auto-fit action bar: {SquadGameName}'s UI Scale ({now.Display}) already fits every enabled bar in every window of \"{Current.Name}\" – nothing written ({why}).");
+            return;
+        }
+        var running = UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!);
+        if (running > 0)
+        {
+            UiScaleNotice = $"Auto-fit sets UI Scale {need:0.00} for {SquadGameName} when all its clients are closed.";
+            NotWritten($"running|{exe}|{need:0.00}|{Current.Name}", $"Auto-fit action bar: {SquadGameName} needs UI Scale {need:0.00} for \"{Current.Name}\", but {running} {SquadGameName} client(s) are running. WoW rewrites Config.wtf when a client closes, so WoWBoxer writes it when the last one is closed. Now instead: in each client Options › search \"UI Scale\" › tick Use UI Scale › set {need:0.00}.");
             return;
         }
         if (UiScaleFix.Write(exe, use: true, need) is { } error)
         {
-            Status.Warn("Auto-fit action bar: " + error);
+            NotWritten($"error|{exe}|{error}", "Auto-fit action bar: " + error, warn: true);
             return;
         }
+        _autoFitSaid = "";
         MeasureBars();
         UiScaleNotice = tooSmall.Count == 0
             ? $"UI Scale set to {need:0.00} so every action bar fits in every window ({why}; backup kept)."

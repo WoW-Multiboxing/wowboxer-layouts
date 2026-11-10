@@ -151,4 +151,31 @@ public class ActionBarsTests
         Assert.Equal(1, ActionBars.DrawnScale(WowGame.Forever, UiScaleSetting.Automatic, 664));
         Assert.Equal(0.8, ActionBars.DrawnScale(WowGame.Forever, new UiScaleSetting(true, 0.8), 1369), 3);
     }
+    [Fact]
+    public void Bags_and_menu_on_bar_1_count_as_covered()
+    {
+        // owner 2026-11-10 (addon bridge, 870x696 at scale 1): bags/menu at 445-960 lay on bar 1 at 0-562
+        BarBox main = new("main", "Action Bar 1", BarAnchorH.Left, BarAnchorV.Bottom, 4, 2, 562, 47);
+        BarBox menu = new("menu", "Bag and menu buttons", BarAnchorH.Left, BarAnchorV.Bottom, 445, 2, 956, 47);
+        var check = ActionBars.Check([main, menu], 960.0 / 768, 1);
+        Assert.Contains(check.Covered, b => b.Key == "menu");
+        Assert.Contains(check.Covered, b => b.Key == "main");
+    }
+
+    [Fact]
+    public void Tall_menu_frames_touching_the_bar_above_do_not_count()
+    {
+        BarBox menu = new("menu", "Bag and menu buttons", BarAnchorH.Center, BarAnchorV.Bottom, -30, 2, 587, 90);
+        BarBox bar3 = new("bottomRight", "Bottom Right bar (bar 3)", BarAnchorH.Center, BarAnchorV.Bottom, 5, 72, 567, 117);
+        Assert.True(ActionBars.Check([menu, bar3], 2.0, 0.64).Fits);
+    }
+
+    [Fact]
+    public void Forever_follower_870x696_needs_a_scale_where_bags_clear_bar_1()
+    {
+        var bars = ActionBars.Layout(WowGame.Forever, ActionBars.EnabledKeys(3));
+        var fit = ActionBars.FitScale(bars, 870.0 / 696)!.Value;
+        Assert.InRange(fit, 0.64, 0.80);
+        Assert.False(ActionBars.Fits(bars, 870.0 / 696, 1));
+    }
 }

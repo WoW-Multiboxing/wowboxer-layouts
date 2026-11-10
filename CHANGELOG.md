@@ -16,6 +16,12 @@ for Classic Era's main bar, and it never ran on Forever.
 - The map, the window details and **Shorten this window instead** use the same check ("All bars fit" / "Bars cut").
 - `wbx bars` shows, per account, which bars are on, where they come from, and the UI Scale that fits them (reads
   files only).
+- **Auto-fit says why when it does not write** (owner, 2026-11-10: Forever never got its UI Scale, and nothing said
+  why). It now checks again when the squad switches to another game (the app had last been used with Classic Era, so it
+  checked that one at start), and every decision not to write is one line in Activity: Auto-fit off, game not known,
+  already fits, or clients of that game running (it then writes when the last one closes, and the map says so).
+- The bag and menu buttons now count as covered when they lie on bar 1 in the same row (the game pushes them there in a
+  narrow window).
 
 ## v0.7.1-beta.1 – Window swap keeps its main slot (2026-11-04)
 **Beta channel only.** Fixes from the owner's beta test of v0.7.0: the swap hotkeys fired, but each press only logged

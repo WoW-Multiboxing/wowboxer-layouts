@@ -51,6 +51,9 @@ public static class ActionBars
     /// <summary>Room (UI units) a bar wants to the window edges.</summary>
     public const double Margin = 4;
 
+    /// <summary>Two boxes whose bottoms are this close (UI units) are in the same row.</summary>
+    public const double SameRow = 10;
+
     /// <summary>The UI is this many units high at UI Scale 1.</summary>
     public const double UiHeight = 768;
 
@@ -160,9 +163,10 @@ public static class ActionBars
             if (l < ml - e || b < mb - e || r > w - mr + e || t > h - mt + e) outside.Add(bars[i]);
             for (var j = i + 1; j < bars.Count; j++)
             {
-                // the menu and bag buttons only count when cut: their tall frames touch the bars above by design
-                if (bars[i].Key == "menu" || bars[j].Key == "menu") continue;
                 var o = rects[j];
+                // the menu and bag buttons' tall frames touch the bars above by design; they count only against a bar in
+                // their own row (bar 1 next to them: the game pushes them onto it in a narrow window, owner 2026-11-10)
+                if ((bars[i].Key == "menu" || bars[j].Key == "menu") && Math.Abs(b - o.B) > SameRow) continue;
                 const double touch = 1;   // touching edges do not count
                 if (l < o.R - touch && o.L < r - touch && b < o.T - touch && o.B < t - touch)
                 {
