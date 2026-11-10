@@ -290,6 +290,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         if (!Updater.RestartingForUpdate) _main?.ViewModel.Hover.OnAppExit();   // hover off (or the user's own values) on quit
+        _main?.ViewModel.Sound.OnAppExit();   // every WoW client's own mixer volume back (also before an update restart)
         _main?.ViewModel.DisposeHotkeys();
         if (_tray is not null)
         {

@@ -369,6 +369,7 @@ public sealed partial class MainViewModel
         }
         RaiseSwap();
         MoveWindowsNow();
+        Sound.Now();   // the sound goes with the main slot
     }
 
     /// <summary>Puts the open windows where <see cref="Placed"/> says, at once (no waiting for the next tick), and fixes "on top".</summary>

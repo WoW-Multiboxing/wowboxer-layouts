@@ -30,6 +30,78 @@ internal static class Commands
         return 0;
     }
 
+    /// <summary>The WoW clients' entries in Windows' volume mixer (level, mute) per output device. Read-only.</summary>
+    public static int Audio(CliOptions o, Log log)
+    {
+        var open = WindowFinder.FindGameWindows(o.Game);
+        var pids = open.ToDictionary(w => w.Pid, w => w);
+        using var mixer = (AudioMixer)AudioMixer.Create();
+        var sessions = mixer.Sessions();
+        log.Info($"WoW windows open: {open.Count}; audio sessions on all output devices: {sessions.Count}");
+        foreach (var w in open.OrderBy(w => w.Rect.X).ThenBy(w => w.Rect.Y))
+        {
+            var mine = sessions.Where(s => s.Pid == w.Pid).ToList();
+            var state = mine.Count == 0 ? "no audio session yet (it has not played a sound)" : string.Join(" · ", mine.Select(s => s.State.ToString()));
+            log.Info($"  {w.ProcessName}.exe  pid {w.Pid}  window {WindowFinder.VisibleRectOf(w.Handle)}  sound {state}");
+        }
+        foreach (var s in sessions.Where(s => s.Pid != 0 && !pids.ContainsKey(s.Pid)).GroupBy(s => s.Pid))
+            log.Info($"  (not a WoW window) pid {s.Key} {ProcessName(s.Key)}  {string.Join(" · ", s.Select(x => x.State.ToString()))}");
+        return o.Rounds > 0 ? FollowTest(o.Rounds, open, mixer, log) : 0;
+    }
+
+    /// <summary>
+    /// The real-mixer test of "sound follows the main window": each round another client is the main one (in client
+    /// order, like next-swaps); after each, exactly that client must be unmuted at its own level and every other program
+    /// unchanged. Ends by putting every client back. Moves no window, sends nothing to the game.
+    /// </summary>
+    private static int FollowTest(int rounds, IReadOnlyList<WindowInfo> open, AudioMixer mixer, Log log)
+    {
+        var clients = open.Where(w => w.ExePath.Length > 0).GroupBy(w => w.Pid).ToDictionary(g => g.Key, g => g.First().ExePath);
+        if (clients.Count < 2)
+        {
+            log.Warn("Needs at least 2 open WoW clients.");
+            return 1;
+        }
+        var before = mixer.Sessions().ToDictionary(s => s.Id, s => s);
+        var originals = new Dictionary<string, AudioState>();
+        var follower = new SoundFollower(originals);
+        var order = open.OrderBy(w => w.Rect.X).ThenBy(w => w.Rect.Y).Select(w => w.Pid).Distinct().ToList();
+        var failures = 0;
+        for (var r = 0; r < rounds; r++)
+        {
+            var main = order[(r + 1) % order.Count];
+            follower.Update(mixer, main, clients, 0);
+            Thread.Sleep(150);
+            var now = mixer.Sessions();
+            var loud = now.Where(s => clients.ContainsKey(s.Pid) && !s.State.Muted).Select(s => s.Pid).Distinct().ToList();
+            var others = now.Where(s => !clients.ContainsKey(s.Pid) && before.TryGetValue(s.Id, out var b) && !b.State.SameAs(s.State)).ToList();
+            var ok = loud.Count == 1 && loud[0] == main && others.Count == 0;
+            if (!ok) failures++;
+            log.Info($"  round {r + 1,2}: main pid {main}  playing {string.Join(", ", loud)}  other programs changed {others.Count}  {(ok ? "OK" : "WRONG")}");
+        }
+        var back = follower.Restore(mixer, pid => clients.GetValueOrDefault(pid, ""));
+        Thread.Sleep(150);
+        var restored = mixer.Sessions().Where(s => before.TryGetValue(s.Id, out var b) && !b.State.SameAs(s.State)).ToList();
+        log.Info($"  restored {back} session(s); differing from before the test: {restored.Count}");
+        if (restored.Count > 0) failures++;
+        if (failures == 0) log.Ok($"Sound follows the main window: {rounds} rounds, always exactly the main client playing; every level put back.");
+        else log.Warn($"{failures} problem(s).");
+        return failures == 0 ? 0 : 1;
+    }
+
+    private static string ProcessName(uint pid)
+    {
+        try
+        {
+            using var p = Process.GetProcessById((int)pid);
+            return p.ProcessName;
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException)
+        {
+            return "?";
+        }
+    }
+
     /// <summary>
     /// Auto-fit's view of the bars: per account which bars are on (character's config-cache.wtf) and where (the WoWBoxer
     /// AddOn's measurement or the game's default layout), and the UI Scale at which all of them fit the reference game

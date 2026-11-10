@@ -28,6 +28,9 @@ public static class Sandbox
 
     public static UiScaleSetting UiScale { get; set; } = UiScaleSetting.Automatic;
 
+    /// <summary>The volume mixer while the sandbox runs (tests set its sessions; demo mode has none).</summary>
+    public static FakeMixer Audio { get; } = new();
+
     public static void Start(IReadOnlyList<MonitorInfo> monitors)
     {
         Active = true;
@@ -96,4 +99,24 @@ public static class Sandbox
             return true;
         }
     }
+}
+
+/// <summary>A volume mixer in memory: the sandbox's (and the tests') stand-in for Windows' Core Audio sessions.</summary>
+public sealed class FakeMixer : IAudioMixer
+{
+    public List<AudioSession> List { get; } = [];
+    public int Writes { get; private set; }
+
+    public IReadOnlyList<AudioSession> Sessions() => [.. List];
+
+    public bool Set(string id, AudioState state)
+    {
+        var i = List.FindIndex(s => s.Id == id);
+        if (i < 0) return false;
+        List[i] = List[i] with { State = state };
+        Writes++;
+        return true;
+    }
+
+    public AudioState StateOf(uint pid) => List.First(s => s.Pid == pid).State;
 }

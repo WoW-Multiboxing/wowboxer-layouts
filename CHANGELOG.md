@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.8.0-beta.1 – Sound follows the main window (unreleased)
+**Beta channel only.** New, off by default (owner, 2026-11-10):
+- **Sound follows the main window**: only the WoW client in the main slot plays; the other clients are muted, or play
+  quietly at "Other clients at" % of their own level. Turn it on with the new speaker in Your squad (Setup) or in
+  Settings › Sound. It follows every swap hotkey, a drag-swap on the map, Re-arrange, and windows that open or close –
+  at once. "Follow the active window instead" lets the window that has your keys play; layouts without a main window
+  (Grid) always work that way.
+- Works through **Windows' volume mixer only** (per program, like Windows' own Volume mixer): nothing is sent to the
+  game, and Discord, music and every other program keep their sound. Clients that only start playing later, clients
+  that restart, and several output devices are handled.
+- Each client's **own volume is kept** and put back when you turn it off, when WoWBoxer closes and when you uninstall
+  it. A client that was closed while muted gets its level back the next time it plays (Windows remembers a program's
+  level per exe).
+- WoWBoxer reads WoW's **Sound in Background** (Config.wtf) and says so when it is off – otherwise the main window goes
+  quiet while you hover another one. While every client of that install is closed, "Turn on Sound in Background" sets
+  it for you (a backup of Config.wtf is kept). It also tells you when sound is off in WoW altogether.
+- Guide: new chapter "Sound follows the main window". `wbx audio` lists the WoW clients in the volume mixer;
+  `wbx audio --rounds 10` tests the feature against the real mixer and puts every level back.
+
 ## v0.7.1 – Window swap keeps its main slot, Auto-fit fits every bar, fixes from #help (2026-11-10)
 Everything from v0.7.1-beta.1 and v0.7.1-beta.2 (below), now for everyone, plus these fixes for problems players
 reported in #help (released straight to stable on the owner's decision):

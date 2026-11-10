@@ -70,6 +70,7 @@ public sealed partial class MainViewModel : ObservableObject
         _dialogs = dialogs;
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
         Hover = new HoverViewModel(settings, Status, OpenSwitchingGuide, OpenUrl);
+        Sound = new SoundViewModel(settings, Status, SoundSquadNow, OpenSoundGuide);
         ReportProblemCommand = new RelayCommand(() => ReportRequested?.Invoke());
         Guide = new GuideViewModel(Hover, new RelayCommand(() => SelectedTab = AppTab.Help), new RelayCommand(() => SelectedTab = AppTab.Settings));
 
@@ -203,6 +204,9 @@ public sealed partial class MainViewModel : ObservableObject
     public StatusLog Status { get; } = new();
     public GuideViewModel Guide { get; }
     public HoverViewModel Hover { get; }
+
+    /// <summary>"Sound follows the main window" (Settings › Sound, the speaker on Setup).</summary>
+    public SoundViewModel Sound { get; }
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
@@ -1514,6 +1518,7 @@ public sealed partial class MainViewModel : ObservableObject
             Windows.Clear();
             foreach (var (h, slot) in mapping) Windows.Add(new GameWindowItem(byHandle[h]) { Slot = slot });
             CommandManager.InvalidateRequerySuggested();
+            Sound.Now();   // a new or closed window: who plays may change
         }
         if (added.Count > 0) ApplyOnTop();
         UpdatePartyWindows();
@@ -1536,6 +1541,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void Tick()
     {
         Hover.Refresh();   // the Windows setting may change outside the app
+        Sound.Tick();
         if (!Busy) RefreshWindows();
         if (!_paused)
         {
@@ -1774,6 +1780,7 @@ public sealed partial class MainViewModel : ObservableObject
         UserGeometryEdit(Current with { Slots = slots });
         SelectedSlotIndex = a;
         Status.Info($"Swapped the places of window {a + 1} and window {b + 1}. Ctrl+Z undoes it.");
+        Sound.Now();   // the big window may belong to another client now
     }
 
     /// <summary>Row statuses from the open windows: Awaiting → Placing → Connected (or Moved when it left its slot).</summary>
@@ -2174,6 +2181,29 @@ public sealed partial class MainViewModel : ObservableObject
     });
 
     public string SwapNote => GuideViewModel.SwapNote;
+
+    private void OpenSoundGuide()
+    {
+        Guide.Current = Guide.Chapters.First(c => c.Number == GuideViewModel.SoundChapter);
+        SelectedTab = AppTab.Guide;
+    }
+
+    /// <summary>The squad for "Sound follows the main window": each open client's process and exe, and who sits in the main slot.</summary>
+    private SoundSquad SoundSquadNow()
+    {
+        var clients = new Dictionary<uint, string>();
+        var numbers = new Dictionary<uint, int>();
+        foreach (var w in Windows)
+        {
+            if (w.Window.Pid == 0 || w.Window.ExePath.Length == 0) continue;
+            clients.TryAdd(w.Window.Pid, w.Window.ExePath);
+            numbers.TryAdd(w.Window.Pid, w.Slot);
+        }
+        var main = Current is null ? -1 : SoundFollower.MainClient(Current, _swapPos);
+        var mainPid = main >= 0 ? WindowAt(main)?.Window.Pid : null;
+        var exe = Windows.Select(w => w.Window.ExePath).FirstOrDefault(p => p.Length > 0) ?? _settings.GameExe;
+        return new SoundSquad(clients, mainPid, numbers, exe);
+    }
 
     private void OpenSwitchingGuide()
     {
