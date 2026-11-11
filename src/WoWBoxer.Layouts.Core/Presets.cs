@@ -98,7 +98,7 @@ public static class Presets
             // the layout of monitor 1 alone, then the main stretched over both (LayoutEngine.SpanArea) under the followers
             var one = ForScreens(kind, clients, [screens[0]], options, split);
             var spanned = one.Slots.Select(s => s.Role == SlotRole.Main
-                ? s with { Span = true, Z = ZOrder.Bottom, Fit = FitMode.None, X = 0, Y = 0, W = 100, H = 100 }
+                ? s with { Span = true, Z = ZOrder.Bottom, Fit = FitMode.None }   // X/Y/W/H stay its own slot: where the game is kept
                 : s with { Z = ZOrder.Top }).ToList();
             return one with { Slots = spanned, Screens = screens.Take(2).Select(ScreenSet.ToRef).ToList() };
         }

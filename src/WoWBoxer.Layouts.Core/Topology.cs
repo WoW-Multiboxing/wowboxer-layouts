@@ -37,7 +37,10 @@ public sealed record Topology(int WindowWidth, int WindowHeight, PixelRect Team,
             var a = m.Area(profile.Options.UseTaskbarArea);
             return new PixelRect(a.X - clientX, a.Y - clientY, a.Width, a.Height);
         }
-        return new Topology(w, h, Rel(second), Rel(main.Monitor));
+        // main = the leader's own slot (where its window is without the companion), not the whole monitor: the followers
+        // sit beside it on monitor 1 and would cover the minimap and the action bars (owner's test 2026-11-11)
+        var own = LayoutEngine.Resolve(main.Slot with { Span = false, Fit = FitMode.None }, main.Monitor.Area(profile.Options.UseTaskbarArea), profile.Options, main.Monitor.Dpi);
+        return new Topology(w, h, Rel(second), new PixelRect(own.X - clientX, own.Y - clientY, own.Width, own.Height));
     }
 
     /// <summary>The add-on's .toc (exactly as the Team Screen's docs give it).</summary>

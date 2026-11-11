@@ -57,10 +57,10 @@ public class SpanTests
     }
 
     [Fact]
-    public void Without_monitor_two_the_main_fills_monitor_one()
+    public void Without_monitor_two_the_main_is_in_its_own_slot()
     {
         var placed = LayoutEngine.Resolve(Spanning(), [Owner[0]]);
-        Assert.Equal(Owner[0].WorkArea, placed[0].Rect);
+        Assert.Equal(LayoutEngine.Resolve(Presets.Create(PresetKind.Side, 3, Owner), Owner)[0].Rect, placed[0].Rect);
         Assert.Null(Topology.For(Spanning(), placed, [Owner[0]]));
     }
 
@@ -73,8 +73,8 @@ public class SpanTests
         Assert.Equal(4478, t.WindowWidth);
         Assert.Equal(1360, t.WindowHeight);
         Assert.Equal(new PixelRect(2559, -31, 1920, 1032), t.Team);
-        Assert.Equal(new PixelRect(-1, -31, 2560, 1392), t.Main);
-        Assert.Equal("WoWBoxerTopology = { schema = 1, window = { w = 4478, h = 1360 }, team = { x = 2559, y = -31, w = 1920, h = 1032 }, main = { x = -1, y = -31, w = 2560, h = 1392 } }\r\n", t.LuaText());
+        Assert.Equal(new PixelRect(-1, -31, 1728, 1392), t.Main);   // the main's own slot of Main + side 3
+        Assert.Equal("WoWBoxerTopology = { schema = 1, window = { w = 4478, h = 1360 }, team = { x = 2559, y = -31, w = 1920, h = 1032 }, main = { x = -1, y = -31, w = 1728, h = 1392 } }\r\n", t.LuaText());
     }
 
     [Fact]
@@ -164,7 +164,9 @@ public class SpanCustomTests
         Assert.Equal(ZOrder.Top, placed[0].Slot.Z);
         Assert.Equal(ZOrder.Bottom, placed[2].Slot.Z);
         Assert.Equal(2, spanned.Screens!.Count);
-        Assert.Equal(new PixelRect(2560, 0, 1920, 1032), Topology.For(spanned, placed, Owner)!.Team);
+        var topo = Topology.For(spanned, placed, Owner)!;
+        Assert.Equal(new PixelRect(2560, 0, 1920, 1032), topo.Team);
+        Assert.Equal(new PixelRect(0, 0, 1690, 1392), topo.Main);   // the leader's own slot, beside the followers
 
         var off = Presets.SpanMain(spanned, Owner, on: false);
         Assert.False(off.MainSpans);
