@@ -70,6 +70,7 @@ public sealed partial class MainViewModel : ObservableObject
         _dialogs = dialogs;
         _tab = Enum.TryParse<AppTab>(settings.LastTab, out var tab) ? tab : AppTab.Setup;
         Hover = new HoverViewModel(settings, Status, OpenSwitchingGuide, OpenUrl);
+        Sound = new SoundViewModel(settings, Status, SoundSquadNow, OpenSoundGuide);
         ReportProblemCommand = new RelayCommand(() => ReportRequested?.Invoke());
         Guide = new GuideViewModel(Hover, new RelayCommand(() => SelectedTab = AppTab.Help), new RelayCommand(() => SelectedTab = AppTab.Settings));
 
@@ -141,6 +142,7 @@ public sealed partial class MainViewModel : ObservableObject
         ApplyOnTop();
         // Keeps "on top" right when Windows changes the foreground window or a WoW window moves (listening only).
         _guard = new ZOrderGuard(WantedZOrder, OnZCorrected, OnZFight);
+        _keeper.Refused = OnClientKeepsSize;
         _lastRunning = RunningClientsNow();
         _loaded = true;
         ApplyHotkeys();   // window swap (Settings › Advanced): registers its hotkeys only when switched on
@@ -165,6 +167,24 @@ public sealed partial class MainViewModel : ObservableObject
         Status.Warn($"Window {slot}: something else keeps changing its \"on top\" – another window tool (PowerToys Always On Top, a pin or \"keep on top\" app) or a second copy of WoWBoxer. WoWBoxer stopped correcting it, so the windows stop flipping. Turn the other tool off for WoW, then press Re-arrange.");
     }
 
+    private readonly Dictionary<(nint, PixelRect), DateTime> _keepsSaid = [];
+
+    /// <summary>
+    /// The game put a window back to its own size a few times in a row: WoWBoxer stopped resizing it (SlotKeeper.HoldLimit).
+    /// Said once per window and size for 10 minutes (each swap or Re-arrange tries again). Called on any thread.
+    /// </summary>
+    private void OnClientKeepsSize(nint handle, int slot, PixelRect kept)
+    {
+        lock (_keepsSaid)
+        {
+            if (_keepsSaid.TryGetValue((handle, kept), out var at) && DateTime.UtcNow - at < TimeSpan.FromMinutes(10)) return;
+            _keepsSaid[(handle, kept)] = DateTime.UtcNow;
+        }
+        var plan = _lastPlan;
+        var wanted = plan is not null && slot < plan.Slots.Count ? plan.Slots[slot].Rect : default;
+        Status.Warn(ClientSizeText.KeepsSize(slot + 1, wanted, kept, plan?.Game ?? WowGame.Unknown));
+    }
+
     private void OnZCorrected(nint handle, ZOrder z)
     {
         var slot = Windows.FirstOrDefault(w => w.Window.Handle == handle)?.Slot ?? 0;
@@ -184,6 +204,9 @@ public sealed partial class MainViewModel : ObservableObject
     public StatusLog Status { get; } = new();
     public GuideViewModel Guide { get; }
     public HoverViewModel Hover { get; }
+
+    /// <summary>"Sound follows the main window" (Settings › Sound, the speaker on Setup).</summary>
+    public SoundViewModel Sound { get; }
     public ObservableCollection<ProfileItem> Profiles { get; } = [];
     public ObservableCollection<GameWindowItem> Windows { get; } = [];
     public ObservableCollection<PartyMember> Party { get; } = [];
@@ -1495,6 +1518,7 @@ public sealed partial class MainViewModel : ObservableObject
             Windows.Clear();
             foreach (var (h, slot) in mapping) Windows.Add(new GameWindowItem(byHandle[h]) { Slot = slot });
             CommandManager.InvalidateRequerySuggested();
+            Sound.Now();   // a new or closed window: who plays may change
         }
         if (added.Count > 0) ApplyOnTop();
         UpdatePartyWindows();
@@ -1517,6 +1541,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void Tick()
     {
         Hover.Refresh();   // the Windows setting may change outside the app
+        Sound.Tick();
         if (!Busy) RefreshWindows();
         if (!_paused)
         {
@@ -1755,6 +1780,7 @@ public sealed partial class MainViewModel : ObservableObject
         UserGeometryEdit(Current with { Slots = slots });
         SelectedSlotIndex = a;
         Status.Info($"Swapped the places of window {a + 1} and window {b + 1}. Ctrl+Z undoes it.");
+        Sound.Now();   // the big window may belong to another client now
     }
 
     /// <summary>Row statuses from the open windows: Awaiting → Placing → Connected (or Moved when it left its slot).</summary>
@@ -1902,8 +1928,11 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Placed is not { } placed) return null;
         RefreshMonitors();
-        return new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
+        return _lastPlan = new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
     }
+
+    /// <summary>The last plan made (for messages from other threads).</summary>
+    private volatile SquadPlan? _lastPlan;
 
     /// <summary>The open squad windows with their slot index (slots without a window are left out).</summary>
     private List<(WindowInfo Window, int Slot)> Placements() =>
@@ -2152,6 +2181,29 @@ public sealed partial class MainViewModel : ObservableObject
     });
 
     public string SwapNote => GuideViewModel.SwapNote;
+
+    private void OpenSoundGuide()
+    {
+        Guide.Current = Guide.Chapters.First(c => c.Number == GuideViewModel.SoundChapter);
+        SelectedTab = AppTab.Guide;
+    }
+
+    /// <summary>The squad for "Sound follows the main window": each open client's process and exe, and who sits in the main slot.</summary>
+    private SoundSquad SoundSquadNow()
+    {
+        var clients = new Dictionary<uint, string>();
+        var numbers = new Dictionary<uint, int>();
+        foreach (var w in Windows)
+        {
+            if (w.Window.Pid == 0 || w.Window.ExePath.Length == 0) continue;
+            clients.TryAdd(w.Window.Pid, w.Window.ExePath);
+            numbers.TryAdd(w.Window.Pid, w.Slot);
+        }
+        var main = Current is null ? -1 : SoundFollower.MainClient(Current, _swapPos);
+        var mainPid = main >= 0 ? WindowAt(main)?.Window.Pid : null;
+        var exe = Windows.Select(w => w.Window.ExePath).FirstOrDefault(p => p.Length > 0) ?? _settings.GameExe;
+        return new SoundSquad(clients, mainPid, numbers, exe);
+    }
 
     private void OpenSwitchingGuide()
     {

@@ -189,6 +189,23 @@ public sealed partial class MainViewModel
             if (flooded) Status.Warn($"Window swap: more than {SwapFloodLimit} swap hotkeys in 2 seconds – swapping is paused for 5 seconds. Is a key stuck, or is a keyboard macro repeating it?");
             return;
         }
+        // one swap at a time: the next waits until the windows of the last one have landed (bug 2026-11-10: Forever
+        // clients went back and forth when swaps came faster than the clients settled)
+        switch (_swapQueue.Ask(action))
+        {
+            case SwapQueue.Offer.Waiting:
+                WatchSwapLanding();
+                return;
+            case SwapQueue.Offer.Dropped:
+                ShowNotice(StatusLevel.Info, "Window swap: still moving the windows of the last swaps – this press was skipped.");
+                return;
+        }
+        DoSwapAction(action);
+    }
+
+    private void DoSwapAction(string action)
+    {
+        if (!_settings.SwapHotkeys || Current is null) return;
         if (action == SwapActions.Home)
         {
             ResetSwap(quiet: false);
@@ -243,6 +260,53 @@ public sealed partial class MainViewModel
         }
         _swapCursor = cursor;
         SwapInto(client, mainSlot);
+    }
+
+    /// <summary>How long a swap waits at most for its windows to land before the next one may run.</summary>
+    public static readonly TimeSpan SwapLandTime = TimeSpan.FromSeconds(2);
+
+    /// <summary>How long the windows of a swap are placed again (the game's own resize right after a move).</summary>
+    public static readonly TimeSpan SwapSettleTime = TimeSpan.FromSeconds(5);
+
+    private readonly SwapQueue _swapQueue = new(SwapLandTime);
+    private System.Windows.Threading.DispatcherTimer? _swapTimer;
+    private DateTime _landedSince;
+
+    /// <summary>Checks every 150 ms whether the last swap's windows are in place (for 300 ms), then runs a waiting swap.</summary>
+    private void WatchSwapLanding()
+    {
+        if (_swapTimer is null)
+        {
+            _swapTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            _swapTimer.Tick += (_, _) => SwapLandingTick();
+        }
+        _landedSince = default;
+        _swapTimer.Start();
+    }
+
+    private void SwapLandingTick()
+    {
+        if (_paused || Current is null || !_settings.SwapHotkeys)
+        {
+            _swapQueue.Clear();
+            _swapTimer?.Stop();
+            return;
+        }
+        if (_swapQueue.Busy)
+        {
+            if (Plan() is { } plan && _keeper.AllLanded(plan))
+            {
+                if (_landedSince == default) _landedSince = DateTime.UtcNow;
+                else if (DateTime.UtcNow - _landedSince >= TimeSpan.FromMilliseconds(300)) _swapQueue.Landed();
+            }
+            else _landedSince = default;
+        }
+        if (_swapQueue.Next() is { } next)
+        {
+            _landedSince = default;
+            DoSwapAction(next);
+        }
+        if (!_swapQueue.Busy && _swapQueue.WaitingCount == 0) _swapTimer?.Stop();
     }
 
     /// <summary>At most this many swap actions within 2 seconds.</summary>
@@ -305,6 +369,7 @@ public sealed partial class MainViewModel
         }
         RaiseSwap();
         MoveWindowsNow();
+        Sound.Now();   // the sound goes with the main slot
     }
 
     /// <summary>Puts the open windows where <see cref="Placed"/> says, at once (no waiting for the next tick), and fixes "on top".</summary>
@@ -313,7 +378,11 @@ public sealed partial class MainViewModel
         if (_paused || Plan() is not { } plan) return;
         foreach (var (window, slot) in Placements())
             if (slot < plan.Slots.Count) plan.Place(window.Handle, slot);
-        _keeper.Settle();   // and keep them there for the next seconds, like any placement
+        // and keep them there for a few seconds (the game's own resize right after the move); not 30 s like a new
+        // window – a client that keeps its own size is left alone after a few tries (SlotKeeper.HoldLimit)
+        _keeper.Settle(SwapSettleTime);
+        _swapQueue.Started();
+        WatchSwapLanding();
         ApplyOnTop();
     }
 

@@ -24,6 +24,8 @@ internal sealed class CliOptions
     public string? BattleNetExe { get; private set; }
     public double WatchMinutes { get; private set; } = 10;
     public bool Json { get; private set; }
+    /// <summary>wbx audio --rounds N: the sound-follows test against the real volume mixer (0 = only list).</summary>
+    public int Rounds { get; private set; }
     public string? SavePath { get; private set; }
     public string? OutFolder { get; private set; }
 
@@ -41,6 +43,10 @@ internal sealed class CliOptions
           wbx capture    save where the WoW windows are now as a layout: wbx capture --save my.json
           wbx bars       which action bars each account has on and the UI Scale that fits them all (reads files only)
           wbx snap       save a picture of what each WoW window shows (read-only): wbx snap [--out FOLDER]
+          wbx audio      the WoW clients in Windows' volume mixer (read-only); --rounds N tests "sound follows the main
+                         window" N times through the clients and puts every level back
+          wbx swaptest   test window swap on the open clients: --rounds N hotkey swaps + N drag-swaps + fast presses,
+                         watched every 20 ms; puts every window back; stops when the mouse or keyboard is used
 
         Layout:
           --preset side|overlay|grid|free   built-in layout (default: side = main left, followers right; dual = side on 2 monitors)
@@ -109,6 +115,7 @@ internal sealed class CliOptions
                 case "--no-battlenet": o.StartBattleNet = false; break;
                 case "--battlenet-exe": o.BattleNetExe = Next(arg); break;
                 case "--watch-minutes": o.WatchMinutes = ParseDouble(arg, Next(arg)); break;
+                case "--rounds": o.Rounds = ParseInt(arg, Next(arg)); break;
                 case "--json": o.Json = true; break;
                 case "--save": o.SavePath = Next(arg); break;
                 case "--out": o.OutFolder = Next(arg); break;

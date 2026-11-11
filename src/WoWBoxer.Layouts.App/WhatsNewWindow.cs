@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Window swap: no more back and forth",
+            "One swap at a time: a swap hotkey pressed while the last swap's windows are still moving waits for them. A client that keeps its own window size is left alone after a few tries, and the status bar says which size it keeps and what to change."),
+        ("Sound follows the main window (beta)",
+            "Off by default – the new speaker in Your squad or Settings › Sound. Only the client in the main slot plays; the others are muted or play quietly. It follows every swap and changes only Windows' volume mixer: nothing is sent to the game, other programs keep their sound, and your own levels come back when you turn it off or close WoWBoxer."),
         ("Fixes from #help",
             "WowUp and other programs named Wow… are never taken for a WoW client. A layout keeps its monitor when Windows swaps the IDs of two identical monitors, and a monitor that is off no longer changes your saved layout. Windows stop flipping in front of each other when another program fights over \"on top\" – Activity says which one to turn off."),
         ("Auto-fit fits every action bar, also on Forever",

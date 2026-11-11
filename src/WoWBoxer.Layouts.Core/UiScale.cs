@@ -70,17 +70,7 @@ public static partial class UiScale
     /// <summary>The config text with "Use UI Scale" on (or off) and the given scale. Other lines and the line endings stay.</summary>
     public static string WithScale(string configText, bool use, double scale)
     {
-        var newline = configText.Contains("\r\n") ? "\r\n" : "\n";
-        var text = SetValue(configText, "useUiScale", use ? "1" : "0", newline);
-        return SetValue(text, "uiScale", scale.ToString("0.00", CultureInfo.InvariantCulture), newline);
-    }
-
-    private static string SetValue(string text, string name, string value, string newline)
-    {
-        var line = $"SET {name} \"{value}\"";
-        var regex = new Regex($"""^[ \t]*SET[ \t]+{name}[ \t]+"[^"]*"(?=[ \t]*\r?$)""", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-        if (regex.IsMatch(text)) return regex.Replace(text, line, 1);
-        if (text.Length > 0 && !text.EndsWith('\n')) text += newline;
-        return text + line + newline;
+        var text = WowConfig.WithValue(configText, "useUiScale", use ? "1" : "0");
+        return WowConfig.WithValue(text, "uiScale", scale.ToString("0.00", CultureInfo.InvariantCulture));
     }
 }

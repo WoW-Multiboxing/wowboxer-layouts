@@ -4,6 +4,7 @@ using WoWBoxer.Layouts.Win32;
 namespace WoWBoxer.Layouts.Win32.Tests;
 
 /// <summary>#help 2026-11-10 (Altsy): windows flipped non-stop – the guard fought another program over "on top".</summary>
+[Collection("Sandbox")]
 public class ZOrderGuardTests
 {
     [Fact]

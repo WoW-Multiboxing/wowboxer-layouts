@@ -46,6 +46,12 @@ screen, installer + auto-update. The CLI (`wbx`) is only the engine and test har
   (client into the main slot, the client there into its old slot); it never changes focus, never activates a window and
   never sends input. The UI shows the owner's note: "Moves windows only – nothing is sent to the game. Blizzard has not
   ruled on window-swap tools; use at your own judgement." No other hotkeys, no focus switching, no round robin.
+- Third exception, by the owner's decision (2026-11-10): **"Sound follows the main window"** (off by default, beta
+  first). Sets the per-process level/mute of the WoW client processes in Windows' volume mixer (Core Audio
+  `ISimpleAudioVolume`) – the client in the main slot (or the active one) plays, the others are muted or turned down.
+  A Windows mixer change, never input; nothing is sent to the game; other programs' audio is never touched. Each client
+  exe's own level is saved first and restored when it is turned off, on app exit and on uninstall. "Sound in Background"
+  in Config.wtf is only read, and written only on the user's click while every client of that install is closed (backup).
 - No telemetry. Logs stay local.
 
 ## Lessons from the prototype (keep them)

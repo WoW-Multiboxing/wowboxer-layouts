@@ -40,6 +40,14 @@ public sealed class AppSettings
     /// <summary>Turn hover to activate off when the app quits (on by default; the delay and bring-to-front stay).</summary>
     public bool TurnHoverOffOnExit { get; set; } = true;
 
+    /// <summary>"Sound follows the main window" (off by default): only the main (or active) client plays, through Windows' volume mixer.</summary>
+    public bool SoundFollows { get; set; }
+    public SoundFollowMode SoundMode { get; set; } = SoundFollowMode.MainSlot;
+    /// <summary>The other clients' level in % of their normal level; 0 = muted.</summary>
+    public int SoundFollowerPercent { get; set; } = SoundFollower.DefaultFollowerPercent;
+    /// <summary>Each client exe's mixer level and mute from before WoWBoxer changed it (lower-case exe path); put back when sound following ends.</summary>
+    public Dictionary<string, AudioState> SoundOriginals { get; set; } = [];
+
     /// <summary>Advanced editing on the "Your screens" map (toolbar, multi-selection).</summary>
     public bool AdvancedEditing { get; set; }
     /// <summary>In Advanced editing: dropping a window on another swaps them (off by default there; always on outside).</summary>

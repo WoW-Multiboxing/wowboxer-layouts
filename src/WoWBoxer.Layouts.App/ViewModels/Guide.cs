@@ -39,6 +39,7 @@ public sealed class GuideViewModel : ObservableObject
     public const int CustomChapter = 3;
     public const int SwitchingChapter = 5;
     public const int SwapChapter = 6;
+    public const int SoundChapter = 7;
 
     /// <summary>The note shown with window swap (Guide and Settings › Advanced). Facts only; the owner's wording (2026-11-02).</summary>
     public const string SwapNote = "Moves windows only – nothing is sent to the game. Blizzard has not ruled on window-swap tools; use at your own judgement.";
@@ -107,7 +108,17 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 SwapNote + " The hotkey itself goes to WoWBoxer, not to the game.",
                 "Open Settings", openAdvanced),
-            new(7, "If something looks wrong",
+            new(SoundChapter, "Sound follows the main window",
+                "Optional and off until you turn it on: only the character in the main window plays sound, so you hear one game instead of three. The other clients are muted, or turned down if you like.",
+                [
+                    "Turn it on with the speaker in Your squad (Setup) or in Settings › Sound. The client in the main slot plays at its normal level; every other WoW client is muted. \"Other clients at\" plays them quietly instead (in % of their normal level; 0 % = muted).",
+                    "It follows the main slot at once: after a swap hotkey, a drag-swap on the map, Re-arrange, and when a window opens or closes. In Grid (no main window) it follows the active window. \"Follow the active window\" makes the window that has your keys the one that plays.",
+                    "In WoW turn on Options › Audio › Sound in Background, or the main window goes quiet while your mouse is over another window. WoWBoxer tells you when it is off and can set it for you while all clients of that install are closed (a backup of Config.wtf is kept).",
+                    "Your own volume per client is kept: turning it off, closing WoWBoxer and uninstalling put every client back to the level it had. Only the WoW clients change – Discord, music and every other program keep their sound.",
+                ],
+                "This changes only Windows' volume mixer (the same thing you can do in Windows' Volume mixer). Nothing is sent to the game.",
+                "Open Settings", openAdvanced),
+            new(8, "If something looks wrong",
                 "Most problems have a simple cause. The app tells you what it sees.",
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
@@ -116,8 +127,8 @@ public sealed class GuideViewModel : ObservableObject
                 ],
                 "The Help tab lists the common problems with their fixes, and has Report a problem: a report with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
                 "Open Help", openHelp),
-            new(8, "What WoWBoxer never does",
-                "WoWBoxer only places and sizes your game windows. That is the whole job.",
+            new(9, "What WoWBoxer never does",
+                "WoWBoxer only places and sizes your game windows – and, if you turn it on, sets their volume in Windows' mixer. That is the whole job.",
                 [
                     "Never sends keys or mouse clicks to the game – no broadcasting, no round robin.",
                     "Never reads game memory or injects anything.",

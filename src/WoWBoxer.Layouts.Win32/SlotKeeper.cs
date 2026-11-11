@@ -16,6 +16,26 @@ public sealed class SlotKeeper
     private readonly HashSet<nint> _nudged = [];
     private readonly HashSet<(nint, int)> _titled = [];
     private readonly HashSet<nint> _explained = [];
+    private readonly Dictionary<nint, TimeSpan> _for = [];        // how long placing runs (30 s for a new window, less after a swap)
+    private readonly Dictionary<nint, PixelRect> _lastMiss = [];  // where the game put the window instead, last step
+    private readonly Dictionary<nint, int> _held = [];            // steps in a row the game held that same other rect
+    private readonly HashSet<nint> _gaveUp = [];
+
+    /// <summary>
+    /// The game put the window back to the same other place/size this many steps in a row (one step = 1 s): WoWBoxer
+    /// stops resizing it for this placing round and says why once (bug 2026-11-10: Forever clients that keep their own
+    /// size were resized every second for 30 s – the windows went back and forth).
+    /// </summary>
+    public const int HoldLimit = 3;
+
+    /// <summary>A new window's first seconds don't count towards <see cref="HoldLimit"/>: WoW resizes itself while loading.</summary>
+    public static readonly TimeSpan LoadingGrace = TimeSpan.FromSeconds(10);
+
+    /// <summary>Windows WoWBoxer stopped resizing in this placing round (the game keeps its own size).</summary>
+    public IReadOnlyCollection<nint> GaveUp => _gaveUp;
+
+    /// <summary>Called once per window WoWBoxer stops resizing: window, slot, the rect the game keeps.</summary>
+    public Action<nint, int, PixelRect>? Refused { get; set; }
 
     public IReadOnlyDictionary<nint, int> Slots => _slots;
 
@@ -23,7 +43,7 @@ public sealed class SlotKeeper
     public nint WindowIn(int slot) => _slots.FirstOrDefault(kv => kv.Value == slot).Key;
 
     /// <summary>True while a window is still being placed (its first 30 s in the slot).</summary>
-    public bool IsSettling(nint h) => _since.TryGetValue(h, out var t) && DateTime.UtcNow - t < SquadWatcher.ReapplyTime;
+    public bool IsSettling(nint h) => _since.TryGetValue(h, out var t) && DateTime.UtcNow - t < _for.GetValueOrDefault(h, SquadWatcher.ReapplyTime) && !_gaveUp.Contains(h);
 
     /// <summary>
     /// Brings the mapping up to date. Closed windows free their slot; slots past <paramref name="slotCount"/> are given up;
@@ -73,13 +93,20 @@ public sealed class SlotKeeper
             // (the mapping may change while a nudge is awaited: skip windows that left meanwhile)
             if (slot >= plan.Slots.Count || !_since.TryGetValue(h, out var since) || !WindowFinder.Exists(h)) continue;
             var age = DateTime.UtcNow - since;
-            if (age >= SquadWatcher.ReapplyTime)
+            var span = _for.GetValueOrDefault(h, SquadWatcher.ReapplyTime);
+            if (age >= span || _gaveUp.Contains(h))
             {
-                if (_nudged.Add(h)) await plan.NudgeAsync(h, slot);   // once, after loading settled
+                if (span >= SquadWatcher.ReapplyTime && !_gaveUp.Contains(h) && _nudged.Add(h)) await plan.NudgeAsync(h, slot);   // once, after loading settled
                 continue;
             }
             var ok = plan.IsPlaced(h, slot);   // checked before this step's move: the last move had a moment to land
             if (ok) plan.Retitle(h, slot, _titled);
+            if (Holds(h, ok, age, span))
+            {
+                _gaveUp.Add(h);
+                Refused?.Invoke(h, slot, _lastMiss[h]);
+                continue;
+            }
             plan.Place(h, slot);
             if (age.TotalSeconds < 3 || _explained.Contains(h)) continue;
             _misses[h] = ok ? 0 : _misses.GetValueOrDefault(h) + 1;
@@ -87,11 +114,40 @@ public sealed class SlotKeeper
         }
     }
 
-    /// <summary>Places every window again for 30 s (after a pause, or "Re-arrange").</summary>
-    public void Settle()
+    /// <summary>
+    /// True when the game has put the window back to the same other rect <see cref="HoldLimit"/> steps in a row (not
+    /// counted in a new window's loading seconds): resizing it again would only make it flip between two sizes.
+    /// </summary>
+    private bool Holds(nint h, bool placed, TimeSpan age, TimeSpan span)
     {
-        foreach (var h in _slots.Keys.ToList()) Assign(h, _slots[h]);
+        if (placed || (span >= SquadWatcher.ReapplyTime && age < LoadingGrace))
+        {
+            _held[h] = 0;
+            _lastMiss.Remove(h);
+            return false;
+        }
+        var now = WindowFinder.VisibleRectOf(h);
+        _held[h] = _lastMiss.TryGetValue(h, out var last) && last == now ? _held.GetValueOrDefault(h) + 1 : 1;
+        _lastMiss[h] = now;
+        return _held[h] >= HoldLimit;
     }
+
+    /// <summary>
+    /// Places every window again – for 30 s after a pause or "Re-arrange", for <paramref name="span"/> after a swap (the
+    /// windows have loaded long ago; a few seconds catch the game's own resize, longer only fights it).
+    /// </summary>
+    public void Settle(TimeSpan? span = null)
+    {
+        foreach (var h in _slots.Keys.ToList())
+        {
+            Assign(h, _slots[h]);
+            if (span is { } s) _for[h] = s;
+        }
+    }
+
+    /// <summary>True when every window in a slot is where the plan wants it, or WoWBoxer has stopped resizing it.</summary>
+    public bool AllLanded(SquadPlan plan) =>
+        _slots.All(kv => kv.Value >= plan.Slots.Count || !WindowFinder.Exists(kv.Key) || _gaveUp.Contains(kv.Key) || plan.IsPlaced(kv.Key, kv.Value));
 
     /// <summary>Squad reorder: the window in slot <paramref name="from"/> moves to <paramref name="to"/>, the ones between shift by one.</summary>
     public void Move(int from, int to, int slotCount)
@@ -122,6 +178,10 @@ public sealed class SlotKeeper
         _misses[h] = 0;
         _nudged.Remove(h);
         _explained.Remove(h);
+        _for.Remove(h);
+        _lastMiss.Remove(h);
+        _held.Remove(h);
+        _gaveUp.Remove(h);
     }
 
     private void Forget(nint h)
@@ -132,6 +192,10 @@ public sealed class SlotKeeper
         _misses.Remove(h);
         _nudged.Remove(h);
         _explained.Remove(h);
+        _for.Remove(h);
+        _lastMiss.Remove(h);
+        _held.Remove(h);
+        _gaveUp.Remove(h);
         _titled.RemoveWhere(t => t.Item1 == h);
     }
 }

@@ -41,6 +41,17 @@ public static partial class WowConfig
     public static string ConfigPathFor(string exePath) =>
         Path.Combine(Path.GetDirectoryName(exePath) ?? "", "WTF", "Config.wtf");
 
+    /// <summary>The config text with <c>SET name "value"</c> (replaced in place, else added at the end). Other lines and the line endings stay.</summary>
+    public static string WithValue(string text, string name, string value)
+    {
+        var newline = text.Contains("\r\n") ? "\r\n" : "\n";
+        var line = $"SET {name} \"{value}\"";
+        var regex = new Regex($"""^[ \t]*SET[ \t]+{Regex.Escape(name)}[ \t]+"[^"]*"(?=[ \t]*\r?$)""", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+        if (regex.IsMatch(text)) return regex.Replace(text, line, 1);
+        if (text.Length > 0 && !text.EndsWith('\n')) text += newline;
+        return text + line + newline;
+    }
+
     [GeneratedRegex("""^\s*SET\s+(\S+)\s+"([^"]*)"\s*$""", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex SetLine();
 

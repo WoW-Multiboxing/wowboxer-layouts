@@ -49,6 +49,16 @@ public static class UiScaleFix
             Sandbox.UiScale = Sandbox.UiScale with { Use = use, Scale = Math.Clamp(scale, UiScale.Min, UiScale.Max) };
             return null;
         }
+        return EditConfig(exe, text => UiScale.WithScale(text, use, Math.Clamp(scale, UiScale.Min, UiScale.Max)));
+    }
+
+    /// <summary>
+    /// Changes the install's Config.wtf with <paramref name="change"/> (text in, text out) – only while no client of the
+    /// install runs; keeps the one-time backup. Returns null on success, otherwise why it did not write.
+    /// </summary>
+    public static string? EditConfig(string exe, Func<string, string> change)
+    {
+        if (Sandbox.Active) return null;
         var folder = Path.GetDirectoryName(exe) ?? "";
         var running = RunningClients(folder);
         if (running > 0) return $"{running} client(s) of this WoW install are running. WoW rewrites Config.wtf when it closes, so close them first.";
@@ -58,7 +68,7 @@ public static class UiScaleFix
             var text = File.Exists(path) ? File.ReadAllText(path) : "";
             var backup = path + BackupSuffix;
             if (File.Exists(path) && !File.Exists(backup)) File.Copy(path, backup);
-            var updated = UiScale.WithScale(text, use, Math.Clamp(scale, UiScale.Min, UiScale.Max));
+            var updated = change(text);
             if (updated != text) File.WriteAllText(path, updated);
             return null;
         }

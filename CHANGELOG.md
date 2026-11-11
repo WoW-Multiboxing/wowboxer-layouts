@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.7.2-beta.1 – Window swap fixed on Forever, sound follows the main window (unreleased)
+**Beta channel only.**
+
+Fixed (owner, 2026-11-10: with 3 Forever clients, swaps made the windows go back and forth and the main window ended up
+at the wrong size):
+- **One swap at a time.** A swap hotkey pressed while the windows of the last swap are still moving waits until they have
+  landed (at most 2 wait; more presses are skipped with a note in the status bar), so fast presses no longer pull the
+  windows two ways at once.
+- **Both windows of a swap are placed together and kept there for 5 seconds** (the game's own resize right after a move),
+  not for 30 seconds like a window that is still loading.
+- **A client that keeps its own size is left alone.** When the game puts a window back to the same other size 3 times in
+  a row, WoWBoxer stops resizing it and says once, in plain words, which size the game keeps and what to change – instead
+  of resizing it every second and making it flip between two sizes. Each swap or Re-arrange tries again.
+- `wbx swaptest --rounds N` tests window swap on the open clients (hotkey swaps, drag-swaps and fast presses, watched
+  every 20 ms) and puts every window back.
+
+New, off by default (owner, 2026-11-10):
+- **Sound follows the main window**: only the WoW client in the main slot plays; the other clients are muted, or play
+  quietly at "Other clients at" % of their own level. Turn it on with the new speaker in Your squad (Setup) or in
+  Settings › Sound. It follows every swap hotkey, a drag-swap on the map, Re-arrange, and windows that open or close –
+  at once. "Follow the active window instead" lets the window that has your keys play; layouts without a main window
+  (Grid) always work that way.
+- Works through **Windows' volume mixer only** (per program, like Windows' own Volume mixer): nothing is sent to the
+  game, and Discord, music and every other program keep their sound. Clients that only start playing later, clients
+  that restart, and several output devices are handled.
+- Each client's **own volume is kept** and put back when you turn it off, when WoWBoxer closes and when you uninstall
+  it. A client that was closed while muted gets its level back the next time it plays (Windows remembers a program's
+  level per exe).
+- WoWBoxer reads WoW's **Sound in Background** (Config.wtf) and says so when it is off – otherwise the main window goes
+  quiet while you hover another one. While every client of that install is closed, "Turn on Sound in Background" sets
+  it for you (a backup of Config.wtf is kept). It also tells you when sound is off in WoW altogether.
+- Guide: new chapter "Sound follows the main window". `wbx audio` lists the WoW clients in the volume mixer;
+  `wbx audio --rounds 10` tests the feature against the real mixer and puts every level back.
+
 ## v0.7.1 – Window swap keeps its main slot, Auto-fit fits every bar, fixes from #help (2026-11-10)
 Everything from v0.7.1-beta.1 and v0.7.1-beta.2 (below), now for everyone, plus these fixes for problems players
 reported in #help (released straight to stable on the owner's decision):

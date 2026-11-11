@@ -816,6 +816,29 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Sound follows the main window: the speaker toggle (Windows' volume mixer only). Declared after Remove title bars so it docks above it. -->
+                <Border DockPanel.Dock="Bottom" Margin="0,10,0,0" Padding="0,10,0,0" BorderBrush="{StaticResource LineSoftBrush}" BorderThickness="0,1,0,0" DataContext="{Binding Sound}">
+                    <StackPanel>
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Left" Style="{StaticResource RibbonToggle}" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                          AutomationProperties.AutomationId="SoundToggle" AutomationProperties.Name="Sound follows the main window"
+                                          ToolTip="Sound follows the main window: only the client in the main slot plays, the other WoW clients are muted. Windows' volume mixer only – nothing is sent to the game.">
+                                <Grid>
+                                    <TextBlock Text="&#xE74F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                               Visibility="{Binding Enabled, Converter={x:Static app:BoolVisibility.Instance}, ConverterParameter=not}" />
+                                    <TextBlock Text="&#xE767;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                               Visibility="{Binding Enabled, Converter={x:Static app:BoolVisibility.Instance}}" />
+                                </Grid>
+                            </ToggleButton>
+                            <TextBlock Text="Sound follows the main window" FontSize="13" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Margin="36,4,0,0" FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Text="{Binding StatusText}"
+                                   Visibility="{Binding Enabled, Converter={x:Static app:BoolVisibility.Instance}}" />
+                        <TextBlock Margin="36,4,0,0" FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource WarnBrush}" Text="{Binding HintText}"
+                                   Visibility="{Binding HasHint, Converter={x:Static app:BoolVisibility.Instance}}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- one compact row per window; drag ⋮⋮ to reorder; ▾ opens the window's details -->
                 <ListBox x:Name="PartyList" ItemsSource="{Binding Party}" SelectedIndex="{Binding SelectedSlotIndex}" ItemContainerStyle="{StaticResource SquadItem}" PreviewGotKeyboardFocus="OnRowFocus"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False" AutomationProperties.Name="Squad rows">
