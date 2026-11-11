@@ -24,7 +24,12 @@ public sealed partial class MainViewModel
 
     /// <summary>The layout as the windows are placed now: <see cref="Current"/> with any swaps applied.</summary>
     public LayoutProfile? Placed => Current is null ? null
-        : WindowSwap.Apply(Current, _swapPos.Length == Current.Slots.Count ? _swapPos : WindowSwap.Home(Current.Slots.Count));
+        : WindowSwap.Apply(SpanGated(Current), _swapPos.Length == Current.Slots.Count ? _swapPos : WindowSwap.Home(Current.Slots.Count));
+
+    /// <summary>Experimental "Main window over both monitors": while it is off, a spanning main is placed on its own monitor.</summary>
+    private LayoutProfile SpanGated(LayoutProfile p) => !p.MainSpans || SpanAllowed ? p : p with { Slots = p.Slots.Select(s => s with { Span = false }).ToList() };
+
+    private bool SpanAllowed => ExperimentalFeatures.IsOn(_settings.Experimental, ExperimentalFeatures.MainOverMonitors);
 
     /// <summary>True while at least one client is out of its home slot.</summary>
     public bool IsSwapped => Current is not null && _swapPos.Length == Current.Slots.Count && !WindowSwap.IsHome(_swapPos);

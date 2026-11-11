@@ -16,8 +16,8 @@ at the wrong size):
 - `wbx swaptest --rounds N` tests window swap on the open clients (hotkey swaps, drag-swaps and fast presses, watched
   every 20 ms) and puts every window back.
 
-New, off by default (owner, 2026-11-11) – for the WoWBoxer Team Screen add-on:
-- **Main window over both monitors**: a switch under the layout (Main + side, Overlays and Custom; 2–5 clients, 2+
+New, **Settings › Experimental** (owner, 2026-11-11) – for the WoWBoxer Team Screen add-on:
+- **Main window over both monitors**: once the experiment is on, a switch under the layout (Main + side, Overlays and Custom; 2–5 clients, 2+
   monitors). The main slot's window covers monitor 1 + monitor 2 (the bounding rectangle of both usable areas, with or
   without title bars as the layout says); the followers stay where the layout puts them on monitor 1 and float on top.
   A window swap carries the span to whichever client takes the main slot. Only windows move and resize – nothing is
@@ -26,6 +26,10 @@ New, off by default (owner, 2026-11-11) – for the WoWBoxer Team Screen add-on:
   only: the stretched window's client size and monitor 2's rectangle inside it) into `Interface\AddOns` of every
   installed client, so the Team Screen docks on monitor 2. The game reads it at login or `/reload`. Without a spanning
   main the folder is removed again; a folder of that name that WoWBoxer did not write is never touched.
+- Experimental because the stretch alone is not enough (owner's test, 2026-11-11: "it looks absurd"): the game draws its
+  world and its whole UI across both monitors unless an add-on keeps them on monitor 1. The data therefore also has
+  `main` = monitor 1's rectangle inside the window, for that add-on. While the experiment is off, a spanning layout
+  places its main on monitor 1 only.
 - `wbx arrange --span-main` (a preset, or `--profile` / `--code` with a saved layout) does the same from the command
   line.
 

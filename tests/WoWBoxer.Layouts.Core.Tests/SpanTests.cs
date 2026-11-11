@@ -73,7 +73,8 @@ public class SpanTests
         Assert.Equal(4478, t.WindowWidth);
         Assert.Equal(1360, t.WindowHeight);
         Assert.Equal(new PixelRect(2559, -31, 1920, 1032), t.Team);
-        Assert.Equal("WoWBoxerTopology = { schema = 1, window = { w = 4478, h = 1360 }, team = { x = 2559, y = -31, w = 1920, h = 1032 } }\r\n", t.LuaText());
+        Assert.Equal(new PixelRect(-1, -31, 2560, 1392), t.Main);
+        Assert.Equal("WoWBoxerTopology = { schema = 1, window = { w = 4478, h = 1360 }, team = { x = 2559, y = -31, w = 1920, h = 1032 }, main = { x = -1, y = -31, w = 2560, h = 1392 } }\r\n", t.LuaText());
     }
 
     [Fact]

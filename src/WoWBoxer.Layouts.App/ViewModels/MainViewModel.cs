@@ -101,6 +101,11 @@ public sealed partial class MainViewModel : ObservableObject
         OpenLogsCommand = new RelayCommand(() => Open(StatusLog.LogFolder));
         OpenLayoutsFolderCommand = new RelayCommand(() => Open(AppSettings.ProfilesFolder));
         ExperimentalSwitches = [.. ExperimentalFeatures.All.Select(f => new ExperimentalSwitch(f, settings, Status))];
+        foreach (var sw in ExperimentalSwitches)
+            sw.PropertyChanged += (_, _) =>
+            {
+                foreach (var name in new[] { nameof(CanMainSpans), nameof(MainSpans), nameof(Placed) }) OnPropertyChanged(name);
+            };
         DiagnoseCommand = new RelayCommand(() => _ = DiagnoseAsync(), () => !_busy);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
@@ -1058,7 +1063,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>"Main window over both monitors": Main + side or Overlays, 2–5 clients, 2+ monitors connected.</summary>
-    public bool CanMainSpans => Current is not null && (Current.MainSpans
+    public bool CanMainSpans => Current is not null && SpanAllowed && (Current.MainSpans
         || (Current.Preset is { } kind && kind != PresetKind.Custom ? Presets.CanSpan(kind, Current.Clients, Monitors.Count)
             : Current.Clients is > 1 and <= Presets.PartySize && Monitors.Count > 1));
 
@@ -1068,7 +1073,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public bool MainSpans
     {
-        get => Current?.MainSpans ?? false;
+        get => SpanAllowed && (Current?.MainSpans ?? false);
         set
         {
             if (Current is null || value == Current.MainSpans) return;

@@ -12,7 +12,14 @@ public sealed record ExperimentalFeature(string Id, string Title, string Descrip
 public static class ExperimentalFeatures
 {
     /// <summary>Every experimental feature in this build, in the order Settings lists them. Empty = nothing to try.</summary>
-    public static IReadOnlyList<ExperimentalFeature> All { get; } = [];
+    public static IReadOnlyList<ExperimentalFeature> All { get; } =
+    [
+        new(MainOverMonitors, "Main window over both monitors",
+            "For the WoWBoxer Team Screen add-on: the main window can cover monitor 1 and monitor 2. On its own the game then draws its world and UI across both monitors – it needs an add-on that keeps the game on monitor 1."),
+    ];
+
+    /// <summary>"Main window over both monitors" (layout switch + the WoWBoxerTopology data add-on).</summary>
+    public const string MainOverMonitors = "main-over-monitors";
 
     public static bool IsOn(IEnumerable<string>? enabled, string id) => IsOn(enabled, id, All);
 

@@ -7,8 +7,10 @@ namespace WoWBoxer.Layouts.Core;
 /// (wowboxer-teamscreen docs/topology.md, schema 1). All numbers are physical pixels. <see cref="Window"/>: the client area
 /// of the stretched main window. <see cref="Team"/>: monitor 2's usable area inside it, from the client area's top-left
 /// corner (it may reach past the window; the add-on clips it).
+/// <see cref="Main"/>: monitor 1's usable area the same way – where an add-on keeps the game world and Blizzard's UI, so
+/// nothing is drawn across both monitors.
 /// </summary>
-public sealed record Topology(int WindowWidth, int WindowHeight, PixelRect Team)
+public sealed record Topology(int WindowWidth, int WindowHeight, PixelRect Team, PixelRect? Main = null)
 {
     public const int Schema = 1;
     /// <summary>The data add-on's folder name under Interface\AddOns.</summary>
@@ -30,8 +32,12 @@ public sealed record Topology(int WindowWidth, int WindowHeight, PixelRect Team)
         var side = fw / 2;
         int clientX = main.Rect.X + side, clientY = main.Rect.Y + fh - side;
         var (w, h) = LayoutEngine.GameArea(main.Rect, (fw, fh));
-        var area = second.Area(profile.Options.UseTaskbarArea);
-        return new Topology(w, h, new PixelRect(area.X - clientX, area.Y - clientY, area.Width, area.Height));
+        PixelRect Rel(MonitorInfo m)
+        {
+            var a = m.Area(profile.Options.UseTaskbarArea);
+            return new PixelRect(a.X - clientX, a.Y - clientY, a.Width, a.Height);
+        }
+        return new Topology(w, h, Rel(second), Rel(main.Monitor));
     }
 
     /// <summary>The add-on's .toc (exactly as the Team Screen's docs give it).</summary>
@@ -45,5 +51,9 @@ public sealed record Topology(int WindowWidth, int WindowHeight, PixelRect Team)
 
     /// <summary>The add-on's .lua: one assignment, numbers only.</summary>
     public string LuaText() => string.Create(CultureInfo.InvariantCulture,
-        $"WoWBoxerTopology = {{ schema = {Schema}, window = {{ w = {WindowWidth}, h = {WindowHeight} }}, team = {{ x = {Team.X}, y = {Team.Y}, w = {Team.Width}, h = {Team.Height} }} }}\r\n");
+        $"WoWBoxerTopology = {{ schema = {Schema}, window = {{ w = {WindowWidth}, h = {WindowHeight} }}, team = {{ x = {Team.X}, y = {Team.Y}, w = {Team.Width}, h = {Team.Height} }}{MainText()} }}\r\n");
+
+    private string MainText() => Main is { } m
+        ? string.Create(CultureInfo.InvariantCulture, $", main = {{ x = {m.X}, y = {m.Y}, w = {m.Width}, h = {m.Height} }}")
+        : "";
 }
