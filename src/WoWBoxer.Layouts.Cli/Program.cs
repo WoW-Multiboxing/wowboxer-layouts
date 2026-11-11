@@ -61,6 +61,7 @@ try
         "capture" => Commands.Capture(options, log),
         "snap" => Commands.Snap(options, log),
         "audio" => Commands.Audio(options, log),
+        "swaptest" => await SwapTest.RunAsync(options, log),
         "bars" => Commands.Bars(options, log),
         "layout" => Commands.Layout(options, log),
         _ => throw new UsageException($"Unknown command \"{options.Command}\"."),

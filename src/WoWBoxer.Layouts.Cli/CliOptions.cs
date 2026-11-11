@@ -45,6 +45,8 @@ internal sealed class CliOptions
           wbx snap       save a picture of what each WoW window shows (read-only): wbx snap [--out FOLDER]
           wbx audio      the WoW clients in Windows' volume mixer (read-only); --rounds N tests "sound follows the main
                          window" N times through the clients and puts every level back
+          wbx swaptest   test window swap on the open clients: --rounds N hotkey swaps + N drag-swaps + fast presses,
+                         watched every 20 ms; puts every window back; stops when the mouse or keyboard is used
 
         Layout:
           --preset side|overlay|grid|free   built-in layout (default: side = main left, followers right; dual = side on 2 monitors)

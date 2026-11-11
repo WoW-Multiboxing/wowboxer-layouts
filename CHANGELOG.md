@@ -1,7 +1,22 @@
 # Changelog
 
-## v0.8.0-beta.1 – Sound follows the main window (unreleased)
-**Beta channel only.** New, off by default (owner, 2026-11-10):
+## v0.7.2-beta.1 – Window swap fixed on Forever, sound follows the main window (unreleased)
+**Beta channel only.**
+
+Fixed (owner, 2026-11-10: with 3 Forever clients, swaps made the windows go back and forth and the main window ended up
+at the wrong size):
+- **One swap at a time.** A swap hotkey pressed while the windows of the last swap are still moving waits until they have
+  landed (at most 2 wait; more presses are skipped with a note in the status bar), so fast presses no longer pull the
+  windows two ways at once.
+- **Both windows of a swap are placed together and kept there for 5 seconds** (the game's own resize right after a move),
+  not for 30 seconds like a window that is still loading.
+- **A client that keeps its own size is left alone.** When the game puts a window back to the same other size 3 times in
+  a row, WoWBoxer stops resizing it and says once, in plain words, which size the game keeps and what to change – instead
+  of resizing it every second and making it flip between two sizes. Each swap or Re-arrange tries again.
+- `wbx swaptest --rounds N` tests window swap on the open clients (hotkey swaps, drag-swaps and fast presses, watched
+  every 20 ms) and puts every window back.
+
+New, off by default (owner, 2026-11-10):
 - **Sound follows the main window**: only the WoW client in the main slot plays; the other clients are muted, or play
   quietly at "Other clients at" % of their own level. Turn it on with the new speaker in Your squad (Setup) or in
   Settings › Sound. It follows every swap hotkey, a drag-swap on the map, Re-arrange, and windows that open or close –
