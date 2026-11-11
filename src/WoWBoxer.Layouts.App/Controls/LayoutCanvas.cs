@@ -464,6 +464,23 @@ public sealed class LayoutCanvas : FrameworkElement
                     dc.DrawRectangle(new SolidColorBrush(GoldHi), new Pen(Brushes.Black, 1), handle);
         }
         _shown = shown;
+        // the Offhand companion: the leader's window also covers this monitor, the Team Screen add-on fills it
+        if (!Compact && Profile is { MainSpans: true } spanning && Monitors is { Count: > 1 } all
+            && spanning.Slots.FirstOrDefault(s => s.Span) is { } spanSlot
+            && LayoutEngine.SecondScreen(spanning, Core.Monitors.Find(all, spanSlot.Monitor) ?? Core.Monitors.Primary(all), all) is { } companion)
+        {
+            var c = ToCanvas(companion.Area(Options.UseTaskbarArea));
+            c.Inflate(-6, -6);
+            if (c.Width > 40 && c.Height > 30)
+            {
+                var teal = Color.FromRgb(0x5F, 0xC8, 0xDC);
+                dc.DrawRoundedRectangle(Brush(0x22, teal), new Pen(new SolidColorBrush(teal), 1.5) { DashStyle = DashStyles.Dash }, c, 4, 4);
+                var title = Text("OFFHAND COMPANION", 12, new SolidColorBrush(teal), ppd, display: true);
+                var sub = Text("Team Screen add-on · leader's client", 10, new SolidColorBrush(Color.FromRgb(0x9F, 0xE3, 0xF0)), ppd);
+                Draw(dc, title, new Point(c.X + (c.Width - title.Width) / 2, c.Y + c.Height / 2 - title.Height), shadow: true);
+                Draw(dc, sub, new Point(c.X + (c.Width - sub.Width) / 2, c.Y + c.Height / 2 + 2), shadow: true);
+            }
+        }
         if (!Compact && PreviewArea is { } fillArea)
         {
             var a = ToCanvas(fillArea);
