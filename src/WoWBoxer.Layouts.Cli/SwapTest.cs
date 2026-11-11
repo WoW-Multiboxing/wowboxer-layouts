@@ -70,7 +70,7 @@ internal static class SwapTest
                 (var client, cursor) = WindowSwap.Step(pos, mains[0], order, _ => true, cursor, forward: true);
                 pos = WindowSwap.ToMain(pos, client, mains[0]);
                 var ok = await RoundAsync($"hotkey {r + 1,2}: client {client + 1} → main", WindowSwap.Apply(home, pos), windows, keeper, monitors, log,
-                    snap: r is 0 || r == rounds - 1 ? Path.Combine(folder, $"hotkey{r + 1}-main.png") : null, mainSlot: mains[0]);
+                    snap: r is 0 || r == rounds - 1 ? Path.Combine(folder, $"hotkey{r + 1}-main.png") : null, mainSlot: client);
                 if (!ok) failures++;
                 if (Idle.LastInputTick() != startInput) return Abort(saved, log);
             }
@@ -110,6 +110,7 @@ internal static class SwapTest
     private static async Task<bool> RoundAsync(string name, LayoutProfile layout, List<nint> windows, SlotKeeper keeper,
         IReadOnlyList<MonitorInfo> monitors, Log log, string? snap, int mainSlot)
     {
+        // mainSlot: the CLIENT (index into windows) that sits in the main slot now
         var plan = new SquadPlan(layout, monitors, rename: false);
         var before = windows.Select(WindowFinder.VisibleRectOf).ToList();
         for (var c = 0; c < windows.Count; c++) plan.Place(windows[c], c);

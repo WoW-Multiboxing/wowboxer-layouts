@@ -77,6 +77,20 @@ Consequences for the app:
   outside, and does it behave better? Needs one in-game setting change by the owner.
 - Forever in game (4–5 Nov): action bar, Edit Mode, the same checks after login.
 
+## Forever window swap (2026-11-11, 3 logged-in Forever clients, borderless, UI Scale 0.74)
+Bug 2026-11-10 (owner, v0.7.1-beta.2): swaps made the windows go back and forth; the main window at the wrong size.
+`wbx swaptest --rounds 20` (app placing code, every window sampled every 20 ms) with the v0.7.2 fix:
+- 20 hotkey swaps, 20 drag-swaps, 6 presses 250 ms apart: every window **landed in 27–62 ms**, game area = slot size
+  (1690×1392 / 870×696), **0 back-and-forth**, hold limit never reached. Every window put back exactly.
+- So a logged-in Forever client **takes any size it is given at once** and does not resize itself afterwards
+  [verified]. `GxWindowedResolution` in the shared Config.wtf ("870x696") only decides the size a client *opens* at.
+- The main window's picture after drag-swaps (a former follower, now 1690×1392): sharp, full size, every action bar
+  whole → no stretched/low-resolution rendering after a resize [verified by wbx snap].
+- Derived cause of the old behaviour: placing ran every second for 30 s after each swap, and swaps that came faster
+  than that pulled the same windows towards two plans at once. Fixed by one swap at a time (SwapQueue), 5 s settle
+  after a swap, and the hold limit (3 identical refusals → stop and explain) for a client that does keep its own size.
+- Not reproduced on the old version in this session (no bisect run); the fix is checked against the symptoms.
+
 ## Forever client (2026-10-27, login screen; name reservation only)
 - Install folder `World of Warcraft\_forever_`, exe **`Wow.exe`** (the same name as Retail – so the game is told by
   the folder, not the exe), window class **`waApplication Window`**, title "World of Warcraft", version 1.60.1 (70634).
