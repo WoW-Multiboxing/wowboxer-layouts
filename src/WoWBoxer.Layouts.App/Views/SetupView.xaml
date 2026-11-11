@@ -20,8 +20,20 @@
                             </Border>
                             <TextBlock x:Name="Num" Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        FontFamily="{StaticResource DisplayFont}" FontSize="17" Foreground="{StaticResource TextBrush}" Effect="{StaticResource HardTextShadow}" />
+                            <!-- the Offhand companion: "+1" on the chosen count -->
+                            <Border x:Name="Plus" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,2,2" Padding="3,0"
+                                    CornerRadius="3" Background="#1F4F5C" ToolTip="+ the Offhand companion (in the leader's client)">
+                                <TextBlock Text="+1" FontSize="9.5" FontWeight="SemiBold" Foreground="#9FE3F0" />
+                            </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
+                                    <Condition Binding="{Binding DataContext.MainSpans, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="Plus" Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource GoldLoBrush}" />
                                 <Setter TargetName="Num" Property="Foreground" Value="{StaticResource GoldHiBrush}" />
@@ -414,9 +426,12 @@
                         </CheckBox>
                         <CheckBox Margin="0,6,0,0" IsChecked="{Binding MainSpans}" AutomationProperties.AutomationId="MainSpans"
                                   Visibility="{Binding CanMainSpans, Converter={x:Static app:BoolVisibility.Instance}}"
-                                  ToolTip="The main window covers monitor 1 and monitor 2 – for the WoWBoxer Team Screen add-on, which uses the part on monitor 2. The followers stay on monitor 1, on top. WoWBoxer only moves and resizes the window and writes the add-on's monitor data; nothing is sent to the game.">
-                            <TextBlock Text="Main window over both monitors" FontSize="12" />
+                                  ToolTip="The WoWBoxer Team Screen add-on shows your squad (bags, quests, gold, XP) on another monitor, from your leader's client: WoWBoxer stretches the leader's window onto that monitor, and the add-on keeps the game on monitor 1. WoWBoxer only moves and resizes the window and writes the add-on's monitor data; nothing is sent to the game.">
+                            <TextBlock Text="Use the WoWBoxer Offhand companion" FontSize="12" />
                         </CheckBox>
+                        <ComboBox Margin="22,4,0,0" ItemsSource="{Binding CompanionMonitors}" SelectedItem="{Binding CompanionMonitor}" DisplayMemberPath="Text"
+                                  AutomationProperties.AutomationId="CompanionMonitor" ToolTip="The monitor the Offhand companion is on"
+                                  Visibility="{Binding ShowCompanionMonitors, Converter={x:Static app:BoolVisibility.Instance}}" />
                         <TextBlock Margin="0,6,0,0" FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Text="{Binding LayoutAdvice}"
                                    AutomationProperties.AutomationId="LayoutAdvice" Visibility="{Binding LayoutAdvice, Converter={x:Static app:BoolVisibility.Instance}}" />
                     </StackPanel>

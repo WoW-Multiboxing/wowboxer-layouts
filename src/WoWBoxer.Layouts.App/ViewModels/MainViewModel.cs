@@ -101,11 +101,6 @@ public sealed partial class MainViewModel : ObservableObject
         OpenLogsCommand = new RelayCommand(() => Open(StatusLog.LogFolder));
         OpenLayoutsFolderCommand = new RelayCommand(() => Open(AppSettings.ProfilesFolder));
         ExperimentalSwitches = [.. ExperimentalFeatures.All.Select(f => new ExperimentalSwitch(f, settings, Status))];
-        foreach (var sw in ExperimentalSwitches)
-            sw.PropertyChanged += (_, _) =>
-            {
-                foreach (var name in new[] { nameof(CanMainSpans), nameof(MainSpans), nameof(Placed) }) OnPropertyChanged(name);
-            };
         DiagnoseCommand = new RelayCommand(() => _ = DiagnoseAsync(), () => !_busy);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
         BrowseBattleNetCommand = new RelayCommand(BrowseBattleNet);
@@ -979,7 +974,7 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var name in new[] { nameof(ChosenScreens), nameof(MonitorCounts), nameof(SelectedMonitorCount), nameof(MonitorSets), nameof(ShowMonitorSets), nameof(SelectedMonitorSet) })
                 OnPropertyChanged(name);
         }
-        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(CanMainSpans), nameof(MainSpans), nameof(LayoutAdvice), nameof(BarFit) })
+        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(CanMainSpans), nameof(MainSpans), nameof(CompanionMonitors), nameof(CompanionMonitor), nameof(ShowCompanionMonitors), nameof(LayoutAdvice), nameof(BarFit) })
             OnPropertyChanged(name);
     }
 
@@ -1063,7 +1058,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>"Main window over both monitors": Main + side or Overlays, 2–5 clients, 2+ monitors connected.</summary>
-    public bool CanMainSpans => Current is not null && SpanAllowed && (Current.MainSpans
+    public bool CanMainSpans => Current is not null && (Current.MainSpans
         || (Current.Preset is { } kind && kind != PresetKind.Custom ? Presets.CanSpan(kind, Current.Clients, Monitors.Count)
             : Current.Clients is > 1 and <= Presets.PartySize && Monitors.Count > 1));
 
@@ -1073,10 +1068,15 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public bool MainSpans
     {
-        get => SpanAllowed && (Current?.MainSpans ?? false);
+        get => Current?.MainSpans ?? false;
         set
         {
             if (Current is null || value == Current.MainSpans) return;
+            if (value && !CompanionAddOnReady())
+            {
+                OnPropertyChanged();
+                return;
+            }
             if (Current.Preset is not { } kind || kind == PresetKind.Custom || !Presets.CanSpan(kind, Current.Clients, 2))
             {
                 // a hand-made layout keeps its places: only its main slot starts or stops spanning
@@ -1095,8 +1095,59 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private const string SpanOnText = "Main window over both monitors: on. WoWBoxer writes the monitor layout for the Team Screen add-on into each installed client; /reload in the game reads it. Ctrl+Z undoes it.";
-    private const string SpanOffText = "Main window over both monitors: off. Ctrl+Z turns it back on.";
+    private const string SpanOnText = "Offhand companion: on. The leader's window now also covers the companion monitor; the WoWBoxer Team Screen add-on keeps the game on monitor 1 and shows the companion there – /reload in the leader's client (or log in). Ctrl+Z undoes it.";
+    private const string SpanOffText = "Offhand companion: off – the leader's window is on its own monitor again. Ctrl+Z turns it back on.";
+
+    public const string TeamScreenUrl = "https://github.com/WoW-Multiboxing/wowboxer-teamscreen";
+
+    /// <summary>
+    /// The Offhand companion is drawn by the WoWBoxer Team Screen add-on in the leader's client: true when the squad's
+    /// game has it (a version that keeps the game on monitor 1); otherwise asks to install it first.
+    /// </summary>
+    private bool CompanionAddOnReady()
+    {
+        var installs = Windows.Select(w => InstallOf(w.Window)).Append(_squadInstall ?? "")
+            .Append(Path.GetDirectoryName(GameInstall.FindExe(_settings.GameExe, Current?.GameOrDefault ?? WowGame.ClassicEra) ?? "") ?? "");
+        var status = TeamScreenAddOn.Check(installs);
+        if (status == TeamScreenStatus.Ready) return true;
+        var text = status == TeamScreenStatus.Old
+            ? "The Offhand companion needs a newer WoWBoxer Team Screen add-on (one that keeps the game on monitor 1). Update it, then tick the box again."
+            : "The Offhand companion is the WoWBoxer Team Screen add-on running in your leader's client. It is not installed for this game yet. Install it (free, MIT), then tick the box again.";
+        if (_dialogs.Choose("WoWBoxer Team Screen add-on needed", text, ["Get the add-on", "Cancel"]) == 0) OpenUrl(TeamScreenUrl);
+        Status.Info("Offhand companion: waiting for the WoWBoxer Team Screen add-on.");
+        return false;
+    }
+
+    /// <summary>The monitors the companion can be on (every monitor but the leader's).</summary>
+    public IReadOnlyList<CompanionChoice> CompanionMonitors
+    {
+        get
+        {
+            if (Current is null || _chosen.Count == 0) return [];
+            var first = _chosen[0];
+            return ScreenSet.Ordered(Monitors).Where(m => m.Index != first.Index)
+                .Select(m => new CompanionChoice(m, $"{char.ToUpperInvariant(ScreenSet.Position(m, Monitors)[0])}{ScreenSet.Position(m, Monitors)[1..]} · {m.Bounds.Width}×{m.Bounds.Height}")).ToList();
+        }
+    }
+
+    public bool ShowCompanionMonitors => MainSpans && CompanionMonitors.Count > 1;
+
+    /// <summary>Which monitor the Offhand companion is on.</summary>
+    public CompanionChoice? CompanionMonitor
+    {
+        get
+        {
+            if (Current is null || !Current.MainSpans || _chosen.Count == 0) return null;
+            var second = LayoutEngine.SecondScreen(Current, _chosen[0], Monitors);
+            return CompanionMonitors.FirstOrDefault(c => c.Monitor.Index == second?.Index);
+        }
+        set
+        {
+            if (value is null || Current is null || !Current.MainSpans || _chosen.Count == 0 || value.Monitor.Index == CompanionMonitor?.Monitor.Index) return;
+            Update(Current with { Screens = [ScreenSet.ToRef(_chosen[0]), ScreenSet.ToRef(value.Monitor)] });
+            Status.Info($"Offhand companion on {value.Text}. Ctrl+Z moves it back.");
+        }
+    }
 
     /// <summary>The honest action-bar verdict for the whole layout, and a tip when one monitor holds both parties.</summary>
     public string LayoutAdvice

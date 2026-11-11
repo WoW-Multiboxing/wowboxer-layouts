@@ -14,8 +14,8 @@ internal static class WhatsNewWindow
     [
         ("Window swap: no more back and forth",
             "One swap at a time: a swap hotkey pressed while the last swap's windows are still moving waits for them. A client that keeps its own window size is left alone after a few tries, and the status bar says which size it keeps and what to change."),
-        ("Main window over both monitors (beta)",
-            "Settings › Experimental, for the WoWBoxer Team Screen add-on: a switch under the layout stretches the main window over monitor 1 and monitor 2, the followers stay where they are, on top. WoWBoxer only moves and resizes the window and writes a small data add-on (WoWBoxerTopology: where monitor 2 is, numbers only) into each installed client – /reload or log in to use it."),
+        ("The WoWBoxer Offhand companion (beta)",
+            "Your squad's bags, quests, gold and XP on another monitor: tick \"Use the WoWBoxer Offhand companion\" under the layout. It runs in your leader's client through the WoWBoxer Team Screen add-on (WoWBoxer checks it is installed), keeps the game on monitor 1, and shows +1 on the client count. Only windows move – nothing is sent to the game."),
         ("Sound follows the main window (beta)",
             "Off by default – the new speaker in Your squad or Settings › Sound. Only the client in the main slot plays; the others are muted or play quietly. It follows every swap and changes only Windows' volume mixer: nothing is sent to the game, other programs keep their sound, and your own levels come back when you turn it off or close WoWBoxer."),
         ("Fixes from #help",

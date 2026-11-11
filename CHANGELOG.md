@@ -16,20 +16,21 @@ at the wrong size):
 - `wbx swaptest --rounds N` tests window swap on the open clients (hotkey swaps, drag-swaps and fast presses, watched
   every 20 ms) and puts every window back.
 
-New, **Settings › Experimental** (owner, 2026-11-11) – for the WoWBoxer Team Screen add-on:
-- **Main window over both monitors**: once the experiment is on, a switch under the layout (Main + side, Overlays and Custom; 2–5 clients, 2+
-  monitors). The main slot's window covers monitor 1 + monitor 2 (the bounding rectangle of both usable areas, with or
-  without title bars as the layout says); the followers stay where the layout puts them on monitor 1 and float on top.
-  A window swap carries the span to whichever client takes the main slot. Only windows move and resize – nothing is
-  sent to the game.
-- After placing, WoWBoxer writes the data-only add-on **WoWBoxerTopology** (`.toc` + one Lua line, schema 1, numbers
-  only: the stretched window's client size and monitor 2's rectangle inside it) into `Interface\AddOns` of every
-  installed client, so the Team Screen docks on monitor 2. The game reads it at login or `/reload`. Without a spanning
-  main the folder is removed again; a folder of that name that WoWBoxer did not write is never touched.
-- Experimental because the stretch alone is not enough (owner's test, 2026-11-11: "it looks absurd"): the game draws its
-  world and its whole UI across both monitors unless an add-on keeps them on monitor 1. The data therefore also has
-  `main` = monitor 1's rectangle inside the window, for that add-on. While the experiment is off, a spanning layout
-  places its main on monitor 1 only.
+New, off by default (owner, 2026-11-11) – **the WoWBoxer Offhand companion**:
+- **Use the WoWBoxer Offhand companion** (a checkbox under the layout: Main + side, Overlays and Custom; 2–5 clients,
+  2+ monitors): your squad's bags, quests, gold and XP on another monitor, shown by the WoWBoxer Team Screen add-on in
+  the leader's client. The client count shows **+1** for it. With 3+ monitors you pick which one it is on.
+- Ticking it checks that the Team Screen add-on is installed for the game (a version with "keep the game on monitor
+  1") and offers to get it when it is not.
+- How it works: the leader's window (the main slot) also covers the companion monitor; the add-on keeps the game
+  world and Blizzard's UI on monitor 1 and fills the other monitor with the companion. (Stretching alone made the game
+  draw across both monitors – owner's test, 2026-11-11.) The followers stay where the layout puts them, on top. A
+  window swap moves the companion with the main slot. WoWBoxer only moves and resizes windows – nothing is sent to the
+  game.
+- WoWBoxer writes the data-only add-on **WoWBoxerTopology** (`.toc` + one Lua line, schema 1, numbers only: the
+  stretched window's size, the companion monitor and monitor 1 inside it) into `Interface\AddOns` of every installed
+  client; the game reads it at login or `/reload`. Without the companion the folder is removed again; a folder of that
+  name that WoWBoxer did not write is never touched.
 - `wbx arrange --span-main` (a preset, or `--profile` / `--code` with a saved layout) does the same from the command
   line.
 
