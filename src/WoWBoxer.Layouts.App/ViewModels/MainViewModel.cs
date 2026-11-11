@@ -435,9 +435,10 @@ public sealed partial class MainViewModel : ObservableObject
     /// Applies a layout type, client count or monitor choice (anything not given stays as it is), keeping names and
     /// classes. Undo brings the old one back.
     /// </summary>
-    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null, bool save = true)
+    private void ApplyKind(PresetKind kind, int? clients = null, IReadOnlyList<MonitorInfo>? screens = null, PartySplit? split = null, bool? followersOnSecond = null, bool save = true,
+        bool? mainSpans = null)
     {
-        if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond)) return;
+        if (Current is null || !TryPreset(kind, clients ?? Current.Clients, out var preset, quiet: false, screens, split, followersOnSecond, mainSpans: mainSpans)) return;
         ResetSwap(quiet: true);   // a new layout starts at home
         var slots = preset.Slots.Select((s, i) => i < Current.Slots.Count ? s with { Name = Current.Slots[i].Name, Class = Current.Slots[i].Class, CombatRole = Current.Slots[i].CombatRole } : s).ToList();
         // Custom with another number of clients: the windows that exist keep their places
@@ -473,14 +474,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>The preset for the chosen monitors (or <paramref name="screens"/>); split and overlay rows as the current layout has them.</summary>
     private bool TryPreset(PresetKind kind, int clients, out LayoutProfile profile, bool quiet, IReadOnlyList<MonitorInfo>? screens = null,
-        PartySplit? split = null, bool? followersOnSecond = null, LayoutOptions? options = null)
+        PartySplit? split = null, bool? followersOnSecond = null, LayoutOptions? options = null, bool? mainSpans = null)
     {
         try
         {
             options ??= Current?.Options ?? new LayoutOptions { MinAspect = 4.0 / 3 };
             screens ??= ChosenScreens.Count > 0 ? ChosenScreens : [Core.Monitors.Primary(Monitors)];
+            var span = mainSpans ?? Current?.MainSpans ?? false;
+            // the main over both monitors: monitor 1 as chosen, then the next connected one
+            if (span && screens.Count == 1 && Presets.CanSpan(kind, clients, 2) && ScreenSet.Ordered(Monitors).FirstOrDefault(m => m.Index != screens[0].Index) is { } next) screens = [screens[0], next];
             profile = Presets.ForScreens(kind, clients, screens, options with { Fit = FitMode.ShrinkAnchor },
-                split ?? Current?.Split, followersOnSecond ?? Current?.FollowersOnSecond ?? false);
+                split ?? Current?.Split, followersOnSecond ?? Current?.FollowersOnSecond ?? false, span);
             return true;
         }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException)
@@ -970,7 +974,7 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var name in new[] { nameof(ChosenScreens), nameof(MonitorCounts), nameof(SelectedMonitorCount), nameof(MonitorSets), nameof(ShowMonitorSets), nameof(SelectedMonitorSet) })
                 OnPropertyChanged(name);
         }
-        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(LayoutAdvice), nameof(BarFit) })
+        foreach (var name in new[] { nameof(HasSplit), nameof(SplitText), nameof(CanFollowersOnSecond), nameof(FollowersOnSecond), nameof(CanMainSpans), nameof(MainSpans), nameof(LayoutAdvice), nameof(BarFit) })
             OnPropertyChanged(name);
     }
 
@@ -1052,6 +1056,42 @@ public sealed partial class MainViewModel : ObservableObject
             if (Current is not null && value != Current.FollowersOnSecond) ApplyKind(PresetKind.Overlay, followersOnSecond: value);
         }
     }
+
+    /// <summary>"Main window over both monitors": Main + side or Overlays, 2–5 clients, 2+ monitors connected.</summary>
+    public bool CanMainSpans => Current is not null && (Current.MainSpans
+        || (Current.Preset is { } kind && kind != PresetKind.Custom ? Presets.CanSpan(kind, Current.Clients, Monitors.Count)
+            : Current.Clients is > 1 and <= Presets.PartySize && Monitors.Count > 1));
+
+    /// <summary>
+    /// The main slot's window covers monitor 1 + monitor 2 (for the WoWBoxer Team Screen add-on, which docks on the part on
+    /// monitor 2); the followers stay on monitor 1, on top. The app writes the add-on's monitor data after placing.
+    /// </summary>
+    public bool MainSpans
+    {
+        get => Current?.MainSpans ?? false;
+        set
+        {
+            if (Current is null || value == Current.MainSpans) return;
+            if (Current.Preset is not { } kind || kind == PresetKind.Custom || !Presets.CanSpan(kind, Current.Clients, 2))
+            {
+                // a hand-made layout keeps its places: only its main slot starts or stops spanning
+                var changed = Presets.SpanMain(Current, Monitors, value);
+                if (!ReferenceEquals(changed, Current)) Update(changed);
+                OnPropertyChanged();
+                Status.Info(value ? SpanOnText : SpanOffText);
+                return;
+            }
+            // off again: back to the monitor the main is on
+            IReadOnlyList<MonitorInfo>? screens = value || _chosen.Count == 0 ? null : [_chosen[0]];
+            ApplyKind(kind, screens: screens, mainSpans: value);
+            Status.Info(value
+                ? SpanOnText
+                : SpanOffText);
+        }
+    }
+
+    private const string SpanOnText = "Main window over both monitors: on. WoWBoxer writes the monitor layout for the Team Screen add-on into each installed client; /reload in the game reads it. Ctrl+Z undoes it.";
+    private const string SpanOffText = "Main window over both monitors: off. Ctrl+Z turns it back on.";
 
     /// <summary>The honest action-bar verdict for the whole layout, and a tip when one monitor holds both parties.</summary>
     public string LayoutAdvice
@@ -1928,7 +1968,9 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Placed is not { } placed) return null;
         RefreshMonitors();
-        return _lastPlan = new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
+        var plan = _lastPlan = new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
+        if (!_paused) plan.SyncTopology(Status, Windows.Select(w => InstallOf(w.Window)));   // the Team Screen's monitor data (files only)
+        return plan;
     }
 
     /// <summary>The last plan made (for messages from other threads).</summary>

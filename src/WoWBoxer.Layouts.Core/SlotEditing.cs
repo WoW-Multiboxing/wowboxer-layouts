@@ -23,6 +23,7 @@ public static class SlotEditing
         rect = ClampInto(rect, area);
         return slot with
         {
+            Span = false,   // a window moved by hand sits on one monitor
             Monitor = monitor.IsPrimary ? "primary" : monitor.Index.ToString(System.Globalization.CultureInfo.InvariantCulture),
             X = Math.Round(Geometry.Percent(rect.X - area.X, area.Width), 4),
             Y = Math.Round(Geometry.Percent(rect.Y - area.Y, area.Height), 4),

@@ -62,11 +62,20 @@ public static class Presets
 
     /// <summary>One monitor (the CLI's <c>--monitor</c>): the layout on that monitor alone. <see cref="PresetKind.Dual"/> adds the next one.</summary>
     /// <param name="monitor">"primary" or a 1-based index: where the main window goes.</param>
-    /// <exception cref="ArgumentException">Bad client count, unknown monitor, or Dual with only one monitor.</exception>
+    /// <param name="mainSpans">"Main window over both monitors": the main covers this monitor and the next one (<see cref="CanSpan"/>).</param>
+    /// <exception cref="ArgumentException">Bad client count, unknown monitor, or Dual / a spanning main with only one monitor.</exception>
     public static LayoutProfile Create(PresetKind kind, int clients, IReadOnlyList<MonitorInfo> monitors,
-        string monitor = "primary", LayoutOptions? options = null)
+        string monitor = "primary", LayoutOptions? options = null, bool mainSpans = false)
     {
         var main = Monitors.Find(monitors, monitor) ?? throw new ArgumentException($"Monitor \"{monitor}\" not found.", nameof(monitor));
+        if (mainSpans)
+        {
+            var next = ScreenSet.Ordered(monitors).FirstOrDefault(m => m.Index != main.Index)
+                ?? throw new ArgumentException("\"Main window over both monitors\" needs two monitors.", nameof(monitors));
+            if (!CanSpan(kind, clients, 2))
+                throw new ArgumentException("\"Main window over both monitors\" works with Main + side or Overlays and 2-5 clients.", nameof(kind));
+            return ForScreens(kind, clients, [main, next], options, mainSpans: true);
+        }
         if (kind != PresetKind.Dual) return ForScreens(kind, clients, [main], options);
         var second = ScreenSet.Ordered(monitors).FirstOrDefault(m => m.Index != main.Index)
             ?? throw new ArgumentException("This preset needs two monitors.", nameof(monitors));
@@ -76,9 +85,23 @@ public static class Presets
     /// <summary>The layout across the chosen monitors, in order (monitor 1 holds the main).</summary>
     /// <param name="split">6–10 clients on one monitor: how the parties share it; null = the better one (<see cref="BestSplit"/>).</param>
     /// <param name="followersOnSecond">Overlays with up to 5 clients: the followers' row goes on monitor 2.</param>
+    /// <param name="mainSpans">
+    /// "Main window over both monitors" (<see cref="CanSpan"/>): the main covers monitor 1 + monitor 2, the followers stay
+    /// where the layout puts them on monitor 1 alone and float on top of it. Ignored where it does not apply.
+    /// </param>
     public static LayoutProfile ForScreens(PresetKind kind, int clients, IReadOnlyList<MonitorInfo> screens, LayoutOptions? options = null,
-        PartySplit? split = null, bool followersOnSecond = false)
+        PartySplit? split = null, bool followersOnSecond = false, bool mainSpans = false)
     {
+        if (kind == PresetKind.Dual) kind = PresetKind.Side;
+        if (mainSpans && CanSpan(kind, clients, screens.Count))
+        {
+            // the layout of monitor 1 alone, then the main stretched over both (LayoutEngine.SpanArea) under the followers
+            var one = ForScreens(kind, clients, [screens[0]], options, split);
+            var spanned = one.Slots.Select(s => s.Role == SlotRole.Main
+                ? s with { Span = true, Z = ZOrder.Bottom, Fit = FitMode.None, X = 0, Y = 0, W = 100, H = 100 }
+                : s with { Z = ZOrder.Top }).ToList();
+            return one with { Slots = spanned, Screens = screens.Take(2).Select(ScreenSet.ToRef).ToList() };
+        }
         if (clients is < MinClients or > MaxClients)
             throw new ArgumentOutOfRangeException(nameof(clients), clients, $"Presets support {MinClients}–{MaxClients} clients.");
         if (screens.Count == 0) throw new ArgumentException("No monitor chosen.", nameof(screens));
@@ -107,6 +130,45 @@ public static class Presets
             Split = split,
             FollowersOnSecond = followersOnSecond && kind == PresetKind.Overlay,
         };
+    }
+
+    /// <summary>"Main window over both monitors" needs one party (one main), 2+ clients, Main + side or Overlays, and 2+ monitors.</summary>
+    public static bool CanSpan(PresetKind kind, int clients, int screens) =>
+        kind is PresetKind.Side or PresetKind.Dual or PresetKind.Overlay && clients is > 1 and <= PartySize && screens >= 2;
+
+    /// <summary>
+    /// "Main window over both monitors" for a layout made by hand (Custom, captured): its main slot - the window-swap main,
+    /// else the biggest window - spans its monitor + the next one and goes under the others, which float on top. Nothing
+    /// else moves. <paramref name="on"/> = false ends the span (the other windows keep their places and on-top). The same
+    /// profile when it cannot (6-10 clients, one monitor, already so).
+    /// </summary>
+    public static LayoutProfile SpanMain(LayoutProfile profile, IReadOnlyList<MonitorInfo> monitors, bool on)
+    {
+        if (!on)
+        {
+            if (!profile.MainSpans) return profile;
+            var trimmed = profile.Screens is { Count: > 1 } sc ? sc.Take(1).ToList() : profile.Screens;
+            return profile with { Slots = profile.Slots.Select(s => s with { Span = false }).ToList(), Screens = trimmed };
+        }
+        if (profile.MainSpans || profile.Clients is < 2 or > PartySize || monitors.Count < 2 || profile.Slots.Count == 0) return profile;
+        var main = MainSlotIndex(profile, monitors);
+        var first = Monitors.Find(monitors, profile.Slots[main].Monitor) ?? Monitors.Primary(monitors);
+        MonitorInfo? second = null;
+        if (profile.Screens is { Count: >= 2 } known && ScreenSet.Match(known, monitors).Skip(1).FirstOrDefault() is { } remembered && remembered.Index != first.Index)
+            second = remembered;
+        second ??= ScreenSet.Ordered(monitors).FirstOrDefault(m => m.Index != first.Index);
+        if (second is null) return profile;
+        var slots = profile.Slots.Select((s, i) => i == main ? s with { Span = true, Z = ZOrder.Bottom, Fit = FitMode.None } : s with { Z = ZOrder.Top }).ToList();
+        return profile with { Slots = slots, Screens = [ScreenSet.ToRef(first), ScreenSet.ToRef(second)] };
+    }
+
+    /// <summary>The slot that spans: the window-swap main, else (a preset) the role Main, else the biggest window.</summary>
+    private static int MainSlotIndex(LayoutProfile profile, IReadOnlyList<MonitorInfo> monitors)
+    {
+        if (profile.SwapMainSlots is { Count: > 0 } mains && mains[0] >= 1 && mains[0] <= profile.Slots.Count) return mains[0] - 1;
+        if (profile.Preset is not (PresetKind.Custom or null) && profile.Slots.ToList().FindIndex(s => s.Role == SlotRole.Main) is var m and >= 0) return m;
+        var placed = LayoutEngine.Resolve(profile, monitors);
+        return Enumerable.Range(0, placed.Count).OrderByDescending(i => (long)placed[i].Rect.Width * placed[i].Rect.Height).ThenBy(i => i).First();
     }
 
     /// <summary>Whether this layout splits one monitor between two parties (and so has a split to flip).</summary>

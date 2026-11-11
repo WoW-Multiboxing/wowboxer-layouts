@@ -232,7 +232,7 @@ public static class WindowSwap
     private static LayoutSlot WithPlaceOf(LayoutSlot who, LayoutSlot where) => who with
     {
         Role = where.Role, Monitor = where.Monitor, X = where.X, Y = where.Y, W = where.W, H = where.H,
-        Z = where.Z, Anchor = where.Anchor, Fit = where.Fit,
+        Z = where.Z, Anchor = where.Anchor, Fit = where.Fit, Span = where.Span,
     };
 
     // ---------- ready-made cycle orders ----------

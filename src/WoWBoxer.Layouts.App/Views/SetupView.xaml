@@ -412,6 +412,11 @@
                                   ToolTip="The followers' row floats on monitor 2 instead of over the main">
                             <TextBlock Text="Followers on monitor 2" FontSize="12" />
                         </CheckBox>
+                        <CheckBox Margin="0,6,0,0" IsChecked="{Binding MainSpans}" AutomationProperties.AutomationId="MainSpans"
+                                  Visibility="{Binding CanMainSpans, Converter={x:Static app:BoolVisibility.Instance}}"
+                                  ToolTip="The main window covers monitor 1 and monitor 2 – for the WoWBoxer Team Screen add-on, which uses the part on monitor 2. The followers stay on monitor 1, on top. WoWBoxer only moves and resizes the window and writes the add-on's monitor data; nothing is sent to the game.">
+                            <TextBlock Text="Main window over both monitors" FontSize="12" />
+                        </CheckBox>
                         <TextBlock Margin="0,6,0,0" FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Text="{Binding LayoutAdvice}"
                                    AutomationProperties.AutomationId="LayoutAdvice" Visibility="{Binding LayoutAdvice, Converter={x:Static app:BoolVisibility.Instance}}" />
                     </StackPanel>

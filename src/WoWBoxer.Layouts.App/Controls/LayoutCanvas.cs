@@ -194,7 +194,8 @@ public sealed class LayoutCanvas : FrameworkElement
         {
             var slot = Profile.Slots[i];
             var monitor = Core.Monitors.Find(monitors, slot.Monitor) ?? Core.Monitors.Primary(monitors);
-            var raw = i == _dragIndex ? _dragRect : _groupRects.TryGetValue(i, out var moved) ? moved : SlotEditing.Raw(slot, monitor, Options);
+            var raw = i == _dragIndex ? _dragRect : _groupRects.TryGetValue(i, out var moved) ? moved
+                : LayoutEngine.SpanArea(Profile, slot, monitor, monitors) ?? SlotEditing.Raw(slot, monitor, Options);
             list.Add(new Item(i, slot, monitor, raw, LayoutEngine.Fit(raw, slot.Fit ?? Options.Fit, slot.Anchor, Options.MinAspect, LayoutEngine.FrameSize(Options, monitor.Dpi))));
         }
         // overlays (always on top) are drawn last and hit first

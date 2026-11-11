@@ -105,7 +105,12 @@ public static class GameInstall
 
         if (GameDetection.InstallOf(game) is not { } install) return null;
         var (folder, exe) = install;
+        return WowRoots().Select(r => Path.Combine(r, folder, exe)).FirstOrDefault(File.Exists);
+    }
 
+    /// <summary>The "World of Warcraft" folders Battle.net installed the games in (registry, then the default folder).</summary>
+    public static IReadOnlyList<string> WowRoots()
+    {
         var roots = new List<string>();
         foreach (var key in new[] { @"SOFTWARE\WOW6432Node\Blizzard Entertainment\World of Warcraft", @"SOFTWARE\Blizzard Entertainment\World of Warcraft" })
         {
@@ -114,7 +119,7 @@ public static class GameInstall
                 roots.Add(Path.GetFullPath(Path.Combine(path.TrimEnd('\\'), "..")));   // InstallPath points at _retail_
         }
         roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "World of Warcraft"));
-        return roots.Select(r => Path.Combine(r, folder, exe)).FirstOrDefault(File.Exists);
+        return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>The client folder (holds WTF) for an exe.</summary>

@@ -41,6 +41,11 @@ public sealed record LayoutProfile
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool FollowersOnSecond { get; init; }
     /// <summary>
+    /// "Main window over both monitors": the main slot covers monitor 1 + monitor 2 (see <see cref="LayoutSlot.Span"/>).
+    /// </summary>
+    [JsonIgnore]
+    public bool MainSpans => Slots.Any(s => s.Span);
+    /// <summary>
     /// Window swap: the main slot of each party as 1-based slot numbers (at most one per party). Null = the default (the
     /// large slot in Main + side and Overlays; none in Grid and Custom, where the user picks one).
     /// </summary>
@@ -86,6 +91,13 @@ public sealed record LayoutSlot
     /// <summary>Overrides <see cref="LayoutOptions.Fit"/> for this slot (e.g. the main window keeps its full size).</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public FitMode? Fit { get; init; }
+    /// <summary>
+    /// "Main window over both monitors": the window covers the bounding rectangle of its monitor and the layout's monitor 2
+    /// (<see cref="LayoutEngine.SpanArea"/>); X/Y/W/H stay the whole of its own monitor (the fallback when monitor 2 is gone).
+    /// A swap carries it to whichever client takes the slot.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Span { get; init; }
 
     [JsonIgnore]
     public string Label => Name ?? (Role == SlotRole.Main ? $"Main {N}" : $"Slot {N}");

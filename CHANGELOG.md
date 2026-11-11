@@ -16,6 +16,19 @@ at the wrong size):
 - `wbx swaptest --rounds N` tests window swap on the open clients (hotkey swaps, drag-swaps and fast presses, watched
   every 20 ms) and puts every window back.
 
+New, off by default (owner, 2026-11-11) – for the WoWBoxer Team Screen add-on:
+- **Main window over both monitors**: a switch under the layout (Main + side, Overlays and Custom; 2–5 clients, 2+
+  monitors). The main slot's window covers monitor 1 + monitor 2 (the bounding rectangle of both usable areas, with or
+  without title bars as the layout says); the followers stay where the layout puts them on monitor 1 and float on top.
+  A window swap carries the span to whichever client takes the main slot. Only windows move and resize – nothing is
+  sent to the game.
+- After placing, WoWBoxer writes the data-only add-on **WoWBoxerTopology** (`.toc` + one Lua line, schema 1, numbers
+  only: the stretched window's client size and monitor 2's rectangle inside it) into `Interface\AddOns` of every
+  installed client, so the Team Screen docks on monitor 2. The game reads it at login or `/reload`. Without a spanning
+  main the folder is removed again; a folder of that name that WoWBoxer did not write is never touched.
+- `wbx arrange --span-main` (a preset, or `--profile` / `--code` with a saved layout) does the same from the command
+  line.
+
 New, off by default (owner, 2026-11-10):
 - **Sound follows the main window**: only the WoW client in the main slot plays; the other clients are muted, or play
   quietly at "Other clients at" % of their own level. Turn it on with the new speaker in Your squad (Setup) or in
