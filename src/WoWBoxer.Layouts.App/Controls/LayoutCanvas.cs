@@ -435,7 +435,10 @@ public sealed class LayoutCanvas : FrameworkElement
                 var pinColor = realTop is null || realTop == overlay ? GoldHi : Color.FromRgb(0xE3, 0x7A, 0x7E);
                 DrawPin(dc, new Point(r.X + 9, r.Y + edge + 9), new SolidColorBrush(pinColor));
                 var pinLabel = realTop is null || realTop == overlay ? "ON TOP" : overlay ? "NOT ON TOP YET" : "ON TOP (NOT WANTED)";
-                Draw(dc, Text(pinLabel, 9, new SolidColorBrush(pinColor), ppd, display: true), new Point(r.X + 17, r.Y + edge + 3));
+                var pinText = Text(pinLabel, 9, new SolidColorBrush(pinColor), ppd, display: true);
+                // a narrow window: the pin alone, so its words never run into the status label in the other corner
+                if (17 + pinText.Width + 8 + StatusLabelWidth(item.Index, r, ppd) <= r.Width)
+                    Draw(dc, pinText, new Point(r.X + 17, r.Y + edge + 3));
             }
 
             if (MainSlotMarks is { } marks && item.Index < marks.Count && CrownChip(r) is { } chip)
@@ -973,6 +976,20 @@ public sealed class LayoutCanvas : FrameworkElement
 
     /// <summary>A small push-pin: round head with a needle, pointing down-left.</summary>
     private static readonly Color Ok = Color.FromRgb(0x8C, 0xCB, 0x7A), Amber = Color.FromRgb(0xE6, 0xB4, 0x55);
+
+    /// <summary>How much of the top edge the status label of <see cref="DrawStatus"/> takes (0 when it is not drawn).</summary>
+    private double StatusLabelWidth(int index, Rect r, double ppd)
+    {
+        if (SlotStates is not { } states || index >= states.Count || r.Width < 110 || r.Height < 50) return 0;
+        var text = states[index] switch
+        {
+            ViewModels.PartyState.Connected => "CONNECTED",
+            ViewModels.PartyState.Placing => "PLACING…",
+            ViewModels.PartyState.Moved => "MOVED",
+            _ => "AWAITING…",
+        };
+        return Text(text, 9, Brushes.White, ppd, display: true).Width + 16;
+    }
 
     /// <summary>The slot's status: a ring round the number (pulsing while awaiting its window) and a label in the corner.</summary>
     private void DrawStatus(DrawingContext dc, int index, Point centre, double radius, Rect r, double edge, double ppd)

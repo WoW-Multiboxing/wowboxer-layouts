@@ -20,11 +20,13 @@ public static class TopologyAddon
 {
     private static readonly object Gate = new();
     private static string? _lastKey;
+    private static DateTime _lastAt;
     private static (string Key, DateTime At, IReadOnlyList<string> Installs)? _installs;
 
     /// <summary>
     /// Brings every install in line with <paramref name="topology"/> (null = no spanning main: remove ours). Does nothing
-    /// when the same state was already synced to the same installs (it runs on every placement tick).
+    /// when the same state was synced to the same installs in the last 30 s (it runs on every placement tick); after that the
+    /// files are checked again, so a folder deleted or changed by hand comes back.
     /// </summary>
     /// <param name="installs">Client folders (holding the exe) to include besides those found under the WoW folders.</param>
     public static TopologyResult Sync(Topology? topology, IEnumerable<string>? installs = null, IReadOnlyList<string>? roots = null)
@@ -35,13 +37,16 @@ public static class TopologyAddon
         var key = (lua ?? "none") + "|" + string.Join("|", all);
         lock (Gate)
         {
-            if (key == _lastKey) return TopologyResult.None;
+            if (key == _lastKey && DateTime.UtcNow - _lastAt < Recheck) return TopologyResult.None;
             var result = Apply(lua, all);
             // a failed install is tried again next time
             _lastKey = result.Failed.Count == 0 ? key : null;
+            _lastAt = DateTime.UtcNow;
             return result;
         }
     }
+
+    private static readonly TimeSpan Recheck = TimeSpan.FromSeconds(30);
 
     // the folders are listed at most every 30 s (Sync runs every second while the app places windows)
     private static IReadOnlyList<string> CachedInstalls(IReadOnlyList<string>? roots, IEnumerable<string>? extra)
@@ -50,7 +55,7 @@ public static class TopologyAddon
         var key = string.Join("|", roots ?? []) + "#" + string.Join("|", extraList);
         lock (Gate)
         {
-            if (_installs is { } c && c.Key == key && DateTime.UtcNow - c.At < TimeSpan.FromSeconds(30)) return c.Installs;
+            if (_installs is { } c && c.Key == key && DateTime.UtcNow - c.At < Recheck) return c.Installs;
         }
         var found = Installs(roots ?? GameInstall.WowRoots(), extraList);
         lock (Gate) _installs = (key, DateTime.UtcNow, found);
