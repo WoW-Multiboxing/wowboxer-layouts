@@ -52,6 +52,13 @@ public static partial class WowConfig
         return text + line + newline;
     }
 
+    /// <summary>The config text without the <c>SET name "…"</c> line (WoW then uses its default). Other lines and the line endings stay.</summary>
+    public static string WithoutValue(string text, string name)
+    {
+        var regex = new Regex($"""^[ \t]*SET[ \t]+{Regex.Escape(name)}[ \t]+"[^"]*"[ \t]*(\r?\n|$)""", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+        return regex.Replace(text, "");
+    }
+
     [GeneratedRegex("""^\s*SET\s+(\S+)\s+"([^"]*)"\s*$""", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex SetLine();
 

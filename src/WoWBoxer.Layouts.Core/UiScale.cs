@@ -26,6 +26,13 @@ public static partial class UiScale
     /// <summary>WoW's slider range.</summary>
     public const double Min = 0.64, Max = 1.0;
 
+    /// <summary>
+    /// The smallest UI Scale the app sets by itself (Auto-fit, Fix action bar). Below it the whole UI gets hard to read,
+    /// and one shared value cannot fit every window shape anyway (owner, 2026-11-12); smaller windows are for the
+    /// WoWBoxer AddOn, which fits the bars in each window. A player can still set less in game.
+    /// </summary>
+    public const double SaneMin = 0.75;
+
     /// <summary>Below this effective aspect buttons are cut too, not only the gryphon ends.</summary>
     public const double GryphonsOnly = 1.26;
 
@@ -66,6 +73,20 @@ public static partial class UiScale
     /// <summary>What a window shows of the bar at this effective aspect (field tests: 1.269 loses only the gryphon ends; 1.25 already cuts the bag buttons).</summary>
     public static string BarVerdict(double effectiveAspect) =>
         effectiveAspect >= 4.0 / 3 - 0.001 ? "Full action bar" : effectiveAspect >= GryphonsOnly ? "Gryphon ends clipped" : "Buttons clipped";
+
+    /// <summary>
+    /// The config text with the UI Scale lines (<c>useUiScale</c>, <c>uiScale</c>) as they are in <paramref name="originalText"/>
+    /// (the backup from before WoWBoxer's first change): copied when they are there, removed when they are not. Other
+    /// lines and the line endings stay.
+    /// </summary>
+    public static string WithOriginal(string configText, string originalText)
+    {
+        var original = WowConfig.Parse(originalText);
+        var text = configText;
+        foreach (var name in new[] { "useUiScale", "uiScale" })
+            text = original.TryGetValue(name, out var v) ? WowConfig.WithValue(text, name, v) : WowConfig.WithoutValue(text, name);
+        return text;
+    }
 
     /// <summary>The config text with "Use UI Scale" on (or off) and the given scale. Other lines and the line endings stay.</summary>
     public static string WithScale(string configText, bool use, double scale)

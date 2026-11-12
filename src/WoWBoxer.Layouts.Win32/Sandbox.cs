@@ -28,6 +28,9 @@ public static class Sandbox
 
     public static UiScaleSetting UiScale { get; set; } = UiScaleSetting.Automatic;
 
+    /// <summary>The UI Scale of the fake Config.wtf backup (null = no backup).</summary>
+    public static UiScaleSetting? UiScaleOriginal { get; set; }
+
     /// <summary>The volume mixer while the sandbox runs (tests set its sessions; demo mode has none).</summary>
     public static FakeMixer Audio { get; } = new();
 

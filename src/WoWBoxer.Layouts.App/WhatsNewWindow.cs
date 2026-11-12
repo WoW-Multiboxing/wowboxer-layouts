@@ -12,6 +12,8 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Action bars: the WoWBoxer AddOn fits them",
+            "When the WoWBoxer AddOn fits the bars in each window, WoWBoxer no longer lowers WoW's UI Scale – the two worked against each other – and puts your own UI Scale back (while the clients are closed; it tells you once). Without the AddOn, Auto-fit stops at UI Scale 0.75, and windows that would need less say \"Needs the AddOn\" on the map."),
         ("Window swap: no more back and forth",
             "One swap at a time: a swap hotkey pressed while the last swap's windows are still moving waits for them. A client that keeps its own window size is left alone after a few tries, and the status bar says which size it keeps and what to change."),
         ("Sound follows the main window (beta)",
