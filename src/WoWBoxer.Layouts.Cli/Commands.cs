@@ -250,7 +250,9 @@ internal static class Commands
         }
         plan.Describe(log);
         log.Line();
-        return await Arranger.ArrangeAsync(plan, open, log) ? 0 : 1;
+        var ok = await Arranger.ArrangeAsync(plan, open, log);
+        plan.SyncTopology(log, open.Select(w => Path.GetDirectoryName(w.ExePath) ?? ""));
+        return ok ? 0 : 1;
     }
 
     /// <summary>Start Battle.net, then place each WoW window as it appears (the launcher's Start mode).</summary>
@@ -259,6 +261,7 @@ internal static class Commands
         var plan = Squad.Create(o, defaultClients: 3);
         plan.Describe(log);
         if (o.StartBattleNet) SquadWatcher.EnsureBattleNet(log, o.BattleNetExe, plan.ToolIsAdmin);
+        plan.SyncTopology(log);   // before the clients start: the game reads it at login
 
         log.Line();
         log.Title(SquadWatcher.BattleNetInstructions(plan.Game == WowGame.Forever));

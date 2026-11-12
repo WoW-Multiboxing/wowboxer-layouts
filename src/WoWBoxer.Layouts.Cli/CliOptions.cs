@@ -7,6 +7,8 @@ internal sealed class CliOptions
 {
     public string Command { get; private set; } = "help";
     public PresetKind Preset { get; private set; } = PresetKind.Side;
+    /// <summary>--span-main: the preset's main window covers monitor 1 + monitor 2.</summary>
+    public bool SpanMain { get; private set; }
     public int? Clients { get; private set; }
     public string? ProfilePath { get; private set; }
     public string? ShareCode { get; private set; }
@@ -56,6 +58,8 @@ internal sealed class CliOptions
           --monitor primary|N               monitor for the main window (default: primary)
           --min-aspect 1.25                 width/height below which WoW letterboxes (default 5:4)
           --taskbar                         use the whole screen, including the taskbar area
+          --span-main                       main window over both monitors (side/overlay, 2-5 clients); writes the
+                                            WoWBoxerTopology data add-on for the Team Screen into each installed client
           --borderless                      remove title bars (off by default: WoW may draw its UI at the wrong size)
           --no-borderless                   keep title bars, also when the layout file says borderless
           --nudge                           shrink each window 2 px and back after placing (off by default)
@@ -97,6 +101,7 @@ internal sealed class CliOptions
                 case "--monitor": o.Monitor = Next(arg); break;
                 case "--min-aspect": o.MinAspect = ParseDouble(arg, Next(arg)); break;
                 case "--taskbar": o.UseTaskbarArea = true; break;
+                case "--span-main": o.SpanMain = true; break;
                 case "--borderless": o.Borderless = true; break;
                 case "--no-borderless" or "--title-bars": o.Borderless = false; break;
                 case "--no-nudge": o.ResizeNudge = false; break;

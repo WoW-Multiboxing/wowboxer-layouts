@@ -18,10 +18,36 @@ public static class LayoutEngine
                 var monitor = Monitors.Find(monitors, slot.Monitor);
                 var fallback = monitor is null;
                 monitor ??= Monitors.Primary(monitors);
-                var rect = Resolve(slot, monitor.Area(profile.Options.UseTaskbarArea), profile.Options, monitor.Dpi);
+                var rect = !fallback && SpanArea(profile, slot, monitor, monitors) is { } span
+                    ? span
+                    : Resolve(slot, monitor.Area(profile.Options.UseTaskbarArea), profile.Options, monitor.Dpi);
                 return new PlacedSlot(slot, monitor, rect, fallback);
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// "Main window over both monitors": the bounding rectangle of the slot's monitor and the layout's monitor 2 (their
+    /// usable areas, as the layout uses them), or null when the slot does not span or monitor 2 is not connected.
+    /// </summary>
+    public static PixelRect? SpanArea(LayoutProfile profile, LayoutSlot slot, MonitorInfo monitor, IReadOnlyList<MonitorInfo> monitors)
+    {
+        if (!slot.Span || SecondScreen(profile, monitor, monitors) is not { } second) return null;
+        return Union(monitor.Area(profile.Options.UseTaskbarArea), second.Area(profile.Options.UseTaskbarArea));
+    }
+
+    /// <summary>The monitor a spanning main stretches onto: the layout's monitor 2 (remembered screens), else the next one in the app's order.</summary>
+    public static MonitorInfo? SecondScreen(LayoutProfile profile, MonitorInfo first, IReadOnlyList<MonitorInfo> monitors)
+    {
+        if (profile.Screens is { Count: >= 2 } screens)
+            return ScreenSet.Match(screens, monitors).Skip(1).FirstOrDefault(m => m is not null && m.Index != first.Index);
+        return ScreenSet.Ordered(monitors).FirstOrDefault(m => m.Index != first.Index);
+    }
+
+    public static PixelRect Union(PixelRect a, PixelRect b)
+    {
+        int l = Math.Min(a.X, b.X), t = Math.Min(a.Y, b.Y), r = Math.Max(a.Right, b.Right), btm = Math.Max(a.Bottom, b.Bottom);
+        return new PixelRect(l, t, r - l, btm - t);
     }
 
     public static PixelRect Resolve(LayoutSlot slot, PixelRect area, LayoutOptions options, int dpi = 96)

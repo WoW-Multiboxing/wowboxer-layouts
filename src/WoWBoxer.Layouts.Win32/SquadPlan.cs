@@ -29,6 +29,22 @@ public sealed class SquadPlan
         return new SquadPlan(profile, monitors, rename);
     }
 
+    /// <summary>The Team Screen's monitor layout when the main window spans two monitors (null otherwise).</summary>
+    public Topology? Topology => Core.Topology.For(Profile, Slots, Monitors);
+
+    /// <summary>
+    /// Writes (or, without a spanning main, removes) the WoWBoxerTopology data add-on in every installed client and
+    /// reports it when something changed. Files only; nothing is sent to the game.
+    /// </summary>
+    public TopologyResult SyncTopology(IStatusSink? sink, IEnumerable<string>? installs = null)
+    {
+        var topology = Topology;
+        var result = TopologyAddon.Sync(topology, installs);
+        if (sink is not null && result.Changed)
+            sink.Report(result.Failed.Count > 0 ? StatusLevel.Warn : StatusLevel.Ok, TopologyAddon.Describe(result, topology));
+        return result;
+    }
+
     public void Describe(IStatusSink sink)
     {
         foreach (var m in Monitors)

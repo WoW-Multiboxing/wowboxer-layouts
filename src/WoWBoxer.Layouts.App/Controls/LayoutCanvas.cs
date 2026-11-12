@@ -194,7 +194,8 @@ public sealed class LayoutCanvas : FrameworkElement
         {
             var slot = Profile.Slots[i];
             var monitor = Core.Monitors.Find(monitors, slot.Monitor) ?? Core.Monitors.Primary(monitors);
-            var raw = i == _dragIndex ? _dragRect : _groupRects.TryGetValue(i, out var moved) ? moved : SlotEditing.Raw(slot, monitor, Options);
+            var raw = i == _dragIndex ? _dragRect : _groupRects.TryGetValue(i, out var moved) ? moved
+                : LayoutEngine.SpanArea(Profile, slot, monitor, monitors) ?? SlotEditing.Raw(slot, monitor, Options);
             list.Add(new Item(i, slot, monitor, raw, LayoutEngine.Fit(raw, slot.Fit ?? Options.Fit, slot.Anchor, Options.MinAspect, LayoutEngine.FrameSize(Options, monitor.Dpi))));
         }
         // overlays (always on top) are drawn last and hit first
@@ -434,7 +435,10 @@ public sealed class LayoutCanvas : FrameworkElement
                 var pinColor = realTop is null || realTop == overlay ? GoldHi : Color.FromRgb(0xE3, 0x7A, 0x7E);
                 DrawPin(dc, new Point(r.X + 9, r.Y + edge + 9), new SolidColorBrush(pinColor));
                 var pinLabel = realTop is null || realTop == overlay ? "ON TOP" : overlay ? "NOT ON TOP YET" : "ON TOP (NOT WANTED)";
-                Draw(dc, Text(pinLabel, 9, new SolidColorBrush(pinColor), ppd, display: true), new Point(r.X + 17, r.Y + edge + 3));
+                var pinText = Text(pinLabel, 9, new SolidColorBrush(pinColor), ppd, display: true);
+                // a narrow window: the pin alone, so its words never run into the status label in the other corner
+                if (17 + pinText.Width + 8 + StatusLabelWidth(item.Index, r, ppd) <= r.Width)
+                    Draw(dc, pinText, new Point(r.X + 17, r.Y + edge + 3));
             }
 
             if (MainSlotMarks is { } marks && item.Index < marks.Count && CrownChip(r) is { } chip)
@@ -460,6 +464,23 @@ public sealed class LayoutCanvas : FrameworkElement
                     dc.DrawRectangle(new SolidColorBrush(GoldHi), new Pen(Brushes.Black, 1), handle);
         }
         _shown = shown;
+        // the Offhand companion: the leader's window also covers this monitor, the Team Screen add-on fills it
+        if (!Compact && Profile is { MainSpans: true } spanning && Monitors is { Count: > 1 } all
+            && spanning.Slots.FirstOrDefault(s => s.Span) is { } spanSlot
+            && LayoutEngine.SecondScreen(spanning, Core.Monitors.Find(all, spanSlot.Monitor) ?? Core.Monitors.Primary(all), all) is { } companion)
+        {
+            var c = ToCanvas(companion.Area(Options.UseTaskbarArea));
+            c.Inflate(-6, -6);
+            if (c.Width > 40 && c.Height > 30)
+            {
+                var teal = Color.FromRgb(0x5F, 0xC8, 0xDC);
+                dc.DrawRoundedRectangle(Brush(0x22, teal), new Pen(new SolidColorBrush(teal), 1.5) { DashStyle = DashStyles.Dash }, c, 4, 4);
+                var title = Text("OFFHAND COMPANION", 12, new SolidColorBrush(teal), ppd, display: true);
+                var sub = Text("Team Screen add-on · leader's client", 10, new SolidColorBrush(Color.FromRgb(0x9F, 0xE3, 0xF0)), ppd);
+                Draw(dc, title, new Point(c.X + (c.Width - title.Width) / 2, c.Y + c.Height / 2 - title.Height), shadow: true);
+                Draw(dc, sub, new Point(c.X + (c.Width - sub.Width) / 2, c.Y + c.Height / 2 + 2), shadow: true);
+            }
+        }
         if (!Compact && PreviewArea is { } fillArea)
         {
             var a = ToCanvas(fillArea);
@@ -972,6 +993,20 @@ public sealed class LayoutCanvas : FrameworkElement
 
     /// <summary>A small push-pin: round head with a needle, pointing down-left.</summary>
     private static readonly Color Ok = Color.FromRgb(0x8C, 0xCB, 0x7A), Amber = Color.FromRgb(0xE6, 0xB4, 0x55);
+
+    /// <summary>How much of the top edge the status label of <see cref="DrawStatus"/> takes (0 when it is not drawn).</summary>
+    private double StatusLabelWidth(int index, Rect r, double ppd)
+    {
+        if (SlotStates is not { } states || index >= states.Count || r.Width < 110 || r.Height < 50) return 0;
+        var text = states[index] switch
+        {
+            ViewModels.PartyState.Connected => "CONNECTED",
+            ViewModels.PartyState.Placing => "PLACING…",
+            ViewModels.PartyState.Moved => "MOVED",
+            _ => "AWAITING…",
+        };
+        return Text(text, 9, Brushes.White, ppd, display: true).Width + 16;
+    }
 
     /// <summary>The slot's status: a ring round the number (pulsing while awaiting its window) and a label in the corner.</summary>
     private void DrawStatus(DrawingContext dc, int index, Point centre, double radius, Rect r, double edge, double ppd)

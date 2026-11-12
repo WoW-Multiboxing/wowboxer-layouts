@@ -22,12 +22,19 @@ internal static class Squad
             var clients = Math.Clamp(o.Clients ?? defaultClients, Presets.MinClients, Presets.MaxClients);
             try
             {
-                profile = Presets.Create(o.Preset, clients, monitors, o.Monitor, options);
+                profile = Presets.Create(o.Preset, clients, monitors, o.Monitor, options, o.SpanMain);
             }
             catch (ArgumentException e) when (e is not ArgumentOutOfRangeException)
             {
                 throw new UsageException(e.Message);
             }
+        }
+
+        // --span-main on a saved layout: its main slot spans monitor 1 + 2 (a preset already did it above)
+        if (o.SpanMain && (o.ProfilePath is not null || o.ShareCode is not null))
+        {
+            profile = Presets.SpanMain(profile, monitors, on: true);
+            if (!profile.MainSpans) throw new UsageException("--span-main needs two monitors and a layout with 2-5 clients.");
         }
 
         // Command-line switches win over the file, so a saved layout can be tried with or without borders etc.
