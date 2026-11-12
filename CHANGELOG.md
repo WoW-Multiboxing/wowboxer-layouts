@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.7.2-beta.2 – Action bars: the WoWBoxer AddOn fits them, WoWBoxer leaves UI Scale alone (unreleased)
+**Beta channel only.** Everything from v0.7.2-beta.1 (below), plus:
+
+Fixed (owner, 2026-11-12: one shared UI Scale can't fit every layout – it never goes below 0.64 – and Auto-fit's UI
+Scale now worked against the WoWBoxer AddOn, which lays out the bars in each window itself since AddOn 1.3.0):
+- **WoWBoxer never lowers UI Scale for a client whose AddOn fits its bars.** The AddOn says so in its saved data
+  (`bridge.barFit`); WoWBoxer reads it when the clients close.
+- **Your own UI Scale comes back.** When the AddOn fits the bars in every window of the layout, WoWBoxer puts the UI Scale
+  lines of its Config.wtf backup (from before it first changed the file) back – only while every client of that install
+  is closed, and it tells you once (Activity and the note on the map). If WoWBoxer later has to lower it again (the AddOn
+  gone or its fit turned off), it may put it back again later.
+- **Without the AddOn, Auto-fit and Fix action bar stop at UI Scale 0.75** (it was 0.64: a UI that small is hard to read
+  and still can't fit every window). Windows that would need less show **"Needs the AddOn"** on the map, and the window's
+  panel, the layout line and Activity say: "Install the WoWBoxer AddOn – it fits the bars in each window." (or, when the
+  AddOn is there with its fit off: turn on Setup › Fit action bars.)
+- **The action-bar dot uses the AddOn's real result** when there is one ("AddOn fits bars", or "Bars cut" when the AddOn
+  found no way in that very window size), and the estimate otherwise.
+- Checked: WoWBoxer changes no other WoW setting by itself. It writes Config.wtf in only two places – the UI Scale lines
+  (Auto-fit, Fix action bar, UI Scale off) and Sound in Background (only on your click) – both only while every client
+  of that install is closed, with a backup.
+
 ## v0.7.2-beta.1 – Window swap fixed on Forever, sound follows the main window (unreleased)
 **Beta channel only.**
 

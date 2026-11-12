@@ -7,9 +7,25 @@ namespace WoWBoxer.Layouts.App.ViewModels;
 /// <summary>What one window shows of its action bars: a short canvas label and its colour.</summary>
 public sealed record BarMark(string Short, System.Windows.Media.Color Color);
 
-/// <summary>Everything needed to judge a slot's bars at any size (the canvas uses it while a window is dragged).</summary>
-public sealed record BarFitContext(WowGame Game, UiScaleSetting Setting, IReadOnlyDictionary<int, IReadOnlyList<IReadOnlyList<BarBox>>> Slots)
+/// <summary>
+/// Everything needed to judge a slot's bars at any size (the canvas uses it while a window is dragged). <paramref name="Addon"/>:
+/// per slot, the WoWBoxer AddOn's own bar fit – its real result wins over the estimate.
+/// </summary>
+public sealed record BarFitContext(WowGame Game, UiScaleSetting Setting, IReadOnlyDictionary<int, IReadOnlyList<IReadOnlyList<BarBox>>> Slots,
+    IReadOnlyDictionary<int, BridgeFit?>? Addon = null)
 {
+    public const string AddonFitsShort = "AddOn fits bars", NeedsAddonShort = "Needs the AddOn";
+
+    /// <summary>The addon's result for this window: true = it fits every bar, false = it found no way, null = no result (use the estimate).</summary>
+    public bool? AddonVerdict(int index, int w, int h) => Addon?.GetValueOrDefault(index)?.FitsIn(w, h);
+
+    /// <summary>True when the window's bars are cut even at <see cref="UiScale.SaneMin"/> and no addon handles them: only the addon can fix it.</summary>
+    public bool NeedsAddon(int index, int w, int h)
+    {
+        if (w <= 0 || h <= 0 || Addon?.GetValueOrDefault(index)?.Addon == true || !Slots.TryGetValue(index, out var setups)) return false;
+        return setups.Any(bars => UiScalePolicy.NeedsAddon(ActionBars.FitScale(bars, (double)w / h)));
+    }
+
     public BarCheck Check(int index, int w, int h)
     {
         if (w <= 0 || h <= 0 || !Slots.TryGetValue(index, out var setups)) return new BarCheck([], []);
@@ -27,8 +43,11 @@ public sealed record BarFitContext(WowGame Game, UiScaleSetting Setting, IReadOn
 
     public BarMark Mark(int index, int w, int h)
     {
+        // the addon's real result when there is one (it lays the bars out in that very window)
+        if (AddonVerdict(index, w, h) is { } addon) return addon ? new BarMark(AddonFitsShort, ActionBar.Full) : new BarMark("Bars cut", ActionBar.Clipped);
         var check = Check(index, w, h);
         if (check.Fits) return new BarMark("All bars fit", ActionBar.Full);
+        if (NeedsAddon(index, w, h)) return new BarMark(NeedsAddonShort, ActionBar.Clipped);
         // Classic Era: below 4:3 only the gryphon ends go first (field tests)
         if (Game == WowGame.ClassicEra && check.Covered.Count == 0 && check.Outside.All(b => b.Key == "main")
             && h > 0 && (double)w / h / ActionBars.DrawnScale(Game, Setting, h) >= UiScale.GryphonsOnly)
@@ -105,36 +124,65 @@ public sealed partial class MainViewModel
         return new BarFitContext(SquadGame, setting, new Dictionary<int, IReadOnlyList<IReadOnlyList<BarBox>>> { [index] = BarsForSlot(index) }).Check(index, w, h);
     }
 
-    /// <summary>The one UI Scale for the whole layout (it is shared by every client of an install) and the windows even 0.64 cannot fit.</summary>
-    private (double Need, IReadOnlyList<int> TooSmall) SquadFit()
+    /// <summary>
+    /// The WoWBoxer AddOn's own bar fit for slot <paramref name="index"/>: its account's; with no account chosen, a
+    /// stand-in only when every account's addon fits its bars (any of them can be in that window).
+    /// </summary>
+    private BridgeFit? AddonFor(int index)
     {
-        var need = UiScale.Max;
-        var tooSmall = new List<int>();
-        for (var i = 0; i < (Current?.Slots.Count ?? 0); i++)
-        {
-            if (SlotFitScale(i) is { } fit) need = Math.Min(need, fit);
-            else
-            {
-                need = UiScale.Min;
-                tooSmall.Add(i + 1);
-            }
-        }
-        return (need, tooSmall);
+        var account = index < _settings.Accounts.Count ? _settings.Accounts[index] : "";
+        if (account.Length > 0) return _accountBars.TryGetValue(account, out var mine) ? mine.AddonFit : null;
+        return _accountBars.Count > 0 && _accountBars.Values.All(a => a.AddonFits) ? new BridgeFit(true, null, null) : null;
     }
 
-    /// <summary>True when every window of the layout shows every enabled bar with this setting.</summary>
-    private bool AllFitAt(UiScaleSetting setting) =>
-        Enumerable.Range(0, Current?.Slots.Count ?? 0).All(i => SlotCheck(i, setting, live: false).Fits);
+    private bool AddonFits(int index) => AddonFor(index)?.Addon == true;
 
-    /// <summary>Plain words when even the smallest UI Scale cannot fit every bar ("" otherwise).</summary>
-    private static string TooSmallText(IReadOnlyList<int> windows) => windows.Count == 0
-        ? ""
-        : $"Even the smallest UI Scale (0.64) can't fit all your action bars in window {string.Join(", ", windows)}. Make {(windows.Count == 1 ? "that window" : "those windows")} larger or turn off a bar.";
+    /// <summary>
+    /// The one UI Scale for the windows whose bars the addon does not fit (the value is shared by every client of an
+    /// install; never below <see cref="UiScale.SaneMin"/>), the windows that would need less (only the addon can fit
+    /// them) and how many windows the addon handles.
+    /// </summary>
+    private (double Need, IReadOnlyList<int> NeedAddon, int AddonSlots) SquadFit()
+    {
+        var need = UiScale.Max;
+        var needAddon = new List<int>();
+        var addon = 0;
+        for (var i = 0; i < (Current?.Slots.Count ?? 0); i++)
+        {
+            if (AddonFits(i))
+            {
+                addon++;
+                continue;
+            }
+            var fit = SlotFitScale(i);
+            if (UiScalePolicy.NeedsAddon(fit)) needAddon.Add(i + 1);
+            need = Math.Min(need, fit ?? UiScale.Min);
+        }
+        return (Math.Max(need, UiScale.SaneMin), needAddon, addon);
+    }
+
+    /// <summary>True when every window of the layout shows every enabled bar with this setting (the addon's windows count as fitting).</summary>
+    private bool AllFitAt(UiScaleSetting setting) =>
+        Enumerable.Range(0, Current?.Slots.Count ?? 0).All(i => AddonFits(i) || SlotCheck(i, setting, live: false).Fits);
+
+    public const string InstallAddonText = "Install the WoWBoxer AddOn – it fits the bars in each window.";
+
+    /// <summary>Plain words when one shared UI Scale can't fit every bar in some windows ("" otherwise): only the addon can.</summary>
+    private string NeedAddonText(IReadOnlyList<int> windows)
+    {
+        if (windows.Count == 0) return "";
+        var which = windows.Count == 1 ? $"window {windows[0]}" : $"windows {string.Join(", ", windows)}";
+        // the addon is there but its fit is off (or a bar addon owns the bars)
+        var off = windows.All(n => AddonFor(n - 1) is { Addon: false });
+        return $"One shared UI Scale can't fit all your action bars in {which}. "
+            + (off ? "Turn on Setup › Fit action bars in the WoWBoxer AddOn – it fits the bars in each window." : InstallAddonText);
+    }
 
     /// <summary>The bars of every slot, for the canvas (null: a game Auto-fit does not know; the canvas keeps the 4:3 rule).</summary>
     public BarFitContext? BarFit => Current is null || !ActionBars.Knows(SquadGame)
         ? null
-        : new BarFitContext(SquadGame, UiScaleNow, Enumerable.Range(0, Current.Slots.Count).ToDictionary(i => i, BarsForSlot));
+        : new BarFitContext(SquadGame, UiScaleNow, Enumerable.Range(0, Current.Slots.Count).ToDictionary(i => i, BarsForSlot),
+            Enumerable.Range(0, Current.Slots.Count).ToDictionary(i => i, AddonFor));
 
     private BarMark MarkFor(int index)
     {
@@ -148,6 +196,11 @@ public sealed partial class MainViewModel
         var check = SlotCheck(SelectedSlotIndex, UiScaleNow);
         var names = BarsForSlot(SelectedSlotIndex).Count == 1 && _settings.Accounts.ElementAtOrDefault(SelectedSlotIndex) is { Length: > 0 } acc && _accountBars.TryGetValue(acc, out var a)
             ? $" (bars {a.Names}; {a.Source})" : "";
+        var (w, h) = AreaOf(SelectedSlotIndex);
+        if (AddonFor(SelectedSlotIndex) is { Addon: true } addon)
+            return addon.FitsIn(w, h) == false
+                ? "The WoWBoxer AddOn found no way to fit every bar in this window" + names
+                : $"The WoWBoxer AddOn fits the bars in this window{(addon.Mode is "scale" or "stack" ? $" ({(addon.Mode == "scale" ? "scaled" : "stacked")} there last time)" : "")}" + names;
         if (check.Fits) return "All action bars fit" + names;
         var mark = MarkFor(SelectedSlotIndex);
         return (mark.Color == ActionBar.Gryphons ? "Gryphon ends clipped, every button visible" : ActionBars.Describe(check)) + names;

@@ -124,6 +124,9 @@ internal static class Commands
             foreach (var (_, bars) in BarSetup.Read(folder, game, WtfInfo.Read(folder)))
             {
                 log.Info($"  account {++n}: bars {bars.Names} ({bars.Source})");   // no account names in logs
+                log.Info(bars.AddonFit is { } af
+                    ? $"      WoWBoxer AddOn fits the bars itself: {(af.Addon ? "on" : "off")}, last {af.Mode ?? "?"}{(af.Scale is { } s ? $" {s:0.00}" : "")} in {af.WindowWidth}x{af.WindowHeight} – WoWBoxer {(af.Addon ? "leaves UI Scale alone" : "may set UI Scale")}"
+                    : "      WoWBoxer AddOn bar fit: not reported (no AddOn, or older than 1.3.0)");
                 foreach (var (w, h) in reference.Concat(open.Select(s => (s.Width, s.Height))))
                 {
                     var aspect = (double)w / h;

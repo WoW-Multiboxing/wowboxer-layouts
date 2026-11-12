@@ -56,9 +56,71 @@ public sealed record BridgeBars(string? Character, string? Game, double UiWidth,
     }
 }
 
-/// <summary>The action bars one account's character has on: which ones, where, and where we know it from.</summary>
-public sealed record AccountBars(string Account, string? Character, IReadOnlyList<BarBox> Bars, string Source)
+/// <summary>
+/// The WoWBoxer AddOn's own bar fit (since 1.3.0-test.9, wowboxer-addon <c>docs/bridge.md</c> "The addon fits the bars
+/// itself"): <c>bridge.barFit</c> is on while the addon lays out the bars of each window by itself, and then the app
+/// leaves UI Scale alone for that client. <c>bridge.barMode</c> says what it did the last time ("none" = fits as it is,
+/// "scale", "stack", "nofit" = nothing fits), in the window <c>bridge.bars.window</c> it measured.
+/// </summary>
+public sealed record BridgeFit(bool Addon, string? Mode, double? Scale, int WindowWidth = 0, int WindowHeight = 0)
 {
+    /// <summary>Window sizes this close (pixels) count as the window the addon measured.</summary>
+    public const int SameWindow = 8;
+
+    /// <summary>Reads <c>bridge.barFit</c>; null when the addon never wrote it (an older addon). Accepts <c>true</c> and <c>"addon"</c>.</summary>
+    public static BridgeFit? Parse(string savedVariablesText)
+    {
+        var bridge = LuaData.Get(LuaData.ParseFile(savedVariablesText).GetValueOrDefault("WoWBoxerDB"), "bridge");
+        bool on;
+        switch (LuaData.Get(bridge, "barFit"))
+        {
+            case bool b:
+                on = b;
+                break;
+            case string text:
+                on = string.Equals(text, "addon", StringComparison.OrdinalIgnoreCase);
+                break;
+            default:
+                return null;
+        }
+        var w = LuaData.Number(bridge, "bars", "window", "w") ?? 0;
+        var h = LuaData.Number(bridge, "bars", "window", "h") ?? 0;
+        return new BridgeFit(on, LuaData.Text(bridge, "barMode"), LuaData.Number(bridge, "barScale"), (int)w, (int)h);
+    }
+
+    /// <summary>
+    /// What the addon's result says about a window with this game area: true = every bar fits (as it is, scaled or
+    /// stacked), false = the addon found no way, null = it does not handle the bars, or "nofit" was for another window
+    /// size (the addon lays the bars out again whenever the window changes).
+    /// </summary>
+    public bool? FitsIn(int width, int height)
+    {
+        if (!Addon) return null;
+        if (Mode != "nofit") return true;
+        var same = WindowWidth > 0 && Math.Abs(WindowWidth - width) <= SameWindow && Math.Abs(WindowHeight - height) <= SameWindow;
+        return same ? false : null;
+    }
+
+    public static BridgeFit? ReadFile(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? Parse(File.ReadAllText(path)) : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+}
+
+/// <summary>The action bars one account's character has on: which ones, where, and where we know it from.</summary>
+/// <param name="AddonFit">The WoWBoxer AddOn's own bar fit for this account (null: no addon, or an older one).</param>
+public sealed record AccountBars(string Account, string? Character, IReadOnlyList<BarBox> Bars, string Source, BridgeFit? AddonFit = null)
+{
+    /// <summary>The addon lays out this account's bars in each window itself: the app never lowers UI Scale for it.</summary>
+    public bool AddonFits => AddonFit?.Addon == true;
+
     public string Names => string.Join(", ", Bars.Select(b => b.Key switch
     {
         "main" => "1",
@@ -84,7 +146,8 @@ public static class BarSetup
         foreach (var account in accounts)
         {
             var accountDir = Path.Combine(installFolder, "WTF", "Account", account.Name);
-            var bridge = BridgeBars.ReadFile(Path.Combine(accountDir, "SavedVariables", "WoWBoxer.lua"));
+            var file = Path.Combine(accountDir, "SavedVariables", "WoWBoxer.lua");
+            var bridge = BridgeBars.ReadFile(file);
             // the character the addon saw last, else the one WoW wrote last
             var character = (bridge?.Character is { Length: > 0 } name
                 ? account.Characters.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)
@@ -103,7 +166,7 @@ public static class BarSetup
                 {
                 }
             }
-            result[account.Name] = For(account.Name, character?.Name, game, mask, bridge);
+            result[account.Name] = For(account.Name, character?.Name, game, mask, bridge) with { AddonFit = BridgeFit.ReadFile(file) };
         }
         return result;
     }

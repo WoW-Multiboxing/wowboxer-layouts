@@ -53,6 +53,49 @@ public static class UiScaleFix
     }
 
     /// <summary>
+    /// The player's own UI Scale from before WoWBoxer's first change of Config.wtf (the one-time backup); null when there
+    /// is no backup (WoWBoxer never wrote this install's Config.wtf).
+    /// </summary>
+    public static UiScaleSetting? Original(string exe)
+    {
+        if (Sandbox.Active) return Sandbox.UiScaleOriginal;
+        var backup = WowConfig.ConfigPathFor(exe) + BackupSuffix;
+        try
+        {
+            return File.Exists(backup) ? UiScale.Read(File.ReadAllText(backup)) : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Puts the UI Scale lines of the backup back (removes them when the backup has none: WoW's automatic size). Same
+    /// closed-clients rule. Returns null on success, otherwise why it did not write.
+    /// </summary>
+    public static string? Restore(string exe)
+    {
+        if (Sandbox.Active)
+        {
+            if (Sandbox.UiScaleOriginal is { } o) Sandbox.UiScale = o;
+            return null;
+        }
+        var backup = WowConfig.ConfigPathFor(exe) + BackupSuffix;
+        string original;
+        try
+        {
+            if (!File.Exists(backup)) return "There is no backup of Config.wtf from before WoWBoxer changed it.";
+            original = File.ReadAllText(backup);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return $"Could not read {backup}: {e.Message}";
+        }
+        return EditConfig(exe, text => UiScale.WithOriginal(text, original));
+    }
+
+    /// <summary>
     /// Changes the install's Config.wtf with <paramref name="change"/> (text in, text out) – only while no client of the
     /// install runs; keeps the one-time backup. Returns null on success, otherwise why it did not write.
     /// </summary>

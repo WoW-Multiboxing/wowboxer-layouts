@@ -678,11 +678,22 @@ public sealed partial class MainViewModel : ObservableObject
             if (SlotGameAspect <= 0) return "";
             if (!ActionBars.Knows(SquadGame))
                 return SlotEffectiveAspect >= 4.0 / 3 - 0.001 ? "" : $"Fix: UI Scale {UiScale.ForFullBar(SlotGameAspect):0.00} or lower (Settings › Action bar), or shorten this window.";
+            if (AddonFor(SelectedSlotIndex) is { Addon: true } addon)
+            {
+                var (aw, ah) = AreaOf(SelectedSlotIndex);
+                return addon.FitsIn(aw, ah) == false ? "Make this window wider, move the chat up or turn off a bar – the WoWBoxer AddOn found no way to fit them all." : "";
+            }
             if (SlotCheck(SelectedSlotIndex, UiScaleNow).Fits) return "";
-            if (SlotFitScale(SelectedSlotIndex) is not { } fit)
-                return "Even the smallest UI Scale (0.64) can't fit all your action bars in this window. Make it larger or turn off a bar.";
+            var fit = SlotFitScale(SelectedSlotIndex);
+            if (UiScalePolicy.NeedsAddon(fit))
+                return AddonFor(SelectedSlotIndex) is { Addon: false }
+                    ? "One shared UI Scale can't fit all your action bars in this window. Turn on Setup › Fit action bars in the WoWBoxer AddOn – it fits the bars in each window."
+                    : "One shared UI Scale can't fit all your action bars in this window. " + InstallAddonText;
+            var (need, _, addonSlots) = SquadFit();
+            if (addonSlots > 0)
+                return "The WoWBoxer AddOn fits the bars in your other windows, so WoWBoxer leaves UI Scale alone. " + InstallAddonText;
             return _settings.AutoFitActionBar
-                ? $"Auto-fit sets UI Scale {SquadFit().Need:0.00} the next time all clients are closed."
+                ? $"Auto-fit sets UI Scale {need:0.00} the next time all clients are closed."
                 : $"Fix: UI Scale {fit:0.00} or lower (Settings › Action bar), or shorten this window.";
         }
     }
@@ -742,10 +753,18 @@ public sealed partial class MainViewModel : ObservableObject
                 Status.Ok("Every window of this layout already shows all its action bars – no UI Scale needed.");
                 return;
             }
-            (var n, tooSmall) = SquadFit();
+            var (n, needAddon, addonSlots) = SquadFit();
+            if (addonSlots > 0)
+            {
+                // the addon fits those windows itself; a lower shared UI Scale would work against it (owner, 2026-11-12)
+                if (SquadExe is { } own && addonSlots >= Current.Slots.Count && RestorableUiScale(own) is not null) RestoreUiScale(own, "Fix action bar");
+                else Status.Ok($"The WoWBoxer AddOn fits the action bars in {(addonSlots >= Current.Slots.Count ? "every window" : $"{addonSlots} of {Current.Slots.Count} windows")}, so WoWBoxer leaves UI Scale as it is.{(needAddon.Count > 0 ? " " + NeedAddonText(needAddon) : "")}");
+                return;
+            }
+            tooSmall = needAddon;
             need = n;
         }
-        else need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect));
+        else need = UiScale.ForSquad(Enumerable.Range(0, Current.Slots.Count).Select(PlannedAspect)) is { } v ? Math.Max(v, UiScale.SaneMin) : null;
         if (need is null)
         {
             Status.Ok("Every window of this layout already shows the whole action bar – no UI Scale needed.");
@@ -756,7 +775,7 @@ public sealed partial class MainViewModel : ObservableObject
             Status.Warn("The WoW client was not found. Set it in Settings › WoW client.");
             return;
         }
-        if (tooSmall.Count > 0) Status.Warn(TooSmallText(tooSmall));
+        if (tooSmall.Count > 0) Status.Warn(NeedAddonText(tooSmall));
         if (UiScaleNow.Use && UiScaleNow.Scale <= need.Value + 0.001)
         {
             Status.Ok($"UI Scale is already {UiScaleNow.Display}: every window shows all its action bars{(tooSmall.Count > 0 ? " that can fit" : "")} (from each client's next start).");
@@ -775,6 +794,7 @@ public sealed partial class MainViewModel : ObservableObject
             Status.Warn(error);
             return;
         }
+        ForgetUiScaleRestore(exe);
         MeasureBars();
         Status.Ok($"UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf (a backup was kept). Open your clients: every window shows all its action bars{(tooSmall.Count > 0 ? " that can fit" : "")}.");
     }
@@ -1063,11 +1083,14 @@ public sealed partial class MainViewModel : ObservableObject
             if (ActionBars.Knows(SquadGame))
             {
                 var count = Current.Slots.Count;
-                var fits = Enumerable.Range(0, count).Count(i => SlotCheck(i, UiScaleNow, live: false).Fits);
+                var fits = Enumerable.Range(0, count).Count(i => AddonFits(i) || SlotCheck(i, UiScaleNow, live: false).Fits);
+                var (_, needAddon, addonSlots) = SquadFit();
                 text = fits == count
-                    ? $"All action bars fit in all {count} windows."
-                    : $"All action bars fit in {fits} of {count} windows at UI Scale {UiScaleNow.Display} – Auto-fit or Settings › Fix action bar sets a smaller one.";
-                if (SquadFit().TooSmall is { Count: > 0 } tooSmall) text += " " + TooSmallText(tooSmall);
+                    ? addonSlots == count ? $"The WoWBoxer AddOn fits the action bars in all {count} windows." : $"All action bars fit in all {count} windows."
+                    : needAddon.Count > 0 || addonSlots > 0
+                        ? $"All action bars fit in {fits} of {count} windows."
+                        : $"All action bars fit in {fits} of {count} windows at UI Scale {UiScaleNow.Display} – Auto-fit or Settings › Fix action bar sets a smaller one.";
+                if (needAddon.Count > 0) text += " " + NeedAddonText(needAddon);
             }
             else
             {
@@ -1868,13 +1891,22 @@ public sealed partial class MainViewModel : ObservableObject
         }
         ReadBarSetup();   // WoW writes which bars are on and the addon's measurement when a client closes
         var now = UiScaleFix.Read(exe);
-        var (need, tooSmall) = SquadFit();
-        if (AllFitAt(now) || (now.Use && now.Scale <= need + 0.001))
+        var (need, tooSmall, addonSlots) = SquadFit();
+        var plan = UiScalePolicy.Decide(now, need, AllFitAt(now), addonSlots, Current.Slots.Count, RestorableUiScale(exe) is not null);
+        if (plan.Step == UiScaleStep.Restore)
         {
-            if (tooSmall.Count > 0) UiScaleNotice = TooSmallText(tooSmall);
-            NotWritten($"fits|{exe}|{now.Display}|{Current.Name}", $"Auto-fit action bar: {SquadGameName}'s UI Scale ({now.Display}) already fits every enabled bar in every window of \"{Current.Name}\" – nothing written ({why}).");
+            RestoreUiScale(exe, why);
             return;
         }
+        if (plan.Step == UiScaleStep.Leave)
+        {
+            UiScaleNotice = tooSmall.Count > 0 ? NeedAddonText(tooSmall) : "";
+            NotWritten($"leave|{exe}|{now.Display}|{Current.Name}|{plan.Why}", addonSlots > 0
+                ? $"Auto-fit action bar: {plan.Why}, so {SquadGameName}'s UI Scale ({now.Display}) is left as it is ({why})."
+                : $"Auto-fit action bar: {SquadGameName}'s UI Scale ({now.Display}) – {plan.Why}; nothing written ({why}).");
+            return;
+        }
+        need = plan.Scale;
         var running = UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!);
         if (running > 0)
         {
@@ -1888,12 +1920,60 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         _autoFitSaid = "";
+        ForgetUiScaleRestore(exe);
         MeasureBars();
         UiScaleNotice = tooSmall.Count == 0
             ? $"UI Scale set to {need:0.00} so every action bar fits in every window ({why}; backup kept)."
-            : $"UI Scale set to {need:0.00}, the smallest there is ({why}; backup kept). {TooSmallText(tooSmall)}";
-        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf so every enabled action bar fits in every window of \"{Current.Name}\" ({why}; backup kept).");
-        if (tooSmall.Count > 0) Status.Warn("Auto-fit action bar: " + TooSmallText(tooSmall));
+            : $"UI Scale set to {need:0.00}, as small as WoWBoxer goes ({why}; backup kept). {NeedAddonText(tooSmall)}";
+        Status.Ok($"Auto-fit action bar: UI Scale set to {need:0.00} in {SquadGameName}'s Config.wtf so {(tooSmall.Count == 0 ? "every enabled action bar fits in every window" : "the bars fit where one shared value can")} of \"{Current.Name}\" ({why}; backup kept).");
+        if (tooSmall.Count > 0) Status.Warn("Auto-fit action bar: " + NeedAddonText(tooSmall));
+    }
+
+    private static string ExeKey(string exe) => Path.GetFullPath(exe).ToLowerInvariant();
+
+    /// <summary>
+    /// The player's own UI Scale to put back, when WoWBoxer changed it and has not put it back yet: the UI Scale lines of
+    /// the Config.wtf backup from before WoWBoxer's first change, if they differ from now. Null otherwise.
+    /// </summary>
+    private UiScaleSetting? RestorableUiScale(string exe)
+    {
+        if (_settings.UiScaleRestored.Contains(ExeKey(exe)) || UiScaleFix.Original(exe) is not { } original) return null;
+        var now = UiScaleFix.Read(exe);
+        var differs = original.Use != now.Use || (now.Use && Math.Abs(original.Scale - now.Scale) > 0.005);
+        return differs ? original : null;
+    }
+
+    /// <summary>After WoWBoxer lowers the UI Scale again, the player's own one may be put back again later.</summary>
+    private void ForgetUiScaleRestore(string exe)
+    {
+        if (_settings.UiScaleRestored.Remove(ExeKey(exe))) _settings.Save();
+    }
+
+    /// <summary>
+    /// The WoWBoxer AddOn fits the bars in every window: put the player's own UI Scale back (only while the install's
+    /// clients are closed; WoW rewrites Config.wtf when one closes) and say so once.
+    /// </summary>
+    private void RestoreUiScale(string exe, string why)
+    {
+        if (RestorableUiScale(exe) is not { } original) return;
+        var running = UiScaleFix.RunningClients(Path.GetDirectoryName(exe)!);
+        if (running > 0)
+        {
+            UiScaleNotice = $"The WoWBoxer AddOn fits the bars in each window. WoWBoxer puts your own UI Scale ({original.Display}) back when all {SquadGameName} clients are closed.";
+            NotWritten($"restore-running|{exe}", $"Auto-fit action bar: the WoWBoxer AddOn fits the bars in each window, so WoWBoxer no longer needs its UI Scale ({UiScaleNow.Display}). It puts your own one ({original.Display}) back when all {running} {SquadGameName} client(s) are closed (WoW rewrites Config.wtf when a client closes).");
+            return;
+        }
+        if (UiScaleFix.Restore(exe) is { } error)
+        {
+            NotWritten($"error|{exe}|{error}", "Auto-fit action bar: " + error, warn: true);
+            return;
+        }
+        _settings.UiScaleRestored.Add(ExeKey(exe));
+        _settings.Save();
+        _autoFitSaid = "";
+        MeasureBars();
+        UiScaleNotice = $"Your own UI Scale ({original.Display}) is back: the WoWBoxer AddOn fits the bars in each window.";
+        Status.Ok($"Auto-fit action bar: the WoWBoxer AddOn fits the action bars in each window, so your own UI Scale ({original.Display}) is back in {SquadGameName}'s Config.wtf ({why}). WoWBoxer won't lower it while the AddOn does this.");
     }
 
     private void SaveAccount(int index, string account)

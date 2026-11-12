@@ -31,6 +31,8 @@ public sealed class AppSettings
     public string? GameExe { get; set; }
     /// <summary>Set WoW's UI Scale automatically (while the clients are closed) so the whole action bar fits.</summary>
     public bool AutoFitActionBar { get; set; } = true;
+    /// <summary>Installs (lower-case exe path) whose own UI Scale WoWBoxer put back because the WoWBoxer AddOn fits the bars; said once.</summary>
+    public List<string> UiScaleRestored { get; set; } = [];
     /// <summary>WoW account folder per slot (index = slot - 1). Local only, never part of a shared layout.</summary>
     public List<string> Accounts { get; set; } = [];
     /// <summary>The user's own hover-to-activate values from before the app first changed them; null = the app never changed them.</summary>
