@@ -1,4 +1,4 @@
-<#
+﻿<#
   RUN IT, NEVER DOT-SOURCE IT:  powershell -ExecutionPolicy Bypass -File tools\resize-probe.ps1 -Game forever|era [-Force]
   How does a WoW client react when its window is moved/resized from outside? (#bug 2026-11-10: Forever clients ended
   up at other sizes than placed and swapping made them go back and forth.)

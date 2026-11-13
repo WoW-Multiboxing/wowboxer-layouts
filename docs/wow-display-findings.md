@@ -77,6 +77,16 @@ Consequences for the app:
   outside, and does it behave better? Needs one in-game setting change by the owner.
 - Forever in game (4–5 Nov): action bar, Edit Mode, the same checks after login.
 
+## Forever: any window size is kept at the login screen (2026-11-13, `tools/resize-probe.ps1 -Game forever`)
+#help 12 Nov (Kerafyrm, Kybereck; 1920x1200 at 125 %, followers asked for 710x570): "wanted 1210,0 710x570 · is 1210,0
+1201x1132" – the game put two followers back to a bigger size; Re-arrange didn't help, logging out did.
+- One Forever client (1.60.1, framed, Windowed, 100 % DPI) at the login screen took **every** size it was given and kept it
+  through the next step: 870x696, 1690x1392, 928x696, 1632x1392, 700x696, 1200x600, **640x480, 400x300** [verified].
+  Swap-like and rapid sequences (big↔small every 300 ms) landed each time; snapshots sharp. Config.wtf restored identical.
+- So there is **no minimum window size** at the login screen; "too small" is not the cause [verified at 100 % only].
+- Still open: logged in (the report says logging out fixes it) and 125 % display scale. Needs a log/Report from an
+  affected player or an in-game test.
+
 ## Forever window swap (2026-11-11, 3 logged-in Forever clients, borderless, UI Scale 0.74)
 Bug 2026-11-10 (owner, v0.7.1-beta.2): swaps made the windows go back and forth; the main window at the wrong size.
 `wbx swaptest --rounds 20` (app placing code, every window sampled every 20 ms) with the v0.7.2 fix:
