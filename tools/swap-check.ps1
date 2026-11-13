@@ -1,4 +1,4 @@
-# RUN IT, NEVER DOT-SOURCE IT:  powershell -ExecutionPolicy Bypass -File tools\swap-check.ps1 [-Keys] [-Rounds 60]
+﻿# RUN IT, NEVER DOT-SOURCE IT:  powershell -ExecutionPolicy Bypass -File tools\swap-check.ps1 [-Keys] [-Rounds 60]
 # Window swap, end to end, with the WoWBoxer Dev build (its own settings – the normal app's are never touched) and three
 # FAKE WoW clients (tools\fakewow, a scratch "World of Warcraft\_classic_era_" folder in %TEMP%).
 #
@@ -38,6 +38,24 @@ public static class SW {
   [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attach);
+  [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
+  // test only (a fake window): Windows refuses SetForegroundWindow from a background script unless it shares the
+  // foreground window's input queue for the call
+  public static bool Activate(IntPtr h) {
+    uint me = GetCurrentThreadId(), fg = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+    bool att = fg != 0 && fg != me && AttachThreadInput(me, fg, true);
+    try { BringWindowToTop(h); return SetForegroundWindow(h); } finally { if (att) AttachThreadInput(me, fg, false); }
+  }
+  [StructLayout(LayoutKind.Sequential)] public struct PT { public int X, Y; }
+  [DllImport("user32.dll")] static extern bool GetCursorPos(out PT p);
+  [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(PT p);
+  [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint f);
+  // the top-level window under the mouse: with hover to activate on, Windows itself activates it when a swap moves
+  // another window under the (unmoved) cursor - that is Windows, not WoWBoxer
+  public static IntPtr UnderCursor() { PT p; GetCursorPos(out p); return GetAncestor(WindowFromPoint(p), 2); }
   [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LII l);
   [DllImport("user32.dll")] static extern bool SystemParametersInfo(uint a, uint p, ref int v, uint f);
   [DllImport("user32.dll")] static extern bool SystemParametersInfo(uint a, uint p, IntPtr v, uint f);
@@ -133,11 +151,14 @@ try {
                 if ([SW]::Rect($h[$k]) -ne $homeRect[$pos[$k]]) { $bad++; $results.Add("      round $r ($a): client $($k + 1) at $([SW]::Rect($h[$k])), expected $($homeRect[$pos[$k]])") }
                 if ([SW]::Top($h[$k]) -ne $homeTop[$pos[$k]]) { $topBad++ }
             }
-            if ([SW]::GetForegroundWindow() -ne $fg) { $fgBad++ }
+            Start-Sleep -Milliseconds 60   # past the 30 ms hover delay
+            $now = [SW]::GetForegroundWindow()
+            if ($now -ne $fg -and -not ($hover -eq 'on' -and $now -eq [SW]::UnderCursor())) { $fgBad++ }
+            $fg = $now
         }
         Check "$name / hover $hover`: $Rounds swaps in a row, every window exactly in its slot" ($bad -eq 0)
         Check "$name / hover $hover`: 'always on top' follows the slot every time" ($topBad -eq 0)
-        Check "$name / hover $hover`: the active window never changed" ($fgBad -eq 0)
+        Check "$name / hover $hover`: the active window never changed$(if ($hover -eq 'on') { ' (except to the window under the cursor, by Windows)' })" ($fgBad -eq 0)
         Send @('--swap', 'home')
         Check "$name / hover $hover`: back to home layout" ((0..2 | Where-Object { [SW]::Rect($h[$_]) -ne $homeRect[$_] }).Count -eq 0)
     }
@@ -161,7 +182,8 @@ try {
             $results.Add("SKIP  real hotkeys: the PC was used $idle s ago (needs 2 minutes without input)")
         } else {
             $before = [SW]::GetForegroundWindow()
-            [void][SW]::SetForegroundWindow($h[1])   # fake 2 plays the active game window
+            [SW]::SetHover(@(0, $hoverBefore[1], $hoverBefore[2]))   # hover off: the mouse must not pick the active window
+            [void][SW]::Activate($h[1])   # fake 2 plays the active game window
             Start-Sleep -Milliseconds 400
             $active = [SW]::GetForegroundWindow() -eq $h[1]
             Check 'hotkeys: fake 2 is the active window for the key test' $active
@@ -177,7 +199,7 @@ try {
             $log = if (Test-Path "$S\keys-2.log") { @(Get-Content "$S\keys-2.log") } else { @() }
             $main = @($log | Where-Object { $_ -match ' (27|33|08)$' })
             Check "hotkeys: the active fake got none of the main keys (its log: $(@($log | Sort-Object -Unique) -join ', '))" ($main.Count -eq 0)
-            if ($before -ne [IntPtr]::Zero) { [void][SW]::SetForegroundWindow($before) }
+            if ($before -ne [IntPtr]::Zero) { [void][SW]::Activate($before) }
         }
     }
 } finally {

@@ -29,7 +29,7 @@ public static class HoverCheck {
 "@
 $SPI_GETAWT = 0x1000; $SPI_SETAWT = 0x1001; $SPI_GETZ = 0x100C; $SPI_SETZ = 0x100D; $SPI_GETTO = 0x2002; $SPI_SETTO = 0x2003
 $NOACT_ASYNC = 0x0010 -bor 0x4000; $NOSIZE = 1; $NOMOVE = 2; $NOZORDER = 4; $FRAME = 0x20; $SHOW = 0x40
-$TOP = [IntPtr](-1); $NOTOP = [IntPtr](-2)
+$HWND_TOPMOST = [IntPtr](-1); $HWND_NOTOPMOST = [IntPtr](-2)
 
 if (@(Get-Process Wow* -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike 'WoWBoxer*' -and $_.Name -notlike '*Voice*' }).Count -gt 0) { throw 'A WoW client is running. Close it first (this check moves the mouse).' }
 $idle = [HoverCheck]::Idle()
@@ -79,14 +79,14 @@ try {
         [HoverCheck]::SetWindowPos($main, 0, 0, 0, 1500, 1000, $NOACT_ASYNC -bor $FRAME -bor $SHOW -bor $NOZORDER) | Out-Null
         [HoverCheck]::SetWindowPos($fol, 0, 1100, 600, 800, 500, $NOACT_ASYNC -bor $FRAME -bor $SHOW -bor $NOZORDER) | Out-Null
         Start-Sleep -Milliseconds 300
-        [HoverCheck]::SetWindowPos($fol, $(if ($folTop) { $TOP } else { $NOTOP }), 0, 0, 0, 0, $NOMOVE -bor $NOSIZE -bor $NOACT_ASYNC) | Out-Null
+        [HoverCheck]::SetWindowPos($fol, $(if ($folTop) { $HWND_TOPMOST } else { $HWND_NOTOPMOST }), 0, 0, 0, 0, $NOMOVE -bor $NOSIZE -bor $NOACT_ASYNC) | Out-Null
         Start-Sleep -Milliseconds 300
     }
 
     foreach ($z in 0, 1) {
         [HoverCheck]::Set($SPI_SETZ, $z)
         foreach ($top in $true, $false) {
-            [HoverCheck]::SetWindowPos($fol, $(if ($top) { $TOP } else { $NOTOP }), 0, 0, 0, 0, $NOMOVE -bor $NOSIZE -bor $NOACT_ASYNC) | Out-Null
+            [HoverCheck]::SetWindowPos($fol, $(if ($top) { $HWND_TOPMOST } else { $HWND_NOTOPMOST }), 0, 0, 0, 0, $NOMOVE -bor $NOSIZE -bor $NOACT_ASYNC) | Out-Null
             Start-Sleep -Milliseconds 300
             $tag = "front=$z top=$top"
             $results += Pass "$tag  before"
