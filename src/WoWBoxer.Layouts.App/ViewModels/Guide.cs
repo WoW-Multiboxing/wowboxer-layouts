@@ -123,7 +123,7 @@ public sealed class GuideViewModel : ObservableObject
                 [
                     "Windows do not move: Battle.net runs as administrator. Start it normally and try again.",
                     "Action bar buttons cut off: the game picture is too narrow for the bars you have on (Classic Era's main bar needs 4:3; on Forever bars 2 and 3 sit side by side). Auto-fit action bar (on by default) sets one smaller UI Scale the next time all clients are closed. Or Settings › Fix action bar now, or ▾ › Shorten this window instead.",
-                    "Still stuck: Help › Report a problem (also in the tray). It copies a short report and opens #setup-help in the WoWBoxer Discord – paste with Ctrl+V and press Enter. The full report is saved as a file you can drag in if someone asks.",
+                    "Still stuck: Help › Report a problem (also in the tray). It copies a short report and opens #help in the WoWBoxer Discord – paste with Ctrl+V and press Enter. The full report is saved as a file you can drag in if someone asks.",
                 ],
                 "The Help tab lists the common problems with their fixes, and has Report a problem: a report with your Windows user name, WoW account and character names hidden. You see all of it first; nothing is posted for you.",
                 "Open Help", openHelp),

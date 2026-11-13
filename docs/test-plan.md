@@ -30,13 +30,13 @@ Legend: ✅ passed · ⚠️ passed with a note · ❌ failed (see known issues)
 ## v0.5.0 checks (community links, Report a problem) – 2026-10-30, owner's PC, app stopped
 | Item | Result |
 |---|---|
-| Discord invite `Q5xwbqhKzQ` → server WoWBoxer (#welcome), help invite `3GY3HgF3HC` → #setup-help, neither expires (Discord invite API) | ✅ |
+| Discord invite `Q5xwbqhKzQ` → server WoWBoxer (#welcome), help invite `VRqjjftwdg` → #help, neither expires (Discord invite API) | ✅ |
 | YouTube `@WoWBoxerHQ` → channel "WoWBoxer" | ✅ |
 | `wowboxer.com/links.json` | ⏸ not on the website yet (404) – the built-in links are used; WS-D adds it |
 | Status bar: Discord, YouTube, Website icons; About with labels; no GitHub link in the app | ✅ |
 | Settings › Report a problem → window with the report (App, Windows, Layout, Monitors, Slots, Action bar, Hover, last log lines) | ✅ |
 | Redaction: Windows user name, user folder, a fake character name planted in slot 1 → none in the report, the clipboard or the saved file | ✅ (first run found a real character named "Wowboxer" hiding the app name – app words are now never treated as names) |
-| Post in Discord: clipboard = one message ≤ 2,000 characters, "What happened" + one code block; "Paste with Ctrl+V in #setup-help and press Enter."; full report .txt with read-only Diagnose + 300 log lines; help invite opened in the browser | ✅ 23/23 |
+| Post in Discord: clipboard = one message ≤ 2,000 characters, "What happened" + one code block; "Paste with Ctrl+V into a new post in #help and press Enter."; full report .txt with read-only Diagnose + 300 log lines; help invite opened in the browser | ✅ 23/23 |
 | Settings, layouts and clipboard restored afterwards | ✅ |
 | Unit: links.json overrides / broken / unsafe links, redaction, Discord size, backticks | ✅ (2,354 tests) |
 

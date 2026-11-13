@@ -19,7 +19,7 @@ public sealed record CommunityLinks(string Discord, string DiscordHelp, string Y
     /// <summary>Compiled in: used until the website's file has been read once, and whenever it cannot be read.</summary>
     public static CommunityLinks Defaults { get; } = new(
         "https://discord.gg/Q5xwbqhKzQ",
-        "https://discord.gg/3GY3HgF3HC",
+        "https://discord.gg/VRqjjftwdg",
         "https://www.youtube.com/@WoWBoxerHQ",
         "https://wowboxer.com");
 

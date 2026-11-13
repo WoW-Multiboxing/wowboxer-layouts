@@ -38,7 +38,7 @@ public class CommunityTests
     public void Defaults_are_the_real_links()
     {
         Assert.Equal("https://discord.gg/Q5xwbqhKzQ", CommunityLinks.Defaults.Discord);
-        Assert.Equal("https://discord.gg/3GY3HgF3HC", CommunityLinks.Defaults.DiscordHelp);
+        Assert.Equal("https://discord.gg/VRqjjftwdg", CommunityLinks.Defaults.DiscordHelp);
         Assert.Equal("https://www.youtube.com/@WoWBoxerHQ", CommunityLinks.Defaults.YouTube);
     }
 

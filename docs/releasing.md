@@ -86,6 +86,21 @@ token, owner `WoW-Multiboxing`, repository access *Only select repositories* →
 **Contents: Read and write** (that is what the dispatches API requires; Metadata: read is added automatically),
 expiry 1 year (set a reminder).
 
+## Discord
+The last step of `release.yml` posts the release to the WoWBoxer Discord with `tools/discord-announce.mjs` (the WS-H
+announcer; one file, Node 18+, no dependencies; the master copy lives in the project folder – re-copy it, never edit it
+here). A stable tag goes to **#announcements** with an @Updates ping and links to wowboxer.com/window-app/; a
+`vX.Y.Z-beta.N` tag goes to **#beta** with an @Beta testers ping and links to the GitHub pre-release. The post takes
+3–5 lines from the tag's CHANGELOG section (a bullet that opens with **bold** is a headline item; lines about Alt+Tab,
+"grey zone" or safety claims are dropped). A manual re-run (`workflow_dispatch`) posts nothing unless its **announce**
+box is ticked.
+
+- Secrets: `DISCORD_WEBHOOK_ANNOUNCEMENTS`, `DISCORD_WEBHOOK_BETA`, `DISCORD_WEBHOOK_TEST`. Variables (role ids, not
+  secret): `DISCORD_ROLE_UPDATES`, `DISCORD_ROLE_BETA`. A missing webhook prints a notice and skips the post; a failed
+  post never fails the release (`continue-on-error`).
+- Test: Actions → **discord-test** → Run workflow (tag, default `v0.6.1`) posts the same message to the private
+  #bot-test with no pings. The log must say "posted to DISCORD_WEBHOOK_TEST". Locally: add `--dry-run` to see the JSON.
+
 ## Re-running or fixing a release
 Release tags are final: the ruleset "release tags are final" blocks moving or deleting any `v*` tag (no bypass).
 - Failed before publishing: fix on a branch → PR → merge, then Actions → release → *Run workflow* with the same

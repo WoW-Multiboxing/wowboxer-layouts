@@ -14,6 +14,10 @@ on:
       version:
         description: 'Version without "v" (e.g. 0.3.0 or 0.4.0-beta.1). The tag vVERSION must already exist.'
         required: true
+      announce:
+        description: 'Post the Discord announcement again (a re-run of an existing tag posts nothing unless this is on).'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -250,3 +254,19 @@ jobs:
             # The release is already out; a failed notification must not mark it as failed.
             Write-Warning "Website notification failed: $($_.Exception.Message)"
           }
+
+      # Discord post (WS-H announcer, tools/discord-announce.mjs; master copy in the project folder - re-copy, never edit
+      # here). Stable tag -> #announcements + @Updates, link to wowboxer.com/window-app/; vX.Y.Z-beta.N -> #beta +
+      # @Beta testers, link to the GitHub pre-release. 3-5 lines from the CHANGELOG section. A missing webhook secret
+      # prints a notice and skips; a failed post never fails the release. A manual re-run posts only with "announce".
+      - name: Discord announcement
+        if: success() && (github.event_name == 'push' || inputs.announce)
+        continue-on-error: true
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_ANNOUNCEMENTS: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+          DISCORD_WEBHOOK_BETA: ${{ secrets.DISCORD_WEBHOOK_BETA }}
+          DISCORD_ROLE_UPDATES: ${{ vars.DISCORD_ROLE_UPDATES }}
+          DISCORD_ROLE_BETA: ${{ vars.DISCORD_ROLE_BETA }}
+        run: |
+          node tools/discord-announce.mjs release --product window-app --tag "${{ steps.v.outputs.tag }}" --changelog CHANGELOG.md --url "${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.v.outputs.tag }}"

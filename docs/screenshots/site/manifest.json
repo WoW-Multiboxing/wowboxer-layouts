@@ -85,7 +85,7 @@
       "small": "help-720.webp",
       "title": "Help and Report a problem",
       "alt": "WoWBoxer Help tab: the Report a problem button, links to the WoWBoxer Discord, YouTube and website, tools to see what the app sees, and common problems with their fixes.",
-      "caption": "Stuck? Common problems with their fixes, and Report a problem for #setup-help on Discord.",
+      "caption": "Stuck? Common problems with their fixes, and Report a problem for #help on Discord.",
       "appVersion": "0.7.0",
       "order": 7,
       "width": 1440,

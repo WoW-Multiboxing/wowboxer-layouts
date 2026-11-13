@@ -56,7 +56,7 @@ internal static class ReportWindow
                 new TextBlock
                 {
                     Style = Res<Style>("Body"), Margin = new Thickness(0, 6, 0, 12),
-                    Text = "Ask in the WoWBoxer Discord (#setup-help). Below is what the app sees, with your Windows user name, WoW account and character names hidden. Read it and change anything you like – nothing leaves your PC until you paste it yourself.",
+                    Text = "Ask in the WoWBoxer Discord (#help). Below is what the app sees, with your Windows user name, WoW account and character names hidden. Read it and change anything you like – nothing leaves your PC until you paste it yourself.",
                 },
                 new TextBlock { Text = "What happened?", Foreground = Res<Brush>("ParchmentBrush"), FontSize = 13 },
                 what,
@@ -123,7 +123,7 @@ internal static class ReportWindow
             }
             openUrl(helpUrl);
             done.Inlines.Clear();
-            done.Inlines.Add(new Run("Copied. Paste with Ctrl+V in #setup-help and press Enter."));
+            done.Inlines.Add(new Run("Copied. Paste with Ctrl+V into a new post in #help and press Enter."));
             if (file is not null)
             {
                 done.Inlines.Add(new LineBreak());
