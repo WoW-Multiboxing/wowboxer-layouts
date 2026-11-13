@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased (goes into the next release section)
+- Help: **Report a problem now opens the new #help forum** on the WoWBoxer Discord (invite `discord.gg/VRqjjftwdg`):
+  "Paste with Ctrl+V into a new post in #help and press Enter." The old #setup-help invite still lands on a signpost.
+- Releases are announced in the WoWBoxer Discord (#announcements for stable, #beta for betas).
+
 ## v0.7.2-beta.1 – Window swap fixed on Forever, sound follows the main window (unreleased)
 **Beta channel only.**
 

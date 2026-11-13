@@ -57,6 +57,6 @@ name, your WoW account names and your character names are replaced with `%USERPR
 
 **Post in Discord** then copies it to the clipboard (one Discord message: your "What happened?" text and the report as
 a code block), saves a longer report – plus a read-only Diagnose that moves no window, and the last 300 log lines, also
-redacted – as a `.txt` in the logs folder, and opens the invite to `#setup-help` on the WoWBoxer Discord. You paste it
+redacted – as a `.txt` in the logs folder, and opens the invite to `#help` on the WoWBoxer Discord. You paste it
 yourself; the app never posts anything, and has no webhook or bot token. The `.txt` is only shared if you drag it into
 Discord yourself. Diagnose (Help tab) still writes its own report file; nothing is uploaded.

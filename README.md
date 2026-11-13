@@ -57,7 +57,7 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
   `WBX1:` codes or files, or capture an arrangement you made by hand.
 - **Guide** – WoW display settings, switching windows, troubleshooting.
 - **Help** – common problems with their fixes, **Report a problem** (a report you see first, names hidden, pasted by
-  you into `#setup-help` on the [WoWBoxer Discord](https://discord.gg/Q5xwbqhKzQ)), Diagnose and the logs.
+  you into `#help` on the [WoWBoxer Discord](https://discord.gg/Q5xwbqhKzQ)), Diagnose and the logs.
 - **Settings** – window rules, action bar (UI Scale), titles, tools (Identify, Diagnose, title bars back), shortcut,
   updates (Stable / Beta channel), Experimental, and Advanced (window swap hotkeys, off by default).
 - **Start / Stop placing windows** (main screen and tray). The app opens stopped, so it never touches the windows of

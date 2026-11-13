@@ -1,0 +1,33 @@
+name: discord-test
+
+# Posts the release announcement for an existing tag to the private #bot-test channel (secret DISCORD_WEBHOOK_TEST),
+# with no role pings. Use it once after the announcer is connected, and whenever tools/discord-announce.mjs changes.
+# The run log must say "posted to DISCORD_WEBHOOK_TEST". Nothing is built or released.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to announce (e.g. v0.6.1 or v0.7.2-beta.1)'
+        required: true
+        default: 'v0.6.1'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Announcement to #bot-test
+        env:
+          DISCORD_WEBHOOK_TEST: ${{ secrets.DISCORD_WEBHOOK_TEST }}
+        run: |
+          node tools/discord-announce.mjs release --product window-app --tag "${{ inputs.tag }}" --changelog CHANGELOG.md \
+            --url "${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}" --test

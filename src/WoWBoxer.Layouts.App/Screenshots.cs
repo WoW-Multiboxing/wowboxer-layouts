@@ -111,7 +111,7 @@ internal static class Screenshots
         // 6) Help: Report a problem
         vm.SelectedTab = AppTab.Help;
         await Snap("help", "Help and Report a problem", "WoWBoxer Help tab: the Report a problem button, links to the WoWBoxer Discord, YouTube and website, tools to see what the app sees, and common problems with their fixes.",
-            "Stuck? Common problems with their fixes, and Report a problem for #setup-help on Discord.");
+            "Stuck? Common problems with their fixes, and Report a problem for #help on Discord.");
 
         // 7) About and the community links
         vm.SelectedTab = AppTab.About;
