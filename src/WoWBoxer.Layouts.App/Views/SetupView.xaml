@@ -941,14 +941,18 @@
                             </Grid>
                             <DataTemplate.Triggers>
                                 <!-- awaiting: the chip's dot pulses -->
-                                <DataTrigger Binding="{Binding State}" Value="Awaiting">
-                                    <DataTrigger.EnterActions>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding State}" Value="Awaiting" />
+                                        <Condition Binding="{Binding IsVisible, ElementName=ChipDot}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <MultiDataTrigger.EnterActions>
                                         <BeginStoryboard x:Name="Pulse">
                                             <Storyboard><DoubleAnimation Storyboard.TargetName="ChipDot" Storyboard.TargetProperty="Opacity" From="1" To="0.2" Duration="0:0:0.8" AutoReverse="True" RepeatBehavior="Forever" /></Storyboard>
                                         </BeginStoryboard>
-                                    </DataTrigger.EnterActions>
-                                    <DataTrigger.ExitActions><StopStoryboard BeginStoryboardName="Pulse" /></DataTrigger.ExitActions>
-                                </DataTrigger>
+                                    </MultiDataTrigger.EnterActions>
+                                    <MultiDataTrigger.ExitActions><StopStoryboard BeginStoryboardName="Pulse" /></MultiDataTrigger.ExitActions>
+                                </MultiDataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

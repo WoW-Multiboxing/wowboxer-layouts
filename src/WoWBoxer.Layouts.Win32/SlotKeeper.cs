@@ -91,7 +91,7 @@ public sealed class SlotKeeper
         foreach (var (h, slot) in _slots.ToList())
         {
             // (the mapping may change while a nudge is awaited: skip windows that left meanwhile)
-            if (slot >= plan.Slots.Count || !_since.TryGetValue(h, out var since) || !WindowFinder.Exists(h)) continue;
+            if (!plan.CanPlace(h) || slot >= plan.Slots.Count || !_since.TryGetValue(h, out var since) || !WindowFinder.Exists(h)) continue;
             var age = DateTime.UtcNow - since;
             var span = _for.GetValueOrDefault(h, SquadWatcher.ReapplyTime);
             if (age >= span || _gaveUp.Contains(h))
@@ -147,7 +147,7 @@ public sealed class SlotKeeper
 
     /// <summary>True when every window in a slot is where the plan wants it, or WoWBoxer has stopped resizing it.</summary>
     public bool AllLanded(SquadPlan plan) =>
-        _slots.All(kv => kv.Value >= plan.Slots.Count || !WindowFinder.Exists(kv.Key) || _gaveUp.Contains(kv.Key) || plan.IsPlaced(kv.Key, kv.Value));
+        _slots.All(kv => !plan.CanPlace(kv.Key) || kv.Value >= plan.Slots.Count || !WindowFinder.Exists(kv.Key) || _gaveUp.Contains(kv.Key) || plan.IsPlaced(kv.Key, kv.Value));
 
     /// <summary>Squad reorder: the window in slot <paramref name="from"/> moves to <paramref name="to"/>, the ones between shift by one.</summary>
     public void Move(int from, int to, int slotCount)

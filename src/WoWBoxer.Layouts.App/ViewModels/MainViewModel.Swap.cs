@@ -345,6 +345,12 @@ public sealed partial class MainViewModel
             Status.Info($"Window swap: {ClientLabel(client)} is already in the main slot.");
             return;
         }
+        if ((WindowAt(client) is { } source && _offhand.IsManaging(source.Window.Handle)) ||
+            (WindowAt(other) is { } destination && _offhand.IsManaging(destination.Window.Handle)))
+        {
+            ShowNotice(StatusLevel.Info, "Restore the Offhand window before swapping it.");
+            return;
+        }
         var from = _swapPos[client];
         SetSwap(WindowSwap.ToMain(_swapPos, client, mainSlot));
         Status.Ok($"Swap: {ClientLabel(client)} → main slot, {ClientLabel(other)} → slot {from + 1}.");

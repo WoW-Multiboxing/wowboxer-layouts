@@ -39,6 +39,35 @@
 
                 <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0">
                     <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Offhand workspace" />
+                        <TextBlock Style="{StaticResource Explain}" Text="Extend one windowed WoW client for the Offhand addon. Use part of the workspace monitor to leave room for your other clients." />
+                        <StackPanel IsEnabled="{Binding CanChooseOffhand}">
+                            <TextBlock Text="WoW client" Style="{StaticResource Muted}" Margin="0,12,0,4" />
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Identify" Command="{Binding IdentifyOffhandCommand}" Margin="8,0,0,0" ToolTip="Briefly show the selected client's PID on its window" />
+                                <ComboBox ItemsSource="{Binding OffhandClients}" SelectedItem="{Binding OffhandClient}" IsSynchronizedWithCurrentItem="False"
+                                          AutomationProperties.Name="WoW client to extend" />
+                            </DockPanel>
+                            <TextBlock Text="Gameplay monitor (Mainhand)" Style="{StaticResource Muted}" Margin="0,12,0,4" />
+                            <ComboBox ItemsSource="{Binding OffhandDisplays}" SelectedItem="{Binding OffhandMain}" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="Gameplay monitor" />
+                            <TextBlock Text="Workspace monitor (Offhand)" Style="{StaticResource Muted}" Margin="0,12,0,4" />
+                            <ComboBox ItemsSource="{Binding OffhandDisplays}" SelectedItem="{Binding OffhandWorkspace}" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="Workspace monitor" />
+                            <DockPanel HorizontalAlignment="Left" Margin="0,12,0,0">
+                                <TextBlock Text="Share of workspace monitor (%)" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox ItemsSource="{Binding OffhandPercentages}" SelectedItem="{Binding OffhandPercent}" MinWidth="68" AutomationProperties.Name="Workspace percentage" />
+                            </DockPanel>
+                        </StackPanel>
+                        <TextBlock Text="{Binding OffhandPreview}" Style="{StaticResource Muted}" FontSize="12" Margin="0,10,0,0" />
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button Content="Extend window" Command="{Binding ExpandOffhandCommand}" AutomationProperties.AutomationId="ExtendOffhand" Margin="0,0,8,4" />
+                            <Button Content="Restore window" Command="{Binding RestoreOffhandCommand}" AutomationProperties.AutomationId="RestoreOffhand" Margin="0,0,0,4" />
+                        </WrapPanel>
+                        <TextBlock Text="{Binding OffhandStatus}" TextWrapping="Wrap" FontSize="12" AutomationProperties.Name="Offhand status" />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource OrnatePanel}" Padding="24,20" Margin="0,16,0,0">
+                    <StackPanel>
                         <TextBlock Style="{StaticResource H2}" Text="Action bar (UI Scale)" />
                         <TextBlock Style="{StaticResource Explain}" Text="{Binding UiScaleText}" AutomationProperties.AutomationId="UiScaleText" />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding AutoFitActionBar}" AutomationProperties.Name="Auto-fit action bar"><TextBlock Text="Auto-fit action bar" /></CheckBox>
@@ -57,6 +86,10 @@
                         <TextBlock Style="{StaticResource H2}" Text="Windows" />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding RenameWindows}"><TextBlock Text="Title WoW windows with the character names" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="The game windows become &quot;WoW - name&quot; on the taskbar, for windows with a character name." />
+                        <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding UseFewerResourcesInTray}" AutomationProperties.AutomationId="UseFewerResourcesInTray">
+                            <TextBlock Text="Use fewer resources in the tray" />
+                        </CheckBox>
+                        <TextBlock Style="{StaticResource Explain}" Text="Minimise WoWBoxer with the – button. Your layout, Offhand workspace and hover setting stay active. Double-click the tray icon to reopen." />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding Animations}"><TextBlock Text="Animations" /></CheckBox>
                         <TextBlock Style="{StaticResource Explain}" Text="Windows glide into place on the map, and waiting slots pulse. Turn off for a calmer screen." />
                         <CheckBox Style="{StaticResource Setting}" IsChecked="{Binding StartPlacingOnOpen}" AutomationProperties.AutomationId="StartPlacingOnOpen"><TextBlock Text="Start placing windows when the app opens" /></CheckBox>

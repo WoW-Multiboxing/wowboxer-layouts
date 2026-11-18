@@ -15,6 +15,7 @@ public static class Sandbox
 
     private static readonly object Gate = new();
     private static readonly Dictionary<nint, (WindowInfo Info, PixelRect Rect, bool Topmost)> Windows = [];
+    private static long _windowGeneration;
     private static IReadOnlyList<MonitorInfo> _monitors = [];
 
     public static bool Active { get; private set; }
@@ -49,7 +50,7 @@ public static class Sandbox
             {
                 var h = (nint)(FirstHandle + i + 1);
                 var rect = new PixelRect(100 + 30 * i, 100 + 30 * i, 1280, 800);
-                var info = new WindowInfo(h, (uint)(9000 + i), "WowClassic", "waApplication Window", "World of Warcraft", rect, 0) { ExePath = GameExe };
+                var info = new WindowInfo(h, (uint)(9000 + i), "WowClassic", "waApplication Window", "World of Warcraft", rect, 0) { ExePath = GameExe, ProcessStartedUtc = DateTime.UnixEpoch.AddTicks(++_windowGeneration) };
                 Windows[h] = (info, rect, false);
             }
         }
@@ -63,6 +64,11 @@ public static class Sandbox
     internal static List<WindowInfo> GameWindows()
     {
         lock (Gate) return Windows.OrderBy(w => w.Key).Select(w => w.Value.Info with { Rect = w.Value.Rect }).ToList();
+    }
+
+    internal static bool IsSameWindow(WindowInfo window)
+    {
+        lock (Gate) return Windows.TryGetValue(window.Handle, out var w) && w.Info.Pid == window.Pid && w.Info.ProcessStartedUtc == window.ProcessStartedUtc;
     }
 
     internal static PixelRect RectOf(nint h)

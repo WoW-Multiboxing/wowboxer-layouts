@@ -10,16 +10,22 @@ public sealed class SquadPlan
     public IReadOnlyList<PlacedSlot> Slots { get; }
     /// <summary>Only this game's windows are placed (from the layout).</summary>
     public WowGame Game => Profile.GameOrDefault;
-    public bool ToolIsAdmin { get; } = ProcessInfo.CurrentElevation() == Elevation.Elevated;
+    public bool ToolIsAdmin { get; } = !Sandbox.Active && ProcessInfo.CurrentElevation() == Elevation.Elevated;
     /// <summary>Retitle placed windows "WoW - Name" for slots that have a name.</summary>
     public bool Rename { get; }
 
-    public SquadPlan(LayoutProfile profile, IReadOnlyList<MonitorInfo> monitors, bool rename)
+    private readonly Func<nint, bool>? _offhand;
+
+    /// <summary>An Offhand window keeps its assigned slot while normal layout placement is suspended for it.</summary>
+    public bool CanPlace(nint window) => _offhand?.Invoke(window) != true;
+
+    public SquadPlan(LayoutProfile profile, IReadOnlyList<MonitorInfo> monitors, bool rename, Func<nint, bool>? offhand = null)
     {
         Profile = profile;
         Monitors = monitors;
         Slots = LayoutEngine.Resolve(profile, monitors);
         Rename = rename;
+        _offhand = offhand;
     }
 
     public static SquadPlan ForCurrentMonitors(LayoutProfile profile, bool rename)

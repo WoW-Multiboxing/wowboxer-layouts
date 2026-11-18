@@ -59,7 +59,7 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _loaded;   // opening the app never moves windows; only edits do
     private readonly ClientLauncher _launcher = new();
     private readonly SlotKeeper _keeper = new();   // which open window sits in which slot (always watching)
-    private bool _paused, _stepping;
+    private bool _paused;
     private DateTime _openingUntil;                // after "Open N WoW clients": the button says "Awaiting clients" until then
 
     /// <param name="paused">Open stopped: no window is placed until Start.</param>
@@ -135,6 +135,7 @@ public sealed partial class MainViewModel : ObservableObject
         FixUiScaleCommand = new RelayCommand(FixUiScale, () => Current is not null);
         ResetUiScaleCommand = new RelayCommand(ResetUiScale, () => UiScaleNow.Use);
 
+        InitializeOffhand();
         RefreshMonitors();
         LoadProfiles();
         RefreshWindows();
@@ -157,7 +158,7 @@ public sealed partial class MainViewModel : ObservableObject
     private IReadOnlyList<(nint Handle, ZOrder Z)> WantedZOrder()
     {
         if (Placed is not { } placed || _paused) return [];
-        return Windows.Where(w => w.Slot - 1 < placed.Slots.Count).Select(w => (w.Window.Handle, placed.Slots[w.Slot - 1].Z)).ToList();
+        return Windows.Where(w => w.Slot - 1 < placed.Slots.Count && WindowFinder.StillOwnedBy(w.Window) && !_offhand.IsManaging(w.Window.Handle)).Select(w => (w.Window.Handle, placed.Slots[w.Slot - 1].Z)).ToList();
     }
 
     /// <summary>The guard gave up on a window: another program keeps changing its "on top" (#help 2026-11-10, Altsy).</summary>
@@ -892,6 +893,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (monitors.SequenceEqual(Monitors)) return;
         var first = Monitors.Count == 0;
         Monitors = monitors;
+        RefreshOffhandDisplays();
         OnPropertyChanged(nameof(MonitorSummary));
         OnPropertyChanged(nameof(ShowMonitors));
         _monitorCounts = null;
@@ -1325,6 +1327,12 @@ public sealed partial class MainViewModel : ObservableObject
         set => SetSetting(() => _settings.RenameWindows = value);
     }
 
+    public bool UseFewerResourcesInTray
+    {
+        get => _settings.UseFewerResourcesInTray;
+        set => SetSetting(() => _settings.UseFewerResourcesInTray = value);
+    }
+
     public bool Animations
     {
         get => _settings.Animations;
@@ -1419,7 +1427,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     private string? _squadExe;   // a client exe of the install the squad follows (null: no squad window open)
     private readonly HashSet<string> _included = new(StringComparer.OrdinalIgnoreCase);   // other installs the user let in
-    private readonly Dictionary<uint, DateTime> _startTimes = [];
     private List<string> _ignoredInstalls = [];
     private bool _firstSync = true;
     private string? _squadInstall;   // the install folder the squad follows (to notice when it changes)
@@ -1442,12 +1449,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     private static string InstallOf(WindowInfo w) => Path.GetDirectoryName(w.ExePath) ?? "";
 
-    private DateTime StartedAt(uint pid)
-    {
-        if (!_startTimes.TryGetValue(pid, out var t)) _startTimes[pid] = t = ProcessInfo.StartTime(pid) ?? DateTime.MaxValue;
-        return t;
-    }
-
     private void Include()
     {
         foreach (var install in _ignoredInstalls) _included.Add(install);
@@ -1460,13 +1461,15 @@ public sealed partial class MainViewModel : ObservableObject
     /// each squad window keeps its slot, a new one takes the slot it already sits in or the next free one. Windows of
     /// other installs are left alone. Placing happens in <see cref="Tick"/> (not while paused).
     /// </summary>
-    public void RefreshWindows()
+    public void RefreshWindows() => RefreshWindows(updateView: true);
+
+    private void RefreshWindows(bool updateView)
     {
         if (Current is null) return;
         var all = WindowFinder.FindGameWindows();
-        var install = GameDetection.SquadInstall(all.Select(w => (InstallOf(w), StartedAt(w.Pid))), _squadInstall);
+        var install = GameDetection.SquadInstall(all.Select(w => (InstallOf(w), w.ProcessStartedUtc ?? DateTime.MaxValue)), _squadInstall);
         bool InSquad(WindowInfo w) => string.Equals(InstallOf(w), install, StringComparison.OrdinalIgnoreCase) || _included.Contains(InstallOf(w));
-        var squad = all.Where(InSquad).OrderBy(w => StartedAt(w.Pid)).ToList();
+        var squad = all.Where(InSquad).OrderBy(w => w.ProcessStartedUtc ?? DateTime.MaxValue).ToList();
         var ignored = all.Where(w => !InSquad(w)).ToList();
 
         var exe = squad.FirstOrDefault(w => string.Equals(InstallOf(w), install, StringComparison.OrdinalIgnoreCase))?.ExePath;
@@ -1482,7 +1485,6 @@ public sealed partial class MainViewModel : ObservableObject
         _squadExe = exe ?? _squadExe;
 
         _ignoredInstalls = ignored.Select(InstallOf).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        IgnoredText = string.Join(" · ", ignored.GroupBy(w => w.Game).Select(g => $"{g.Count()} {GameDetection.DisplayName(g.Key)} window{(g.Count() == 1 ? "" : "s")} ignored"));
 
         var switched = install is not null && _squadInstall is not null && !string.Equals(install, _squadInstall, StringComparison.OrdinalIgnoreCase);
         _squadInstall = install ?? _squadInstall;
@@ -1504,24 +1506,34 @@ public sealed partial class MainViewModel : ObservableObject
         }
         if (_firstSync) AfterFirstSwapSync();
         _firstSync = false;
-        var extra = squad.Where(w => !_keeper.Slots.ContainsKey(w.Handle)).ToList();
-        ExtraText = extra.Count == 0 ? ""
-            : string.Join(" · ", extra.GroupBy(w => w.Game).Select(g => $"{g.Count()} extra {GameDetection.DisplayName(g.Key)} window{(g.Count() == 1 ? "" : "s")}"))
-              + $" left as {(extra.Count == 1 ? "it is" : "they are")} – more windows than slots";
-        OnPropertyChanged(nameof(IgnoredText));
-        OnPropertyChanged(nameof(ExtraText));
+        if (updateView)
+        {
+            IgnoredText = string.Join(" · ", ignored.GroupBy(w => w.Game).Select(g => $"{g.Count()} {GameDetection.DisplayName(g.Key)} window{(g.Count() == 1 ? "" : "s")} ignored"));
+            var extra = squad.Where(w => !_keeper.Slots.ContainsKey(w.Handle)).ToList();
+            ExtraText = extra.Count == 0 ? ""
+                : string.Join(" · ", extra.GroupBy(w => w.Game).Select(g => $"{g.Count()} extra {GameDetection.DisplayName(g.Key)} window{(g.Count() == 1 ? "" : "s")}"))
+                  + $" left as {(extra.Count == 1 ? "it is" : "they are")} – more windows than slots";
+            OnPropertyChanged(nameof(IgnoredText));
+            OnPropertyChanged(nameof(ExtraText));
+        }
 
         var byHandle = squad.ToDictionary(w => w.Handle);
-        var mapping = _keeper.Slots.Where(kv => byHandle.ContainsKey(kv.Key)).OrderBy(kv => kv.Value).Select(kv => (kv.Key, kv.Value + 1)).ToList();
-        if (!mapping.SequenceEqual(Windows.Select(w => (w.Window.Handle, w.Slot))))
+        var mapping = _keeper.Slots.Where(kv => byHandle.ContainsKey(kv.Key)).OrderBy(kv => kv.Value)
+            .Select(kv => (Window: byHandle[kv.Key], Slot: kv.Value + 1)).ToList();
+        if (!mapping.Select(w => (w.Window.Handle, w.Window.Pid, w.Window.ProcessStartedUtc, w.Slot))
+            .SequenceEqual(Windows.Select(w => (w.Window.Handle, w.Window.Pid, w.Window.ProcessStartedUtc, w.Slot))))
         {
             Windows.Clear();
-            foreach (var (h, slot) in mapping) Windows.Add(new GameWindowItem(byHandle[h]) { Slot = slot });
+            foreach (var (window, slot) in mapping) Windows.Add(new GameWindowItem(window) { Slot = slot });
             CommandManager.InvalidateRequerySuggested();
             Sound.Now();   // a new or closed window: who plays may change
         }
         if (added.Count > 0) ApplyOnTop();
-        UpdatePartyWindows();
+        if (updateView)
+        {
+            RefreshOffhandClients(all);
+            UpdatePartyWindows();
+        }
     }
 
     /// <summary>The slot a window already sits in exactly (so windows arranged earlier keep their places), or -1.</summary>
@@ -1534,20 +1546,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     private GameWindowItem? WindowAt(int index) => Windows.FirstOrDefault(w => w.Slot == index + 1);
 
+    private long _nextTrayScan;
+
     /// <summary>
     /// Called every second while the app runs (also in the tray): new windows get their slot and are placed, "on top"
     /// stays right, and when the last client of the install closes, Auto-fit may set the UI Scale.
     /// </summary>
-    public void Tick()
+    public void Tick(bool windowVisible = true)
     {
         Hover.Refresh();   // the Windows setting may change outside the app
-        Sound.Tick();
-        if (!Busy) RefreshWindows();
+        Sound.Tick(refreshHint: windowVisible);
+        // Poll for new clients less often in the tray once placement has settled. The audio, hover,
+        // hotkey and z-order handlers remain active, and explicit client launches stay responsive.
+        var now = Environment.TickCount64;
+        var scan = windowVisible || now >= _nextTrayScan || Opening || (!_paused && _keeper.Slots.Keys.Any(_keeper.IsSettling));
+        if (scan && !Busy) RefreshWindows(updateView: windowVisible);
         if (!_paused)
         {
             _guard?.Reassert();   // safety net next to the event hooks
-            if (!_stepping && !Busy && Plan() is { } plan) _ = StepAsync(plan);
+            if (scan && !Busy && Plan() is { } plan) _ = StepAsync(plan);
         }
+        if (!scan) return;
+        _nextTrayScan = now + 5000;
         var running = RunningClientsNow();
         if (running == 0 && _lastRunning > 0) AutoFitUiScale("the last client closed");
         _lastRunning = running;
@@ -1560,21 +1580,22 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task StepAsync(SquadPlan plan)
     {
-        _stepping = true;
+        // Offhand must capture a settled window, including the second half of any pending resize nudge.
+        if (!_liveLock.Wait(0)) return;
         try
         {
             await _keeper.StepAsync(plan, Status);
         }
         finally
         {
-            _stepping = false;
+            _liveLock.Release();
         }
     }
 
     // ---------- status and the one button ----------
 
     /// <summary>Slots whose window is open and in place.</summary>
-    public int ConnectedCount => Party.Count(p => p.State == PartyState.Connected);
+    public int ConnectedCount => Party.Count(p => p.State is PartyState.Connected or PartyState.Offhand);
 
     /// <summary>Slots without a window yet.</summary>
     public int Missing => Current is null ? 0 : Math.Max(0, Current.Slots.Count - Windows.Count);
@@ -1794,6 +1815,7 @@ public sealed partial class MainViewModel : ObservableObject
             var w = WindowAt(i);
             Party[i].Window = w is null ? "No window yet" : $"{w.Process} · {w.Detail}";
             Party[i].State = w is null ? PartyState.Awaiting
+                : _offhand.IsManaging(w.Window.Handle) ? PartyState.Offhand
                 : i < placed.Count && WindowPlacer.IsAt(w.Window.Handle, placed[i].Rect) ? PartyState.Connected
                 : !_paused && _keeper.IsSettling(w.Window.Handle) ? PartyState.Placing
                 : PartyState.Moved;
@@ -1928,7 +1950,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Placed is not { } placed) return null;
         RefreshMonitors();
-        return _lastPlan = new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }));
+        return _lastPlan = new SquadPlan(placed, Monitors, RenameWindows && placed.Slots.Any(s => s.Name is { Length: > 0 }), _offhand.IsManaging);
     }
 
     /// <summary>The last plan made (for messages from other threads).</summary>
@@ -1936,16 +1958,22 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>The open squad windows with their slot index (slots without a window are left out).</summary>
     private List<(WindowInfo Window, int Slot)> Placements() =>
-        Windows.Where(w => WindowFinder.Exists(w.Window.Handle)).Select(w => (w.Window, w.Slot - 1)).ToList();
+        Windows.Where(w => WindowFinder.StillOwnedBy(w.Window) && !_offhand.IsManaging(w.Window.Handle)).Select(w => (w.Window, w.Slot - 1)).ToList();
 
     /// <summary>"Re-arrange": snaps every open squad window back into its slot.</summary>
     private async Task ArrangeAsync()
     {
+        if (Busy) return;   // layout shortcuts can call this even when the command button is disabled
         ResetSwap(quiet: true);   // Re-arrange = every client back in its home slot
         _guard?.Resume();
         if (Plan() is not { } plan) return;
         RefreshWindows();
         var placements = Placements();
+        if (placements.Count == 0 && _offhand.ActiveWindow is not null)
+        {
+            Status.Info("No other squad windows to arrange while Offhand is active.");
+            return;
+        }
         Busy = true;
         try
         {
@@ -1989,10 +2017,11 @@ public sealed partial class MainViewModel : ObservableObject
         {
             await Task.Delay(350, cancel);
             if (Windows.Count == 0 || Plan() is not { } plan) return;
-            var placements = Placements();
             await _liveLock.WaitAsync(cancel);
             try
             {
+                var placements = Placements();
+                if (placements.Count == 0) return;
                 var quiet = new QuietSink(Status);
                 var ok = await Task.Run(() => Arranger.ArrangeAsync(plan, placements, quiet, cancel), cancel);
                 if (ok) Status.Ok($"Moved {placements.Count} WoW window(s) to \"{plan.Profile.Name}\".");
@@ -2034,7 +2063,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void RestoreFrames()
     {
-        var open = Windows.Select(w => w.Window).ToList();
+        var open = Windows.Select(w => w.Window).Where(w => WindowFinder.StillOwnedBy(w) && !_offhand.IsManaging(w.Handle)).ToList();
         foreach (var w in open) WindowPlacer.RestoreFrame(w.Handle);
         Status.Info($"Gave {open.Count} WoW window(s) their title bars back.");
     }

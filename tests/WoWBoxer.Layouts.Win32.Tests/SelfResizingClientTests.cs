@@ -82,6 +82,28 @@ public class SelfResizingClientTests
         Assert.Equal(home, windows.Select(WindowFinder.VisibleRectOf));
     }
 
+    [Fact]
+    public async Task Offhand_window_keeps_its_slot_while_the_other_clients_are_placed()
+    {
+        var (home, keeper, windows) = Squad(minAspect: 1.25);
+        nint selected = windows[1];
+        var plan = new SquadPlan(home.Profile, Sandbox.Monitors, rename: false, offhand: h => h == selected);
+        var span = new PixelRect(-1920, 0, 4480, 1080);
+        WindowPlacer.Place(selected, span, borderless: true);
+        keeper.Settle();
+        await keeper.StepAsync(plan, new QuietSink());
+
+        Assert.Equal(windows[1], keeper.WindowIn(1));
+        Assert.Equal(span, WindowFinder.VisibleRectOf(windows[1]));
+        Assert.Equal(plan.Slots[0].Rect, WindowFinder.VisibleRectOf(windows[0]));
+        Assert.Equal(plan.Slots[2].Rect, WindowFinder.VisibleRectOf(windows[2]));
+        Assert.True(keeper.AllLanded(plan));
+
+        selected = 0;  // restoring releases this one window back to normal placement
+        await keeper.StepAsync(plan, new QuietSink());
+        Assert.Equal(plan.Slots[1].Rect, WindowFinder.VisibleRectOf(windows[1]));
+    }
+
     private sealed class QuietSink : IStatusSink
     {
         public void Report(StatusLevel level, string message) { }

@@ -48,6 +48,21 @@ Uninstall from Windows Settings → Apps. Your layouts stay in `%APPDATA%\WoWBox
 > (we have applied for free signing from SignPath Foundation, see [code signing](docs/code-signing-policy.md)).
 > Click *More info* → *Run anyway*, or check the file against `SHA256SUMS.txt` first.
 
+## Offhand on one WoW client
+
+Set the main client to **Windowed** in WoW. Open **Settings** in WoWBoxer and find **Offhand**. Pick the running client by its title and process ID, then choose its main display and an adjacent display for the addon. The two displays can be any suitable pair in a larger desktop. Expand the selected window after arranging your clients.
+
+For three clients on two side-by-side displays, give the main client the first display and choose **50%** of the second display for Offhand. In the custom layout, stack the other two clients in the outer half of the second display. On two equal-width displays, this gives Offhand one third of the expanded window. The remaining displays stay available.
+
+Enable the Offhand addon for the main character. In that client, run `/offhand wizard`, choose manual setup and use the Mainhand side and seam shown in WoWBoxer. You can then place your map or other supported panels in the Offhand area. Close the standalone Companion while using this feature so that only WoWBoxer places the game windows. To go back to the previous window size, use the restore control in the Offhand section. After relaunching WoW, select the new running client. [Offhand addon and manual setup](https://github.com/N4UX-GIT/Offhand-DualMonitor#manual-setup-no-companion-app)
+
+## Minimize while playing
+
+Use the minimize button to keep WoWBoxer in the Windows notification area. Low-resource mode is on by default.
+The app refreshes hidden UI less often. Active features such as hover to activate, client placement, Offhand and
+configured hotkeys continue working. Double-click the tray icon to reopen the window. **Quit** exits the app and
+applies your configured exit behavior for hover to activate.
+
 ## Using it
 
 - **Setup** – how many clients (1–10; 6–10 = two parties), a layout card (Main + side, Overlays, Grid,

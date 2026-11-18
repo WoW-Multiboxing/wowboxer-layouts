@@ -28,10 +28,18 @@ jobs:
         run: dotnet restore WoWBoxer.Layouts.slnx
 
       - name: Build
+        id: compile
         run: dotnet build WoWBoxer.Layouts.slnx -c Release --no-restore
 
       - name: Test
         run: dotnet test WoWBoxer.Layouts.slnx -c Release --no-build --logger "trx;LogFileName=results.trx" --results-directory TestResults
+
+      - name: Extend and restore one of two Offhand test windows
+        run: dotnet run --project tools/offhand-check -c Release
+
+      - name: Minimize to tray, place a new demo client and restore
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: dotnet run --project tools/tray-check -c Release -- --demo
 
       - name: Start-up check (the app opens its main window)
         shell: pwsh

@@ -10,6 +10,8 @@ public sealed record WindowInfo(nint Handle, uint Pid, string ProcessName, strin
 {
     /// <summary>Full path of the client exe ("" if Windows does not tell us).</summary>
     public string ExePath { get; init; } = "";
+    /// <summary>Process creation time when the window was listed, used to detect reused PIDs.</summary>
+    public DateTime? ProcessStartedUtc { get; init; }
     /// <summary>Which WoW game the window belongs to, from its install folder.</summary>
     public WowGame Game => GameDetection.GameOf(ExePath);
 }
@@ -74,7 +76,7 @@ public static unsafe class WindowFinder
             }
         }
 
-        var found = new List<(WindowInfo Window, DateTime Start)>();
+        var found = new List<WindowInfo>();
         var self = (uint)Environment.ProcessId;
         foreach (var h in TopWindows())
         {
@@ -86,15 +88,15 @@ public static unsafe class WindowFinder
             if (!gx && (rect.Width < MinWidth || rect.Height < MinHeight)) continue;
             var info = Describe(h);
             if (game is { } g && info.Game != g) continue;
-            found.Add((info, ProcessInfo.StartTime(pid) ?? DateTime.MaxValue));
+            found.Add(info);
         }
-        return found.OrderBy(f => f.Start).ThenBy(f => f.Window.Handle).Select(f => f.Window).ToList();
+        return found.OrderBy(w => w.ProcessStartedUtc ?? DateTime.MaxValue).ThenBy(w => w.Handle).ToList();
     }
 
     public static WindowInfo Describe(nint h)
     {
         var pid = PidOf(h);
-        return new WindowInfo(h, pid, ProcessInfo.Name(pid), ClassOf(h), TitleOf(h), RectOf(h), GetWindowLong(h, GWL_STYLE)) { ExePath = ProcessInfo.ImagePath(pid) };
+        return new WindowInfo(h, pid, ProcessInfo.Name(pid), ClassOf(h), TitleOf(h), RectOf(h), GetWindowLong(h, GWL_STYLE)) { ExePath = ProcessInfo.ImagePath(pid), ProcessStartedUtc = ProcessInfo.StartTime(pid) };
     }
 
     public static uint PidOf(nint h)
@@ -126,6 +128,10 @@ public static unsafe class WindowFinder
     /// <summary>The window as the user sees it (no invisible resize borders). Falls back to <see cref="RectOf"/>.</summary>
     public static unsafe PixelRect VisibleRectOf(nint h) => Sandbox.Active ? Sandbox.RectOf(h) :
         DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, out var r, sizeof(RECT)) == 0 ? MonitorReader.ToRect(r) : RectOf(h);
+
+    /// <summary>Check the window still belongs to the process seen on the last discovery pass.</summary>
+    public static bool StillOwnedBy(WindowInfo window) =>
+        Sandbox.Active ? Sandbox.IsSameWindow(window) : window.Pid != 0 && PidOf(window.Handle) == window.Pid;
 
     public static bool Exists(nint h) => Sandbox.Active ? Sandbox.IsFake(h) : IsWindow(h);
 }

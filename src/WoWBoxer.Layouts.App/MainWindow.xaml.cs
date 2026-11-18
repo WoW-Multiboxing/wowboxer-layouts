@@ -45,19 +45,39 @@ public partial class MainWindow : Window, IUserDialogs
         ViewModel.Status.Info("Ready. This app only moves and resizes windows – it never sends keys or clicks to the game.");
 
         // The activity log shows its newest line. Scroll after the list has processed the change (re-entrant otherwise).
+        void ScrollActivity()
+        {
+            if (StatusList.IsVisible && StatusList.Items.Count > 0)
+                StatusList.ScrollIntoView(StatusList.Items[^1]);
+        }
+        StatusList.IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true) Dispatcher.BeginInvoke(DispatcherPriority.Background, ScrollActivity);
+        };
         ((System.Collections.Specialized.INotifyCollectionChanged)ViewModel.Status.Lines).CollectionChanged += (_, _) =>
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
-            {
-                if (StatusList.Items.Count > 0) StatusList.ScrollIntoView(StatusList.Items[^1]);
-            });
+        {
+            if (StatusList.IsVisible) Dispatcher.BeginInvoke(DispatcherPriority.Background, ScrollActivity);
+        };
 
         // While started: new windows go to their slot, rows, statuses, "on top" and Auto-fit follow what happens while
         // the app runs, also in the tray. Skipped while a squad row is dragged.
+        bool ReducedTick() => ViewModel.UseFewerResourcesInTray && (!IsVisible || WindowState == WindowState.Minimized);
+        bool wasReduced = false;
         var live = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         live.Tick += (_, _) =>
         {
-            if (!Views.SetupView.Dragging) ViewModel.Tick();
+            if (Views.SetupView.Dragging) return;
+            wasReduced = ReducedTick();
+            ViewModel.Tick(windowVisible: !wasReduced);
         };
+        void RefreshOnReturn()
+        {
+            if (!wasReduced || ReducedTick()) return;
+            wasReduced = false;
+            ViewModel.Tick();
+        }
+        IsVisibleChanged += (_, _) => RefreshOnReturn();
+        StateChanged += (_, _) => RefreshOnReturn();
         live.Start();
         Closed += (_, _) => live.Stop();
     }

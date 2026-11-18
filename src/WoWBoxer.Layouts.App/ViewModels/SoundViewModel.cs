@@ -139,12 +139,12 @@ public sealed class SoundViewModel : ObservableObject
     }
 
     /// <summary>Every second (from the app's tick): new sessions, closed clients, the Sound in Background hint.</summary>
-    public void Tick()
+    public void Tick(bool refreshHint = true)
     {
         if (Enabled) Now();
         else if (_settings.SoundOriginals.Count > 0 && Mixer() is { } m && _follower.RestorePending(m, ProcessInfo.ImagePath) > 0)
             _status.Info("Sound: a WoW client got its own volume back (it was closed while WoWBoxer had turned it down).");
-        if (DateTime.UtcNow - _wowReadAt > TimeSpan.FromSeconds(10)) ReadWow(_squad().Exe);
+        if (refreshHint && DateTime.UtcNow - _wowReadAt > TimeSpan.FromSeconds(10)) ReadWow(_squad().Exe);
     }
 
     /// <summary>At once: after a swap, Re-arrange, a canvas swap, a new or closed window.</summary>

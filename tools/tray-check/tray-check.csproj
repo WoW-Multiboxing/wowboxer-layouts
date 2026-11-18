@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <DisableWinExeOutputInference>true</DisableWinExeOutputInference>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Compile Include="../SmokeFailure.cs" Link="SmokeFailure.cs" />
+    <ProjectReference Include="../../src/WoWBoxer.Layouts.App/WoWBoxer.Layouts.App.csproj" />
+  </ItemGroup>
+</Project>

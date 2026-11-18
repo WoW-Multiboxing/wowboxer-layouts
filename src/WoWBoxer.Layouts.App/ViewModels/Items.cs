@@ -54,7 +54,7 @@ public sealed record MonitorChoice(IReadOnlyList<MonitorInfo> Screens, string Ti
 }
 
 /// <summary>A slot's window: none yet (Awaiting), being placed (first 30 s), in its slot (Connected), or moved out of it.</summary>
-public enum PartyState { Awaiting, Placing, Connected, Moved }
+public enum PartyState { Awaiting, Placing, Connected, Moved, Offhand }
 
 /// <summary>
 /// One slot of the squad ("Your squad" panel on Setup): the character (name, class – set by hand, never guessed), the WoW account
@@ -228,6 +228,7 @@ public sealed class PartyMember : ObservableObject
     public string StateText => State switch
     {
         PartyState.Connected => "Connected",
+        PartyState.Offhand => "Offhand",
         PartyState.Placing => "Placing…",
         PartyState.Moved => "Moved",
         _ => "Awaiting…",
@@ -236,6 +237,7 @@ public sealed class PartyMember : ObservableObject
     public string StateTip => State switch
     {
         PartyState.Connected => "The window is open and in its slot",
+        PartyState.Offhand => "This window is using the Offhand monitors. Its squad slot is reserved.",
         PartyState.Placing => "A new window: it is put into its slot while WoW loads",
         PartyState.Moved => "The window left its slot – Re-arrange puts it back",
         _ => "No WoW window in this slot yet – it is placed as soon as one opens",

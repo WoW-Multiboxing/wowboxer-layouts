@@ -7,7 +7,7 @@ namespace WoWBoxer.Layouts.App;
 /// <summary>
 /// "--demo": the app with made-up monitors (2560×1440 primary + 1920×1080), a made-up squad whose windows are all in
 /// place, and its own settings, layouts and logs in a temporary folder. Nothing real is read or changed (see
-/// <see cref="Sandbox"/>), no update check, no network, no tray icon, and it runs next to an open WoWBoxer.
+/// <see cref="Sandbox"/>), no update check, no network, and it runs next to an open WoWBoxer.
 /// Used for the website's screenshots (tools/make-screenshots.ps1).
 /// </summary>
 internal static class Demo

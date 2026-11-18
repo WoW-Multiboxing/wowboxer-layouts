@@ -78,12 +78,8 @@ public partial class App : Application
             System.IO.File.AppendAllText(System.IO.Path.Combine(ViewModels.StatusLog.LogFolder, "app.log"), args.Exception + Environment.NewLine);
             args.Handled = true;
         };
-        _main.StateChanged += (_, _) =>
-        {
-            if (_main.WindowState == WindowState.Minimized) _main.Hide();   // minimise = to the tray
-        };
         _main.Closed += (_, _) => Shutdown();
-        CreateTray();
+        CreateTray(_main);
         if (!startInTray) _main.Show();
         var version = ViewModels.MainViewModel.AppVersion;
         if (!startInTray && WhatsNewWindow.ShouldShow(settings, version))   // a tray start shows it next time
@@ -114,7 +110,7 @@ public partial class App : Application
         return shots is not null || args.Any(a => a.Equals("--demo", StringComparison.OrdinalIgnoreCase)) ? (true, shots) : null;
     }
 
-    /// <summary>Demo mode: its own temporary settings, no single-instance lock, tray, update check or network.</summary>
+    /// <summary>Demo mode: temporary settings, no single-instance lock, update check or network. Interactive demos include the tray.</summary>
     private async void StartDemo(string? shots)
     {
         Demo.Rendering = shots is not null;
@@ -122,6 +118,7 @@ public partial class App : Application
         _main.Closed += (_, _) => Shutdown();
         if (shots is null)
         {
+            CreateTray(_main);
             _main.Show();
             return;
         }
@@ -214,14 +211,18 @@ public partial class App : Application
         }
     }
 
-    private void CreateTray()
+    private void CreateTray(MainWindow window)
     {
+        window.StateChanged += (_, _) =>
+        {
+            if (window.WindowState == WindowState.Minimized) window.Hide();
+        };
         var menu = TrayMenu();
         using var stream = GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"))!.Stream;
         _tray = new Forms.NotifyIcon
         {
             Icon = new System.Drawing.Icon(stream),
-            Text = AppFlavor.Name,
+            Text = Demo.On ? AppFlavor.Name + " (demo)" : AppFlavor.Name,
             ContextMenuStrip = menu,
             Visible = true,
         };
@@ -260,7 +261,11 @@ public partial class App : Application
             homeItem.Visible = swapOffItem.Visible = _main.ViewModel.SwapHotkeysEnabled;
             homeItem.Enabled = _main.ViewModel.IsSwapped;
         }
-        menu.Opening += (_, _) => UpdateItems();
+        menu.Opening += (_, _) =>
+        {
+            if (_main is { ViewModel.Busy: false }) _main.ViewModel.RefreshWindows();
+            UpdateItems();
+        };
         if (_main is not null) UpdateItems();
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Report a problem…", null, (_, _) =>
@@ -291,6 +296,7 @@ public partial class App : Application
     {
         if (!Updater.RestartingForUpdate) _main?.ViewModel.Hover.OnAppExit();   // hover off (or the user's own values) on quit
         _main?.ViewModel.Sound.OnAppExit();   // every WoW client's own mixer volume back (also before an update restart)
+        _main?.ViewModel.RestoreOffhandOnExit();
         _main?.ViewModel.DisposeHotkeys();
         if (_tray is not null)
         {

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Expand one selected WoW client onto part or all of a neighbouring monitor for the Offhand addon. Select the client and both displays in Settings, then use the displayed seam to calibrate the addon. Other clients keep their WoWBoxer slots.
+- Minimize to the notification area to reduce background work while your active layout, hover-to-activate setting and other enabled features keep working.
+
 ## v0.7.2-beta.1 – Window swap fixed on Forever, sound follows the main window (unreleased)
 **Beta channel only.**
 

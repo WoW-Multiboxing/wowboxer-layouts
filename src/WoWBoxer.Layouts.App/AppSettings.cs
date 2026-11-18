@@ -25,6 +25,7 @@ public sealed class AppSettings
     /// <summary>Start placing windows when the app opens. Off: it opens stopped and leaves every window alone until Start.</summary>
     public bool StartPlacingOnOpen { get; set; }
     public bool Animations { get; set; } = true;
+    public bool UseFewerResourcesInTray { get; set; } = true;
     public string LastTab { get; set; } = "Setup";
     public string? BattleNetExe { get; set; }
     /// <summary>The last used WoW client exe (any install); updated from the open clients, found automatically when empty.</summary>

@@ -57,6 +57,11 @@ public static class Diagnostics
         for (var i = 0; i < n; i++)
         {
             var h = open[i].Handle;
+            if (!plan.CanPlace(h))
+            {
+                log.Info($"  pid {open[i].Pid}: Offhand window, test move skipped.");
+                continue;
+            }
             var target = plan.Slots[i].Rect;
             var before = WindowFinder.VisibleRectOf(h);
             if (plan.Profile.Options.Borderless) WindowPlacer.MakeBorderless(h);

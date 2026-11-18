@@ -77,7 +77,7 @@
                             </StackPanel>
 
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True">
-                                <Button Style="{StaticResource CaptionButton}" Click="OnMinimize" ToolTip="Minimise to the tray">
+                                <Button Style="{StaticResource CaptionButton}" Click="OnMinimize" AutomationProperties.AutomationId="MinimizeToTray" AutomationProperties.Name="Minimise to tray" ToolTip="Minimise to the tray and keep settings active">
                                     <Path Data="M0,0 H10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" />
                                 </Button>
                                 <Button Style="{StaticResource CaptionButton}" Click="OnMaximize" ToolTip="Maximise / restore">
@@ -96,15 +96,19 @@
                                         <Style TargetType="Ellipse">
                                             <Setter Property="Fill" Value="{StaticResource OkBrush}" />
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding SquadState}" Value="Awaiting">
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding SquadState}" Value="Awaiting" />
+                                                        <Condition Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                    </MultiDataTrigger.Conditions>
                                                     <Setter Property="Fill" Value="{StaticResource GoldHiBrush}" />
-                                                    <DataTrigger.EnterActions>
+                                                    <MultiDataTrigger.EnterActions>
                                                         <BeginStoryboard x:Name="Pulse">
                                                             <Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:0.9" AutoReverse="True" RepeatBehavior="Forever" /></Storyboard>
                                                         </BeginStoryboard>
-                                                    </DataTrigger.EnterActions>
-                                                    <DataTrigger.ExitActions><StopStoryboard BeginStoryboardName="Pulse" /></DataTrigger.ExitActions>
-                                                </DataTrigger>
+                                                    </MultiDataTrigger.EnterActions>
+                                                    <MultiDataTrigger.ExitActions><StopStoryboard BeginStoryboardName="Pulse" /></MultiDataTrigger.ExitActions>
+                                                </MultiDataTrigger>
                                                 <DataTrigger Binding="{Binding SquadState}" Value="Moved"><Setter Property="Fill" Value="{StaticResource WarnBrush}" /></DataTrigger>
                                                 <DataTrigger Binding="{Binding SquadState}" Value="Paused"><Setter Property="Fill" Value="{StaticResource MutedBrush}" /></DataTrigger>
                                             </Style.Triggers>

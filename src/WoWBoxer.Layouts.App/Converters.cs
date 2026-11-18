@@ -80,7 +80,7 @@ public sealed class PartyStateBrush : IValueConverter
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value switch
     {
-        ViewModels.PartyState.Connected => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8C, 0xCB, 0x7A)),
+        ViewModels.PartyState.Connected or ViewModels.PartyState.Offhand => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8C, 0xCB, 0x7A)),
         ViewModels.PartyState.Moved or ViewModels.PartyState.Placing => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE6, 0xB4, 0x55)),
         _ => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA7, 0x9F, 0x8A)),
     };

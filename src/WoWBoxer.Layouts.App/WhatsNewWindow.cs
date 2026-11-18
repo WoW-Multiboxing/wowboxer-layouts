@@ -12,6 +12,10 @@ internal static class WhatsNewWindow
     /// <summary>The newest changes first. Keep it to what a player notices; only the first <see cref="Shown"/> are listed.</summary>
     public static readonly (string Title, string Text)[] Changes =
     [
+        ("Offhand workspace for one client",
+            "In Settings, select a running WoW client, identify it on screen and choose which two displays it spans. Choose a partial workspace to leave room for your other clients."),
+        ("Use fewer resources in the tray",
+            "Minimize WoWBoxer to keep your layout, Offhand window and hover-to-activate setting active while playing. Double-click the tray icon to reopen it."),
         ("Window swap: no more back and forth",
             "One swap at a time: a swap hotkey pressed while the last swap's windows are still moving waits for them. A client that keeps its own window size is left alone after a few tries, and the status bar says which size it keeps and what to change."),
         ("Sound follows the main window (beta)",

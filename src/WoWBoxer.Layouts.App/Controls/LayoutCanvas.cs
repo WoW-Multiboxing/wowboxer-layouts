@@ -170,7 +170,11 @@ public sealed class LayoutCanvas : FrameworkElement
             if (_crownPulseUntil is { } until && DateTime.UtcNow > until) _crownPulseUntil = null;
             UpdatePulse();
         };
-        IsVisibleChanged += (_, _) => UpdatePulse();
+        IsVisibleChanged += (_, _) =>
+        {
+            UpdatePulse();
+            if (!IsVisible) StopAnimation();
+        };
         Unloaded += (_, _) => _pulse.Stop();
     }
 
@@ -230,9 +234,9 @@ public sealed class LayoutCanvas : FrameworkElement
 
     private void StartAnimation()
     {
-        if (!Animate || _dragIndex >= 0 || _shown.Count == 0 || !IsLoaded)
+        if (!Animate || _dragIndex >= 0 || _shown.Count == 0 || !IsVisible || !IsLoaded)
         {
-            _from.Clear();
+            StopAnimation();
             return;
         }
         _from = new Dictionary<int, Rect>(_shown);
@@ -248,10 +252,15 @@ public sealed class LayoutCanvas : FrameworkElement
     {
         InvalidateVisual();
         if (DateTime.UtcNow - _animStart < AnimationTime) return;
+        StopAnimation();
+    }
+
+    private void StopAnimation()
+    {
+        if (!_animating) return;
         CompositionTarget.Rendering -= OnFrame;
         _animating = false;
         _from.Clear();
-        InvalidateVisual();
     }
 
     /// <summary>Where a window is drawn this frame (gliding from its previous place, ease-out cubic).</summary>
@@ -981,6 +990,7 @@ public sealed class LayoutCanvas : FrameworkElement
         var (color, text) = state switch
         {
             ViewModels.PartyState.Connected => (Ok, "CONNECTED"),
+            ViewModels.PartyState.Offhand => (Ok, "OFFHAND"),
             ViewModels.PartyState.Placing => (Amber, "PLACING…"),
             ViewModels.PartyState.Moved => (Amber, "MOVED"),
             _ => (GoldHi, "AWAITING…"),
